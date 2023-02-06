@@ -88,10 +88,6 @@ plot.selectionCallback = function (points) {
 
 #### Encodings
 
-<img src="./assets/iris.png" width=200 alt="iris dataset encoding various attributes">
-
-***checkout the example for [Iris dataset](./app/iris.html)***
-
 These attributes either take a fixed value or an array of values for each data point.
 
 - `color` - color/rgb/hex code
