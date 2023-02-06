@@ -1,0 +1,174 @@
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="description"
+    content="fast and scalable WebGL2 based rendering library for visualizing heatmap like plots.">
+  <meta name="keywords" content="WebGL2, heatmap plot, tsne, umap, WebWorker, OffScreenCanvas">
+  <meta name="author" content="Jayaram Kancherla">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: "Lucida Sans", "Lucida Sans Regular", "Lucida Grande",
+        "Lucida Sans Unicode", Geneva, Verdana, sans-serif;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 40% 60%;
+      grid-template-rows: auto auto auto;
+      gap: 10px;
+    }
+
+    .content {
+      grid-row: 2 / -1;
+      grid-column: 1;
+      padding: 10px;
+    }
+
+    .canvas {
+      grid-row: 2;
+      grid-column: 2;
+      height: 500px;
+      width: 500px;
+      border: 1px solid black;
+      margin: 40px;
+    }
+
+    .header {
+      grid-row: 1;
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 4px;
+    }
+
+    .console {
+      grid-row: 3;
+      grid-column: 2;
+      min-height: 100px;
+      max-height: 175px;
+      overflow-y: auto;
+      margin: 20px;
+      padding: 10px;
+      background-color: gainsboro;
+      line-height: 0.1;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <div class="header">
+      <h4>epiviz.heatmap.gl</h4>
+    </div>
+    <div class="content">
+      <h4>Simple Usage:</h4>
+      <pre>
+        import HeatmapGL from "./index.js";
+
+        # you can either pass in a dom selector or HTMLElement
+        let plot = new HeatmapGL(".canvas");
+
+        # provide input data to the element, 
+        # data must contain x (as `rows`) and y (as `columns`)
+        # you can also provide x and y labels
+        plot.setInput({
+          x: [...],
+          y: [...],
+          xlabels: [],
+          ylabels: [],
+        });
+
+        # render the plot
+        plot.render();
+        </pre>
+
+      <h4>Capture events:</h4>
+      <p>The library provides click, hover (mouseover) and selection events
+        for interactivity with the plot. The default behavior logs the
+        events to the console</p>
+      <pre>
+            plot.hoverCallback = function(point) {
+                # do something when a point is hovered
+                console.log(point);
+            }
+        </pre>
+
+      <h4>Interactions:</h4>
+      <p>currently supports
+      <ul>
+        <li>pan: for pan/zoom operations on canvas</li>
+        <li>box: box selection of data points</li>
+        <li>lasso: lasso selection</li>
+      </ul>
+      </p>
+      <pre>
+            plot.setInteraction("lasso");
+      </pre>
+
+      <p>For more documentation, visit
+        <a href="https://github.com/jkanche/epiviz.heatmap.gl">GitHub</a> repository
+      </p>
+    </div>
+    <div class="canvas">
+      <button class="canvas-pan">pan</button>
+      <button class="canvas-box">box</button>
+      <button class="canvas-lasso">lasso</button>
+    </div>
+    <div class="console">
+      <p>(closest point wrt to mouse)</p>
+    </div>
+  </div>
+  <script type="module">
+    import HeatmapGL from "./index.js";
+    import { data, color, size } from './data.js';
+
+    let plot = new HeatmapGL(".canvas");
+    plot.setInput(data);
+
+    plot.hoverCallback = function (point) {
+      if (point) {
+        if (point.distance <= 1.5) {
+          let tnode = document.createElement("p");
+          tnode.textContent = `Hover (closest point): ${point.indices[0]}`
+          document
+            .querySelector(".console")
+            .prepend(tnode);
+        }
+      }
+    };
+
+    plot.selectionCallback = function (points) {
+      if (points) {
+        let tnode = document.createElement("p");
+        tnode.textContent = `Selection: ${points.selection.indices.length} points`
+        document
+          .querySelector(".console")
+          .prepend(tnode);
+      }
+    };
+
+    plot.setState({
+      "size": size,
+      color,
+      "opacity": 0.7
+    });
+
+    plot.render();
+
+    document.querySelector(".canvas-box").addEventListener("click", () => {
+      plot.setInteraction("box");
+    });
+
+    document.querySelector(".canvas-pan").addEventListener("click", () => {
+      plot.setInteraction("pan");
+    });
+
+    document.querySelector(".canvas-lasso").addEventListener("click", () => {
+      plot.setInteraction("lasso");
+    });
+
+  </script>
+</body>
+
+</html>
