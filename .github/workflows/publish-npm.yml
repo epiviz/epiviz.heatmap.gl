@@ -1,0 +1,39 @@
+on: [push]
+
+# on: [push]
+
+name: Build and publish to NPM
+
+jobs:
+  publish-npm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-node@v2
+        with:
+          node-version: 16
+          registry-url: https://registry.npmjs.org/
+
+      - name: install dependencies
+        run: yarn install
+
+      - name: create builds
+        run: yarn build
+
+      - name: copy build to app
+        run: cp -r dist/* app
+
+      - name: GH Pages Deployment
+        uses: JamesIves/github-pages-deploy-action@4.1.3
+        if: ${{ github.ref == 'refs/heads/master'}}
+        with:
+          branch: gh-pages # The branch the action should deploy to.
+          folder: ./app
+          clean: true # Automatically remove deleted files from the deploy branch
+
+      - name: Publish to NPM
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+        run: npm publish || true
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

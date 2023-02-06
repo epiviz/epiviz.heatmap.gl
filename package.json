@@ -1,0 +1,47 @@
+{
+  "name": "epiviz.heatmap.gl",
+  "version": "0.0.1",
+  "repository": "https://github.com/jkanche/epiviz.heatmap.gl",
+  "homepage": "https://github.com/jkanche/epiviz.heatmap.gl",
+  "author": {
+    "name": "Jayaram Kancherla",
+    "email": "jayaram.kancherla@gmail.com",
+    "url": "https://www.jkanche.com"
+  },
+  "bugs": "https://github.com/jkanche/epiviz.heatmap.gl/issues",
+  "keywords": [
+    "heatmap plot",
+    "visualization",
+    "webgl",
+    "webworkers"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/ehgl.js",
+  "module": "dist/index.js",
+  "dependencies": {
+    "epiviz.gl": "^1.0.4"
+  },
+  "devDependencies": {
+    "@rollup/plugin-babel": "^5.3.1",
+    "@rollup/plugin-commonjs": "^11.0.1",
+    "@rollup/plugin-json": "^4.1.0",
+    "@rollup/plugin-node-resolve": "^7.0.0",
+    "@surma/rollup-plugin-off-main-thread": "^2.2.3",
+    "gh-pages": "^3.2.3",
+    "rollup": "^1.29.0"
+  },
+  "scripts": {
+    "build": "rollup -c",
+    "dev": "rollup -c -w",
+    "test": "node test/test.js",
+    "pretest": "npm run build",
+    "clean": "rm -rd dist/*",
+    "watchapp": "yarn clean && yarn dev && cp -r dist/* app",
+    "predeploy": "yarn clean && yarn build && cp -r dist/* app",
+    "deploy": "gh-pages -d app"
+  },
+  "files": [
+    "dist"
+  ]
+}
