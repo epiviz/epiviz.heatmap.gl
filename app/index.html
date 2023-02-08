@@ -4,9 +4,10 @@
   <meta charset="UTF-8">
   <meta name="description"
     content="fast and scalable WebGL2 based rendering library for visualizing heatmap like plots.">
-  <meta name="keywords" content="WebGL2, heatmap plot, tsne, umap, WebWorker, OffScreenCanvas">
+  <meta name="keywords" content="WebGL2, heatmap plot, WebWorker, OffScreenCanvas">
   <meta name="author" content="Jayaram Kancherla">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://d3js.org/d3.v4.min.js"></script>
   <style>
     body {
       font-family: "Lucida Sans", "Lucida Sans Regular", "Lucida Grande",
@@ -16,7 +17,7 @@
     .app {
       display: grid;
       grid-template-columns: 40% 60%;
-      grid-template-rows: auto auto auto;
+      grid-template-rows: auto auto auto auto auto auto;
       gap: 10px;
     }
 
@@ -26,11 +27,29 @@
       padding: 10px;
     }
 
-    .canvas {
+    .dotcanvas {
       grid-row: 2;
       grid-column: 2;
-      height: 500px;
-      width: 500px;
+      height: 400px;
+      width: 400px;
+      border: 1px solid black;
+      margin: 40px;
+    }
+
+    .rectcanvas {
+      grid-row: 3;
+      grid-column: 2;
+      height: 400px;
+      width: 400px;
+      border: 1px solid black;
+      margin: 40px;
+    }
+
+    .tickcanvas {
+      grid-row: 4;
+      grid-column: 2;
+      height: 400px;
+      width: 400px;
       border: 1px solid black;
       margin: 40px;
     }
@@ -43,8 +62,8 @@
     }
 
     .console {
-      grid-row: 3;
-      grid-column: 2;
+      grid-row: 5;
+      grid-column: 1 / -1;
       min-height: 100px;
       max-height: 175px;
       overflow-y: auto;
@@ -59,29 +78,43 @@
 <body>
   <div class="app">
     <div class="header">
-      <h4>epiviz.heatmap.gl</h4>
+      <h4>epiviz.heatmap.gl: Quickly render heatmap-like plots</h4>
+      <p>Checkout the <a href="https://github.com/jkanche/epiviz.heatmap.gl">repo (GitHub)</a> here</p>
     </div>
     <div class="content">
       <h4>Simple Usage:</h4>
       <pre>
-        import HeatmapGL from "./index.js";
+        import { DotplotGL, RectplotGL, TickplotGL } from "./index.js";
 
-        # you can either pass in a dom selector or HTMLElement
-        let plot = new HeatmapGL(".canvas");
-
-        # provide input data to the element, 
-        # data must contain x (as `rows`) and y (as `columns`)
-        # you can also provide x and y labels
+        // you can either pass in a dom selector or HTMLElement
+        let plot = new DotplotGL(".canvas");
+      
+        // provide input data to the element, 
+        // data must contain x (as `rows`) and y (as `columns`)
+        // you can also provide x and y labels
         plot.setInput({
           x: [...],
           y: [...],
           xlabels: [],
           ylabels: [],
         });
-
-        # render the plot
+      
+        // render the plot
         plot.render();
-        </pre>
+      </pre>
+
+      <h4>Set Encodings:</h4>
+      <p>These attributes either take a fixed value or an array of values for each data point.
+      <ul>
+        <li>`color` - color/rgb/hex code</li>
+        <li>`size` - size of each dot</li>
+        <li>`opacity` - opacity across the entire plot</li>
+        <li>`xgap` or `ygap` - gap between rows and columns</li>
+      </ul>
+
+      Note: `size` is scaled automatically to fit the plots dimensions.
+
+      </p>
 
       <h4>Capture events:</h4>
       <p>The library provides click, hover (mouseover) and selection events
@@ -106,11 +139,33 @@
             plot.setInteraction("lasso");
       </pre>
 
+      <h4>Tick Plots</h4>
+      <p>Tick plots are extremely fast at quickly rendering large amounts of data. 
+        They are useful for exploring the overall patterns in the dataset. This example renders 
+        the full expression matrix from the <a href="https://satijalab.org/seurat/articles/pbmc3k_tutorial.html">pbmc 3k dataset</a>. 
+      </p>
+      <pre>
+        import * as pbmc from './pbmc.js';
+        let plot3 = new TickplotGL(".tickcanvas");
+        plot3.setInput(pbmc.data);
+        plot3.render();
+      </pre>
+
       <p>For more documentation, visit
         <a href="https://github.com/jkanche/epiviz.heatmap.gl">GitHub</a> repository
       </p>
     </div>
-    <div class="canvas">
+    <div class="dotcanvas">
+      <button class="canvas-pan">pan</button>
+      <button class="canvas-box">box</button>
+      <button class="canvas-lasso">lasso</button>
+    </div>
+    <div class="rectcanvas">
+      <button class="canvas-pan">pan</button>
+      <button class="canvas-box">box</button>
+      <button class="canvas-lasso">lasso</button>
+    </div>
+    <div class="tickcanvas">
       <button class="canvas-pan">pan</button>
       <button class="canvas-box">box</button>
       <button class="canvas-lasso">lasso</button>
@@ -120,10 +175,10 @@
     </div>
   </div>
   <script type="module">
-    import HeatmapGL from "./index.js";
+    import { DotplotGL, RectplotGL, TickplotGL } from "./index.js";
     import { data, color, size } from './data.js';
 
-    let plot = new HeatmapGL(".canvas");
+    let plot = new DotplotGL(".dotcanvas");
     plot.setInput(data);
 
     plot.hoverCallback = function (point) {
@@ -150,8 +205,7 @@
 
     plot.setState({
       "size": size,
-      color,
-      "opacity": 0.7
+      "color": color,
     });
 
     plot.render();
@@ -167,6 +221,47 @@
     document.querySelector(".canvas-lasso").addEventListener("click", () => {
       plot.setInteraction("lasso");
     });
+
+
+    let plot2 = new RectplotGL(".rectcanvas");
+    plot2.setInput(data);
+
+    plot2.hoverCallback = function (point) {
+      if (point) {
+        if (point.distance <= 1.5) {
+          let tnode = document.createElement("p");
+          tnode.textContent = `Hover (closest point): ${point.indices[0]}`
+          document
+            .querySelector(".console")
+            .prepend(tnode);
+        }
+      }
+    };
+
+    plot2.setState({
+      "size": size,
+      "color": color,
+    });
+
+    plot2.render();
+
+    import * as pbmc from './pbmc.js';
+    let plot3 = new TickplotGL(".tickcanvas");
+    plot3.setInput(pbmc.data);
+
+    plot3.hoverCallback = function (point) {
+      if (point) {
+        if (point.distance <= 1.5) {
+          let tnode = document.createElement("p");
+          tnode.textContent = `Hover (closest point): ${point.indices[0]}`
+          document
+            .querySelector(".console")
+            .prepend(tnode);
+        }
+      }
+    };
+
+    plot3.render();
 
   </script>
 </body>

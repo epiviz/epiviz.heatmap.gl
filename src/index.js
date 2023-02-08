@@ -1,3 +1,5 @@
-import HeatmapGL from './HeatmapGL';
+import DotplotGL from './DotplotGL';
+import RectplotGL from './RectplotGL';
+import TickplotGL from './TickplotGL';
 
-export default HeatmapGL;
+export {DotplotGL, RectplotGL, TickplotGL};

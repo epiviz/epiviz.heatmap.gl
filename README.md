@@ -16,7 +16,7 @@ Internally, the library creates two WebWorkers
 package is available through [npm](https://www.npmjs.com/package/epiviz.heatmap.gl)
 
 ```sh
-    npm install epiviz.heatmap.gl
+  npm install epiviz.heatmap.gl
 ```
 
 ### Usage
@@ -24,31 +24,41 @@ package is available through [npm](https://www.npmjs.com/package/epiviz.heatmap.
 - [app/index.html](./app/index.html) provides an easier example and code on how to use the library
 - If you want to use the library in a react app, check usage in [Kana](ww.github.com/jkanche/kana)
 
-#### Simple usage:
+
+### Types of Plots
+
+The library provides three ways of rendering heatmap layout plots.
+- `RectplotGL` - for traditional heatmaps
+- `DotplotGL` - for making dot plot like plots, [reference](https://divingintogeneticsandgenomics.rbind.io/post/clustered-dotplot-for-single-cell-rnaseq/)
+- `TickplotGL` - Tick plots are extremely fast at quickly rendering large amounts of data, helpful for rendering interactive [HiC like plots](https://www.bioinformatics.babraham.ac.uk/projects/seqmonk/Help/3%20Visualisation/3.2%20Figures%20and%20Graphs/3.2.12%20The%20HiC%20Heatmap%20Plot.html#:~:text=The%20HiC%20heatmap%20plot%20is,DataStore%20is%20a%20HiC%20dataset.).
+
+![Demo](./assets/epiviz.heatmap.gl.png)
+
+The API is same for all these plots.
 
 ```js
-  import HeatmapGL from "./index.js";
+import { DotplotGL, RectplotGL, TickplotGL } from "./index.js";
 
-  # you can either pass in a dom selector or HTMLElement
-  let plot = new HeatmapGL(".canvas");
+// you can either pass in a dom selector or HTMLElement
+let plot = new DotplotGL(".canvas");
 
-  # provide input data to the element, 
-  # data must contain x (as `rows`) and y (as `columns`)
-  # you can also provide x and y labels
-  plot.setInput({
-    x: [...],
-    y: [...],
-    xlabels: [],
-    ylabels: [],
-  });
+// provide input data to the element, 
+// data must contain x (as `rows`) and y (as `columns`)
+// you can also provide x and y labels
+plot.setInput({
+  x: [...],
+  y: [...],
+  xlabels: [],
+  ylabels: [],
+});
 
-  # render the plot
-  plot.render();
+// render the plot
+plot.render();
 ```
 
 ### Advanced Usage
 
-The library provides methods to capture events and modify attributes -
+The library provides methods to capture events and modify attributes
 
 #### Interaction modes
 
@@ -59,7 +69,7 @@ Supports three modes
 - `lasso` - same as box, no pan but allows zoom (`wheel`)
 
 ```js
-setInteraction(mode);
+  plot.setInteraction("pan");
 ```
 
 #### Events
