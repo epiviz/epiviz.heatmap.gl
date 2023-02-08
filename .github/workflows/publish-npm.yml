@@ -21,17 +21,6 @@ jobs:
       - name: create builds
         run: yarn build
 
-      - name: copy build to app
-        run: cp -r dist/* app
-
-      - name: GH Pages Deployment
-        uses: JamesIves/github-pages-deploy-action@v4
-        if: ${{ github.ref == 'refs/heads/main'}}
-        with:
-          branch: gh-pages # The branch the action should deploy to.
-          folder: ./app
-          clean: true # Automatically remove deleted files from the deploy branch
-
       - name: Publish to NPM
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         run: npm publish || true

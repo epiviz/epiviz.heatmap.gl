@@ -1,0 +1,36 @@
+{
+    "opts": {
+        "template": "node_modules/docdash"
+    },
+    "plugins": [
+        "plugins/markdown"
+    ],
+    "docdash": {
+        "static": true,
+        "sort": true,
+        "search": true,
+        "collapse": true,
+        "typedefs": true,
+        "removeQuotes": "none",
+        "scripts": [],
+        "menu": {
+            "Github repo": {
+                "href": "https://github.com/jkanche/epiviz.heatmap.js",
+                "target": "_blank",
+                "class": "menu-item",
+                "id": "repository"
+            },
+            "Demo": {
+                "href": "https://www.jkanche.com/epiviz.heatmap.gl/",
+                "target": "_blank",
+                "class": "menu-item",
+                "id": "demo"
+            }
+        }
+    },
+    "templates": {
+        "default": {
+            "useLongnameInNav": true
+        }
+    }
+}

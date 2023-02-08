@@ -1,6 +1,6 @@
 {
   "name": "epiviz.heatmap.gl",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "repository": "https://github.com/jkanche/epiviz.heatmap.gl",
   "homepage": "https://github.com/jkanche/epiviz.heatmap.gl",
   "author": {
@@ -29,7 +29,9 @@
     "@rollup/plugin-node-resolve": "^7.0.0",
     "@surma/rollup-plugin-off-main-thread": "^2.2.3",
     "gh-pages": "^3.2.3",
-    "rollup": "^1.29.0"
+    "rollup": "^1.29.0",
+    "docdash": "^1.2.0",
+    "jsdoc": "^3.6.10"
   },
   "scripts": {
     "build": "rollup -c",
@@ -39,7 +41,8 @@
     "clean": "rm -rd dist/*",
     "watchapp": "yarn clean && yarn dev && cp -r dist/* app",
     "predeploy": "yarn clean && yarn build && cp -r dist/* app",
-    "deploy": "gh-pages -d app"
+    "deploy": "gh-pages -d app",
+    "jsdoc": "npx jsdoc js README.md -d docs/built -c docs/jsdoc.config.json"
   },
   "files": [
     "dist"

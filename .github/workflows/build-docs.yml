@@ -1,0 +1,46 @@
+on:
+  push:
+    branches:
+      - main
+
+      
+name: Build documentation
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Node
+      uses: actions/setup-node@v3
+      with:
+        node-version: 16
+
+    - name: Restore the node modules
+      uses: actions/cache@v3
+      with:
+        path: '**/node_modules'
+        key: modules-${{ hashFiles('**/package.json') }}
+
+    - name: Install JSDoc
+      run: npm i --include-dev
+
+    - name: Run JSDoc
+      run: npm run jsdoc
+
+    - name: create builds
+      run: yarn build
+
+    - name: copy build to app
+      run: cp -r dist/* app
+
+    - name: copy docs to app
+      run: cp -r docs/built/* app/docs/*
+
+    - name: GH Pages Deployment
+      uses: JamesIves/github-pages-deploy-action@v4
+      with:
+        branch: gh-pages # The branch the action should deploy to.
+        folder: ./app
+        clean: true # Automatically remove deleted files from the deploy branch

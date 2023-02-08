@@ -1,11 +1,33 @@
 import BaseGL from "./BaseGL";
 import { getMinMax } from "./utils";
 
+
+/**
+ * Make a DotPlot like plot
+ *
+ * @class DotplotGL
+ * @extends {BaseGL}
+ */
 class DotplotGL extends BaseGL {
+
+  
+  /**
+   * Creates an instance of DotplotGL.
+   * @param {string} selectorOrElement, a html dom selector or element.
+   * @memberof DotplotGL
+   */
   constructor(selectorOrElement) {
     super(selectorOrElement);
   }
 
+
+  /**
+   * Generate the specification for Dot Plots.
+   * checkout epiviz.gl for more information.
+   *
+   * @return {object} a specification object that epiviz.gl can understand 
+   * @memberof DotplotGL
+   */
   generateSpec() {
     let xGaps = (i) => {
       return (

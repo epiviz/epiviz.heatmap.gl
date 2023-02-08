@@ -1,7 +1,22 @@
 import BaseGL from "./BaseGL";
 import { getMinMax } from "./utils";
 
+
+/**
+ * Class to create tick plots.
+ * These are extremely useful for quickly rendering large amounts of data.
+ *
+ * @class TickplotGL
+ * @extends {BaseGL}
+ */
 class TickplotGL extends BaseGL {
+
+
+  /**
+   * Creates an instance of TickplotGL.
+   * @param {string} selectorOrElement, a html dom selector or element.
+   * @memberof TickplotGL
+   */
   constructor(selectorOrElement) {
     super(selectorOrElement);
 
@@ -15,6 +30,14 @@ class TickplotGL extends BaseGL {
     };
   }
 
+
+  /**
+   * Generate the specification for Tick Plots.
+   * checkout epiviz.gl for more information.
+   *
+   * @return {object} a specification object that epiviz.gl can understand 
+   * @memberof TickplotGL
+   */
   generateSpec() {
     let default_width = 198 / (getMinMax(this.input.x)[1] + 1);
     let default_height = 198 / (getMinMax(this.input.y)[1] + 1);

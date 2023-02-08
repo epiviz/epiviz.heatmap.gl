@@ -1,6 +1,13 @@
 import BaseGL from "./BaseGL";
 import { getMinMax } from "./utils";
 
+
+/**
+ * Class to create traditional heatmap plots
+ *
+ * @class RectplotGL
+ * @extends {BaseGL}
+ */
 class RectplotGL extends BaseGL {
   constructor(selectorOrElement) {
     super(selectorOrElement);
