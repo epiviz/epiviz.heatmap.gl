@@ -36,7 +36,7 @@ jobs:
       run: cp -r dist/* app
 
     - name: copy docs to app
-      run: cp -r docs/built/* app/docs/*
+      run: cp -r docs/built/* app/docs
 
     - name: GH Pages Deployment
       uses: JamesIves/github-pages-deploy-action@v4
