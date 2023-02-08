@@ -117,12 +117,6 @@ class TickplotGL extends BaseGL {
     this._generateSpecForEncoding(spec, "size", this.state.size);
     this._generateSpecForEncoding(spec, "opacity", this.state.opacity);
 
-    console.log("tickplot", spec);
-
-    // if ("shape" in this.state) {
-    //   this._generateSpecForEncoding(spec, "shape", this.state.shape);
-    // }
-
     return spec;
   }
 }

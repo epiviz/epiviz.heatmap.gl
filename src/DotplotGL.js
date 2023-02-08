@@ -136,12 +136,6 @@ class DotplotGL extends BaseGL {
     this._generateSpecForEncoding(spec, "size", tsize);
     this._generateSpecForEncoding(spec, "opacity", this.state.opacity);
 
-    console.log("dotplot", spec);
-
-    // if ("shape" in this.state) {
-    //   this._generateSpecForEncoding(spec, "shape", this.state.shape);
-    // }
-
     return spec;
   }
 }

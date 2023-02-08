@@ -8,6 +8,9 @@
   <meta name="author" content="Jayaram Kancherla">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://d3js.org/d3.v4.min.js"></script>
+  <script src="https://d3js.org/d3-color.v1.min.js"></script>
+  <script src="https://d3js.org/d3-interpolate.v1.min.js"></script>
+  <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
   <style>
     body {
       font-family: "Lucida Sans", "Lucida Sans Regular", "Lucida Grande",
@@ -45,8 +48,17 @@
       margin: 40px;
     }
 
+    .ghcanvas {
+      /* grid-row: 5;
+      grid-column: 2; */
+      height: 135px;
+      width: 600px;
+      border: 1px solid black;
+      margin: 40px;
+    }
+
     .tickcanvas {
-      grid-row: 4;
+      grid-row: 6;
       grid-column: 2;
       height: 400px;
       width: 400px;
@@ -62,7 +74,7 @@
     }
 
     .console {
-      grid-row: 5;
+      grid-row: 7;
       grid-column: 1 / -1;
       min-height: 100px;
       max-height: 175px;
@@ -79,7 +91,11 @@
   <div class="app">
     <div class="header">
       <h4>epiviz.heatmap.gl: Quickly render heatmap-like plots</h4>
-      <p>Checkout the <a href="https://github.com/jkanche/epiviz.heatmap.gl">repo (GitHub)</a> here</p>
+      <p>This documentation site is bare bones but hey it works :) </p>
+      <ul style="list-style-type:none">
+        <li>Checkout the <a href="https://github.com/jkanche/epiviz.heatmap.gl">repo (GitHub)</a> here</li>
+        <li>Checkout the <a href="https://github.com/jkanche/epiviz.heatmap.gl/docs">documentation</a> here</li>
+      </ul>
     </div>
     <div class="content">
       <h4>Simple Usage:</h4>
@@ -140,9 +156,10 @@
       </pre>
 
       <h4>Tick Plots</h4>
-      <p>Tick plots are extremely fast at quickly rendering large amounts of data. 
-        They are useful for exploring the overall patterns in the dataset. This example renders 
-        the full expression matrix from the <a href="https://satijalab.org/seurat/articles/pbmc3k_tutorial.html">pbmc 3k dataset</a>. 
+      <p>Tick plots are extremely fast at quickly rendering large amounts of data.
+        They are useful for exploring the overall patterns in the dataset. This example renders
+        the full expression matrix from the <a href="https://satijalab.org/seurat/articles/pbmc3k_tutorial.html">pbmc 3k
+          dataset</a>.
       </p>
       <pre>
         import * as pbmc from './pbmc.js';
@@ -153,6 +170,15 @@
 
       <p>For more documentation, visit
         <a href="https://github.com/jkanche/epiviz.heatmap.gl">GitHub</a> repository
+      </p>
+
+      <h4>Github Commit graph</h4>
+      <p>someone is a profilic programmer
+        <div class="ghcanvas">
+          <button class="canvas-pan">pan</button>
+          <button class="canvas-box">box</button>
+          <button class="canvas-lasso">lasso</button>
+        </div>
       </p>
     </div>
     <div class="dotcanvas">
@@ -262,6 +288,28 @@
     };
 
     plot3.render();
+
+    import * as gh from './ghcommits.js';
+    let plotgh = new RectplotGL(".ghcanvas");
+    plotgh.setInput(gh.data);
+
+    plotgh.hoverCallback = function (point) {
+      if (point) {
+        if (point.distance <= 1.5) {
+          let tnode = document.createElement("p");
+          tnode.textContent = `Hover (closest point): ${point.indices[0]}`
+          document
+            .querySelector(".console")
+            .prepend(tnode);
+        }
+      }
+    };
+
+    plotgh.setState({
+      "color": gh.color,
+    });
+
+    plotgh.render();
 
   </script>
 </body>

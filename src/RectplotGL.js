@@ -143,12 +143,6 @@ class RectplotGL extends BaseGL {
     this._generateSpecForEncoding(spec, "width", spec_inputs.width);
     this._generateSpecForEncoding(spec, "height", spec_inputs.height);
 
-    console.log("rectplot", spec);
-
-    // if ("shape" in this.state) {
-    //   this._generateSpecForEncoding(spec, "shape", this.state.shape);
-    // }
-
     return spec;
   }
 }
