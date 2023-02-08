@@ -38,6 +38,9 @@ jobs:
     - name: copy docs to app
       run: cp -r docs/built/* app/docs
 
+    - name: copy assets to docs
+      run: cp -r assets app/docs
+
     - name: GH Pages Deployment
       uses: JamesIves/github-pages-deploy-action@v4
       with:

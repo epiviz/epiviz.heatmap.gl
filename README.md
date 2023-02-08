@@ -1,5 +1,10 @@
 # epiviz.heatmap.gl
 
+- API: https://www.jkanche.com/epiviz.heatmap.gl/docs/
+- DEMO: https://www.jkanche.com/epiviz.heatmap.gl/
+
+![Demo](./assets/epiviz.heatmap.gl.png)
+
 A fast and scalable WebGL2 based rendering library for visualizing heatmaps/dot plots. The library uses [epiviz.gl](https://github.com/epiviz/epiviz.gl) under the hood and provides an easier interface for use in various applications.
 
 Internally, the library creates two WebWorkers
@@ -31,8 +36,6 @@ The library provides three ways of rendering heatmap layout plots.
 - `RectplotGL` - for traditional heatmaps
 - `DotplotGL` - for making dot plot like plots, [reference](https://divingintogeneticsandgenomics.rbind.io/post/clustered-dotplot-for-single-cell-rnaseq/)
 - `TickplotGL` - Tick plots are extremely fast at quickly rendering large amounts of data, helpful for rendering interactive [HiC like plots](https://www.bioinformatics.babraham.ac.uk/projects/seqmonk/Help/3%20Visualisation/3.2%20Figures%20and%20Graphs/3.2.12%20The%20HiC%20Heatmap%20Plot.html#:~:text=The%20HiC%20heatmap%20plot%20is,DataStore%20is%20a%20HiC%20dataset.).
-
-![Demo](./assets/epiviz.heatmap.gl.png)
 
 The API is same for all these plots.
 
