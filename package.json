@@ -42,7 +42,7 @@
     "watchapp": "yarn clean && yarn dev && cp -r dist/* app",
     "predeploy": "yarn clean && yarn build && cp -r dist/* app",
     "deploy": "gh-pages -d app",
-    "jsdoc": "npx jsdoc js README.md -d docs/built -c docs/jsdoc.config.json"
+    "jsdoc": "npx jsdoc src README.md -d docs/built -c docs/jsdoc.config.json"
   },
   "files": [
     "dist"
