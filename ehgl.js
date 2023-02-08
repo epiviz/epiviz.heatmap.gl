@@ -501,12 +501,6 @@ class DotplotGL extends BaseGL {
     this._generateSpecForEncoding(spec, "size", tsize);
     this._generateSpecForEncoding(spec, "opacity", this.state.opacity);
 
-    console.log("dotplot", spec);
-
-    // if ("shape" in this.state) {
-    //   this._generateSpecForEncoding(spec, "shape", this.state.shape);
-    // }
-
     return spec;
   }
 }
@@ -652,12 +646,6 @@ class RectplotGL extends BaseGL {
     this._generateSpecForEncoding(spec, "width", spec_inputs.width);
     this._generateSpecForEncoding(spec, "height", spec_inputs.height);
 
-    console.log("rectplot", spec);
-
-    // if ("shape" in this.state) {
-    //   this._generateSpecForEncoding(spec, "shape", this.state.shape);
-    // }
-
     return spec;
   }
 }
@@ -776,12 +764,6 @@ class TickplotGL extends BaseGL {
     this._generateSpecForEncoding(spec, "color", this.state.color);
     this._generateSpecForEncoding(spec, "size", this.state.size);
     this._generateSpecForEncoding(spec, "opacity", this.state.opacity);
-
-    console.log("tickplot", spec);
-
-    // if ("shape" in this.state) {
-    //   this._generateSpecForEncoding(spec, "shape", this.state.shape);
-    // }
 
     return spec;
   }
