@@ -9,6 +9,12 @@ import { getMinMax } from "./utils";
  * @extends {BaseGL}
  */
 class RectplotGL extends BaseGL {
+
+  /**
+   * Creates an instance of RectplotGL.
+   * @param {string} selectorOrElement, a html dom selector or element.
+   * @memberof RectplotGL
+   */
   constructor(selectorOrElement) {
     super(selectorOrElement);
 
@@ -22,6 +28,13 @@ class RectplotGL extends BaseGL {
     };
   }
 
+  /**
+   * Generate the specification for Rect heatmap Plots.
+   * checkout epiviz.gl for more information.
+   *
+   * @return {object} a specification object that epiviz.gl can understand 
+   * @memberof RectplotGL
+   */
   generateSpec() {
     let xGaps = (i) => {
       return (
