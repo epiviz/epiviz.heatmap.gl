@@ -1,9 +1,9 @@
 import React, { useEffect } from "react";
-import DotplotGL from "../index";
+import RectplotGL from "../index";
 
-const ReactDotplot = ({ id, data, color, size }) => {
+const ReactRectplot = ({ id, data, color, size }) => {
   useEffect(() => {
-    let plot = new DotplotGL(`#${id}`);
+    let plot = new RectplotGL(`#${id}`);
 
     plot.setInput({
       x: [...data.x],
@@ -28,4 +28,4 @@ const ReactDotplot = ({ id, data, color, size }) => {
   return <div id={id} style={{ height: "500px", width: "100%" }}></div>;
 };
 
-export default ReactDotplot;
+export default ReactRectplot;

@@ -28,12 +28,38 @@ package is available through [npm](https://www.npmjs.com/package/epiviz.heatmap.
 ### Usage
 
 - [app/index.html](./app/index.html) provides an easier example and code on how to use the library
-- If you want to use the library in a react app, check usage in [Kana](ww.github.com/jkanche/kana)
 
+#### React Usage
+
+To use the library in a React application
+
+```
+import { ReactDotplot } from 'epiviz.heatmap.gl'
+
+const Component = () => {
+  let id = 'unique-id'
+  let data = {
+    x: [...],
+    y: [...],
+    xlabels: [],
+    ylabels: [],
+  }
+  let color = [...] // color/rgb/hex code of each dot
+  let size = [...] // size of each dot
+
+  return <ReactDotplot
+            id={id}
+            data={data}
+            color={color}
+            size={size}
+          >
+}
+```
 
 ### Types of Plots
 
 The library provides three ways of rendering heatmap layout plots.
+
 - `RectplotGL` - for traditional heatmaps
 - `DotplotGL` - for making dot plot like plots, [reference](https://divingintogeneticsandgenomics.rbind.io/post/clustered-dotplot-for-single-cell-rnaseq/)
 - `TickplotGL` - Tick plots are extremely fast at quickly rendering large amounts of data, helpful for rendering interactive [HiC like plots](https://www.bioinformatics.babraham.ac.uk/projects/seqmonk/Help/3%20Visualisation/3.2%20Figures%20and%20Graphs/3.2.12%20The%20HiC%20Heatmap%20Plot.html#:~:text=The%20HiC%20heatmap%20plot%20is,DataStore%20is%20a%20HiC%20dataset.).
@@ -46,7 +72,7 @@ import { DotplotGL, RectplotGL, TickplotGL } from "./index.js";
 // you can either pass in a dom selector or HTMLElement
 let plot = new DotplotGL(".canvas");
 
-// provide input data to the element, 
+// provide input data to the element,
 // data must contain x (as `rows`) and y (as `columns`)
 // you can also provide x and y labels
 plot.setInput({
@@ -73,7 +99,7 @@ Supports three modes
 - `lasso` - same as box, no pan but allows zoom (`wheel`)
 
 ```js
-  plot.setInteraction("pan");
+plot.setInteraction("pan");
 ```
 
 #### Events
