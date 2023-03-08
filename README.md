@@ -34,7 +34,7 @@ package is available through [npm](https://www.npmjs.com/package/epiviz.heatmap.
 To use the library in a React application
 
 ```
-import { ReactDotplot } from 'epiviz.heatmap.gl'
+import { ReactDotplot } from 'epiviz.heatmap.gl/react'
 
 const Component = () => {
   let id = 'unique-id'

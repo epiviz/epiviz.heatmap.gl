@@ -1,9 +1,12 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import RectplotGL from "../index";
 
-const ReactRectplot = ({ id, data, color, size }) => {
+const ReactRectplot = ({ data, color, size }) => {
+  const container = useRef();
+
   useEffect(() => {
-    let plot = new RectplotGL(`#${id}`);
+    const containerEl = container.current;
+    let plot = new RectplotGL(containerEl);
 
     plot.setInput({
       x: [...data.x],
@@ -25,7 +28,7 @@ const ReactRectplot = ({ id, data, color, size }) => {
     };
   }, []);
 
-  return <div id={id} style={{ height: "500px", width: "100%" }}></div>;
+  return <div ref={container} style={{ height: "500px", width: "100%" }}></div>;
 };
 
 export default ReactRectplot;

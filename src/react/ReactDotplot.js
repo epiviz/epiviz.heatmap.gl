@@ -1,9 +1,12 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import DotplotGL from "../index";
 
 const ReactDotplot = ({ id, data, color, size }) => {
+  const container = useRef();
+
   useEffect(() => {
-    let plot = new DotplotGL(`#${id}`);
+    const containerEl = container.current;
+    let plot = new DotplotGL(containerEl);
 
     plot.setInput({
       x: [...data.x],
@@ -25,7 +28,7 @@ const ReactDotplot = ({ id, data, color, size }) => {
     };
   }, []);
 
-  return <div id={id} style={{ height: "500px", width: "100%" }}></div>;
+  return <div ref={container} style={{ height: "500px", width: "100%" }}></div>;
 };
 
 export default ReactDotplot;

@@ -1,9 +1,12 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import TickplotGL from "../index";
 
-const ReactTickplot = ({ id, data, color, size }) => {
+const ReactTickplot = ({ data, color, size }) => {
+  const container = useRef();
+
   useEffect(() => {
-    let plot = new TickplotGL(`#${id}`);
+    const containerEl = container.current;
+    let plot = new TickplotGL(containerEl);
 
     plot.setInput({
       x: [...data.x],
@@ -25,7 +28,7 @@ const ReactTickplot = ({ id, data, color, size }) => {
     };
   }, []);
 
-  return <div id={id} style={{ height: "500px", width: "100%" }}></div>;
+  return <div ref={container} style={{ height: "500px", width: "100%" }}></div>;
 };
 
 export default ReactTickplot;
