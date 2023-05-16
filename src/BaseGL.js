@@ -147,45 +147,52 @@ class BaseGL {
       //   throw `y must start from 0`;
       // }
 
-      xMinMax = xMinMax.map((x, i) =>
-        x === 0 ? Math.pow(-1, i + 1) * (xMinMax[i + (1 % 2)] * 0.05) : x
-      );
-      yMinMax = yMinMax.map((x, i) =>
-        x === 0 ? Math.pow(-1, i + 1) * (yMinMax[i + (1 % 2)] * 0.05) : x
-      );
+      this.xDomain = [0, 0.5];
+      if (xMinMax[0] !== xMinMax[1]) {
+        xMinMax = xMinMax.map((x, i) =>
+          x === 0 ? Math.pow(-1, i + 1) * (xMinMax[i + (1 % 2)] * 0.05) : x
+        );
 
-      this.xDomain = [
-        xMinMax[0] - Math.abs(0.05 * xMinMax[0]),
-        xMinMax[1] + Math.abs(0.05 * xMinMax[1]),
-      ];
-      this.yDomain = [
-        yMinMax[0] - Math.abs(0.05 * yMinMax[0]),
-        yMinMax[1] + Math.abs(0.05 * yMinMax[1]),
-      ];
-
-      if ("xlabels" in data) {
-        if (data.xlabels.length !== xMinMax[1] + 1) {
-          throw `Number of x labels provided must be the same as max(x), starting from 0`;
-        }
+        this.xDomain = [
+          xMinMax[0] - Math.abs(0.05 * xMinMax[0]),
+          xMinMax[1] + Math.abs(0.05 * xMinMax[1]),
+        ];
       }
 
-      if ("ylabels" in data) {
-        if (data.ylabels.length !== yMinMax[1] + 1) {
-          throw `Number of y labels provided must be the same as max(y), starting from 0`;
-        }
+      this.yDomain = [0, 0.5];
+      if (yMinMax[0] !== yMinMax[1]) {
+        yMinMax = yMinMax.map((x, i) =>
+          x === 0 ? Math.pow(-1, i + 1) * (yMinMax[i + (1 % 2)] * 0.05) : x
+        );
+
+        this.yDomain = [
+          yMinMax[0] - Math.abs(0.05 * yMinMax[0]),
+          yMinMax[1] + Math.abs(0.05 * yMinMax[1]),
+        ];
       }
+
+      // if ("xlabels" in data) {
+      //   if (data.xlabels.length !== xMinMax[1] + 1) {
+      //     throw `Number of x labels provided must be the same as max(x), starting from 0`;
+      //   }
+      // }
+
+      // if ("ylabels" in data) {
+      //   if (data.ylabels.length !== yMinMax[1] + 1) {
+      //     throw `Number of y labels provided must be the same as max(y), starting from 0`;
+      //   }
+      // }
     } else {
       throw `input data must contain x and y attributes`;
     }
   }
 
-
   /**
-   * Set the state of the visualization. 
+   * Set the state of the visualization.
    *
    * @param {object} encoding, a set of attributes that modify the rendering
-   * @param {Array|number} encoding.size, an array of size for each x-y cell or a singular size to apply for all cells. 
-   * @param {Array|number} encoding.color, an array of colors for each x-y cell or a singular color to apply for all cells. 
+   * @param {Array|number} encoding.size, an array of size for each x-y cell or a singular size to apply for all cells.
+   * @param {Array|number} encoding.color, an array of colors for each x-y cell or a singular color to apply for all cells.
    * @param {Array|number} encoding.opacity, same as size, but sets the opacity for each cell.
    * @param {Array|number} encoding.xgap, same as size, but sets the gap along x-axis.
    * @param {Array|number} encoding.ygap, same as size, but sets the gap along y-axis.
@@ -221,10 +228,9 @@ class BaseGL {
     }
   }
 
-
   /**
    * Set the interaction mode for the rendering.
-   * possible values are 
+   * possible values are
    * lasso - make  a lasso selection
    * box - make a box selection
    * pan - pan the plot
@@ -239,7 +245,6 @@ class BaseGL {
 
     this.plot.setViewOptions({ tool: mode });
   }
-
 
   /**
    * resize the plot, without having to send the data to the GPU.
@@ -256,8 +261,6 @@ class BaseGL {
     // this.plot.setSpecification(spec);
   }
 
-
-  
   /**
    * Attach a callback for window resize events
    *
@@ -281,7 +284,6 @@ class BaseGL {
       }, 500);
     });
   }
-
 
   /**
    * Render the plot. Optionally provide a height and width.
@@ -323,7 +325,6 @@ class BaseGL {
     });
   }
 
-
   /**
    * Default callback handler when a lasso or box selection is made on the plot
    *
@@ -335,7 +336,6 @@ class BaseGL {
     return pointIdxs;
   }
 
-  
   /**
    * Default callback handler when a point is clicked
    *
@@ -346,7 +346,6 @@ class BaseGL {
   clickCallback(pointIdx) {
     return pointIdx;
   }
-
 
   /**
    * Default callback handler when mouse if hovered over the rending
