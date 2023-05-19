@@ -236,15 +236,15 @@
 
     plot.render();
 
-    document.querySelector(".canvas-box").addEventListener("click", () => {
+    document.querySelector(".dotcanvas>.canvas-box").addEventListener("click", () => {
       plot.setInteraction("box");
     });
 
-    document.querySelector(".canvas-pan").addEventListener("click", () => {
+    document.querySelector(".dotcanvas>.canvas-pan").addEventListener("click", () => {
       plot.setInteraction("pan");
     });
 
-    document.querySelector(".canvas-lasso").addEventListener("click", () => {
+    document.querySelector(".dotcanvas>.canvas-lasso").addEventListener("click", () => {
       plot.setInteraction("lasso");
     });
 
@@ -271,6 +271,18 @@
 
     plot2.render();
 
+    document.querySelector(".rectcanvas>.canvas-box").addEventListener("click", () => {
+      plot2.setInteraction("box");
+    });
+
+    document.querySelector(".rectcanvas>.canvas-pan").addEventListener("click", () => {
+      plot2.setInteraction("pan");
+    });
+
+    document.querySelector(".rectcanvas>.canvas-lasso").addEventListener("click", () => {
+      plot2.setInteraction("lasso");
+    });
+
     import * as pbmc from './pbmc.js';
     let plot3 = new TickplotGL(".tickcanvas");
     plot3.setInput(pbmc.data);
@@ -288,6 +300,18 @@
     };
 
     plot3.render();
+
+    document.querySelector(".tickcanvas>.canvas-box").addEventListener("click", () => {
+      plot3.setInteraction("box");
+    });
+
+    document.querySelector(".tickcanvas>.canvas-pan").addEventListener("click", () => {
+      plot3.setInteraction("pan");
+    });
+
+    document.querySelector(".tickcanvas>.canvas-lasso").addEventListener("click", () => {
+      plot3.setInteraction("lasso");
+    });
 
     import * as gh from './ghcommits.js';
     let plotgh = new RectplotGL(".ghcanvas");
@@ -310,6 +334,18 @@
     });
 
     plotgh.render();
+
+    document.querySelector(".ghcanvas>.canvas-box").addEventListener("click", () => {
+      plotgh.setInteraction("box");
+    });
+
+    document.querySelector(".ghcanvas>.canvas-pan").addEventListener("click", () => {
+      plotgh.setInteraction("pan");
+    });
+
+    document.querySelector(".ghcanvas>.canvas-lasso").addEventListener("click", () => {
+      plotgh.setInteraction("lasso");
+    });
 
   </script>
 </body>
