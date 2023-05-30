@@ -7,22 +7,93 @@ function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'defau
 var WebGLVis = _interopDefault(require('epiviz.gl'));
 
 function isObject(object) {
-    return typeof object === 'object' && Array.isArray(object) === false;
+  return typeof object === "object" && Array.isArray(object) === false;
 }
 
 const getMinMax = (arr) => {
-    var max = -Number.MAX_VALUE,
-        min = Number.MAX_VALUE;
-    arr.forEach(function (x) {
-        if (max < x) {
-            max = x;
-        }
-        if (min > x) {
-            min = x;
-        }
-    });
-    return [min, max];
+  var max = -Number.MAX_VALUE,
+    min = Number.MAX_VALUE;
+  arr.forEach(function (x) {
+    if (max < x) {
+      max = x;
+    }
+    if (min > x) {
+      min = x;
+    }
+  });
+  return [min, max];
 };
+
+/**
+ * Function to convert a hexadecimal color to its RGB equivalent.
+ *
+ * @param {string} hex - The hexadecimal color string. Must start with "#" and be followed by 6 hexadecimal digits.
+ * @returns {Array<number>} An array containing the RGB values (0-255) in the order [r, g, b].
+ */
+function hexToRGB(hex) {
+  let r = parseInt(hex.slice(1, 3), 16),
+    g = parseInt(hex.slice(3, 5), 16),
+    b = parseInt(hex.slice(5, 7), 16);
+  return [r, g, b];
+}
+
+/**
+ * Function to convert an RGB color to its hexadecimal equivalent.
+ *
+ * @param {Array<number>} rgb - An array of three numbers [r, g, b] representing an RGB color.
+ * @returns {string} A string representing the color in hexadecimal format.
+ */
+function rgbToHex(rgb) {
+  let r = rgb[0].toString(16),
+    g = rgb[1].toString(16),
+    b = rgb[2].toString(16);
+  return (
+    "#" +
+    ((r.length == 1 ? "0" : "") + r) +
+    ((g.length == 1 ? "0" : "") + g) +
+    ((b.length == 1 ? "0" : "") + b)
+  );
+}
+
+/**
+ * Function to mix a color with white to create a "brightened" effect.
+ *
+ * @param {Array<number>} rgb - An array of three numbers [r, g, b] representing an RGB color.
+ * @param {number} amount - The brightening factor. A value between 0 (no change) and 1 (complete white).
+ * @returns {Array<number>} An array containing the RGB values of the brightened color.
+ */
+function mixWithWhite(rgb, amount) {
+  return [
+    Math.floor(rgb[0] + (255 - rgb[0]) * amount),
+    Math.floor(rgb[1] + (255 - rgb[1]) * amount),
+    Math.floor(rgb[2] + (255 - rgb[2]) * amount),
+  ];
+}
+
+/**
+ * Function to convert a color from the "rgb(r, g, b)" string format to an array of numbers.
+ *
+ * @param {string} rgbStr - The color in "rgb(r, g, b)" string format.
+ * @returns {Array<number>} An array containing the RGB values (0-255) in the order [r, g, b].
+ */
+function strToRGB(rgbStr) {
+  let match = rgbStr.match(/rgb\((\d+), (\d+), (\d+)\)/);
+  if (match) {
+    return [parseInt(match[1]), parseInt(match[2]), parseInt(match[3])];
+  } else {
+    throw new Error("Invalid RGB string format");
+  }
+}
+
+/**
+ * Function to determine whether a given color is in RGB format.
+ *
+ * @param {Array<number> | string} color - The color in either RGB format (as a string in the "rgb(r, g, b)" format) or hexadecimal format (as a string).
+ * @returns {boolean} True if the color is in RGB format, false otherwise.
+ */
+function isRGB(color) {
+  return color.startsWith("rgb");
+}
 
 /**
  * Base class for all matrix like layout plots.
@@ -78,8 +149,20 @@ class BaseGL {
     // add events
     var self = this;
     this.plot.addEventListener("onSelectionEnd", (e) => {
+      e.preventDefault();
+      const sdata = e.detail.data;
+      if (
+        this.highlightEnabled &&
+        sdata &&
+        sdata.selection.indices.length > 0
+      ) {
+        this.highlightIndices(sdata.selection.indices, true);
+      }
+
       self.selectionCallback(e.detail.data);
     });
+
+    this.highlightedIndices = [];
   }
 
   /**
@@ -156,6 +239,9 @@ class BaseGL {
       "y" in data &&
       data.x.length === data.y.length
     ) {
+      this.ncols = data.xlabels?.length;
+      this.nrows = data.ylabels?.length;
+
       this.input = { ...this.input, ...data };
 
       // calc min and max
@@ -170,45 +256,52 @@ class BaseGL {
       //   throw `y must start from 0`;
       // }
 
-      xMinMax = xMinMax.map((x, i) =>
-        x === 0 ? Math.pow(-1, i + 1) * (xMinMax[i + (1 % 2)] * 0.05) : x
-      );
-      yMinMax = yMinMax.map((x, i) =>
-        x === 0 ? Math.pow(-1, i + 1) * (yMinMax[i + (1 % 2)] * 0.05) : x
-      );
+      this.xDomain = [0, 0.5];
+      if (xMinMax[0] !== xMinMax[1]) {
+        xMinMax = xMinMax.map((x, i) =>
+          x === 0 ? Math.pow(-1, i + 1) * (xMinMax[i + (1 % 2)] * 0.05) : x
+        );
 
-      this.xDomain = [
-        xMinMax[0] - Math.abs(0.05 * xMinMax[0]),
-        xMinMax[1] + Math.abs(0.05 * xMinMax[1]),
-      ];
-      this.yDomain = [
-        yMinMax[0] - Math.abs(0.05 * yMinMax[0]),
-        yMinMax[1] + Math.abs(0.05 * yMinMax[1]),
-      ];
-
-      if ("xlabels" in data) {
-        if (data.xlabels.length !== xMinMax[1] + 1) {
-          throw `Number of x labels provided must be the same as max(x), starting from 0`;
-        }
+        this.xDomain = [
+          xMinMax[0] - Math.abs(0.05 * xMinMax[0]),
+          xMinMax[1] + Math.abs(0.05 * xMinMax[1]),
+        ];
       }
 
-      if ("ylabels" in data) {
-        if (data.ylabels.length !== yMinMax[1] + 1) {
-          throw `Number of y labels provided must be the same as max(y), starting from 0`;
-        }
+      this.yDomain = [0, 0.5];
+      if (yMinMax[0] !== yMinMax[1]) {
+        yMinMax = yMinMax.map((x, i) =>
+          x === 0 ? Math.pow(-1, i + 1) * (yMinMax[i + (1 % 2)] * 0.05) : x
+        );
+
+        this.yDomain = [
+          yMinMax[0] - Math.abs(0.05 * yMinMax[0]),
+          yMinMax[1] + Math.abs(0.05 * yMinMax[1]),
+        ];
       }
+
+      // if ("xlabels" in data) {
+      //   if (data.xlabels.length !== xMinMax[1] + 1) {
+      //     throw `Number of x labels provided must be the same as max(x), starting from 0`;
+      //   }
+      // }
+
+      // if ("ylabels" in data) {
+      //   if (data.ylabels.length !== yMinMax[1] + 1) {
+      //     throw `Number of y labels provided must be the same as max(y), starting from 0`;
+      //   }
+      // }
     } else {
       throw `input data must contain x and y attributes`;
     }
   }
 
-
   /**
-   * Set the state of the visualization. 
+   * Set the state of the visualization.
    *
    * @param {object} encoding, a set of attributes that modify the rendering
-   * @param {Array|number} encoding.size, an array of size for each x-y cell or a singular size to apply for all cells. 
-   * @param {Array|number} encoding.color, an array of colors for each x-y cell or a singular color to apply for all cells. 
+   * @param {Array|number} encoding.size, an array of size for each x-y cell or a singular size to apply for all cells.
+   * @param {Array|number} encoding.color, an array of colors for each x-y cell or a singular color to apply for all cells.
    * @param {Array|number} encoding.opacity, same as size, but sets the opacity for each cell.
    * @param {Array|number} encoding.xgap, same as size, but sets the gap along x-axis.
    * @param {Array|number} encoding.ygap, same as size, but sets the gap along y-axis.
@@ -244,10 +337,9 @@ class BaseGL {
     }
   }
 
-
   /**
    * Set the interaction mode for the rendering.
-   * possible values are 
+   * possible values are
    * lasso - make  a lasso selection
    * box - make a box selection
    * pan - pan the plot
@@ -262,7 +354,6 @@ class BaseGL {
 
     this.plot.setViewOptions({ tool: mode });
   }
-
 
   /**
    * resize the plot, without having to send the data to the GPU.
@@ -279,8 +370,6 @@ class BaseGL {
     // this.plot.setSpecification(spec);
   }
 
-
-  
   /**
    * Attach a callback for window resize events
    *
@@ -304,7 +393,6 @@ class BaseGL {
       }, 500);
     });
   }
-
 
   /**
    * Render the plot. Optionally provide a height and width.
@@ -342,10 +430,123 @@ class BaseGL {
       e.preventDefault();
 
       const hdata = e.detail.data;
+
+      // Only run this code if hi
+      if (hdata && hdata.indices.length > 0 && this.nrows) {
+        const index = hdata.indices[0]; // handle only one point
+        const col = Math.floor(index / this.nrows);
+        const row = index % this.nrows;
+
+        // Invert row, considering X axis starts from bottom up
+        const rowInverted = this.nrows - 1 - row;
+        hdata["row"] = rowInverted;
+        hdata["col"] = col;
+      }
+
+      if (this.highlightEnabled && hdata && hdata.indices.length > 0) {
+        this.highlightIndices(hdata.indices);
+      }
+
       self.clickCallback(hdata);
     });
   }
 
+  highlightIndices(indices, forceSet = false) {
+    if (forceSet) {
+      this.highlightedIndices = [...indices];
+    } else if (this.highlightedIndices.length > 0) {
+      indices.forEach((index) => {
+        const foundIndex = this.highlightedIndices.indexOf(index);
+        if (foundIndex > -1) {
+          this.highlightedIndices = this.highlightedIndices.filter(
+            (item) => item !== index
+          );
+        } else {
+          this.highlightedIndices.push(index);
+        }
+      });
+    } else {
+      this.highlightedIndices.push(...indices);
+    }
+    this.highlightedIndicesCallback(this.highlightedIndices);
+    this.reRender();
+  }
+
+  /**
+   * Enable highlight for the plot. This is useful when the plot is rendered with
+   * a subset of data and we want to highlight the points that are not rendered.
+   * @memberof BaseGL
+   * @example
+   * // Enable highlight
+   * plot.enableHighlight();
+   */
+  enableHighlight() {
+    this.highlightEnabled = true;
+  }
+
+  /**
+   * Disable highlight for the plot. This is useful when the plot is rendered with
+   * a subset of data and we want to highlight the points that are not rendered.
+   * @memberof BaseGL
+   * @example
+   * // Disable highlight
+   * plot.disableHighlight();
+   */
+  disableHighlight() {
+    this.highlightEnabled = false;
+    this.clearHighlight();
+  }
+
+  /**
+   * Clear the highlight for the plot.
+   * @memberof BaseGL
+   * @example
+   * // Clear highlight
+   * plot.clearHighlight();
+   **/
+  clearHighlight() {
+    this.highlightedIndices = [];
+    this.highlightedIndicesCallback(this.highlightedIndices);
+    this.reRender();
+  }
+
+  /**
+   * Re-render the plot. This is useful when the data is updated.
+   * @memberof BaseGL
+   */
+  reRender() {
+    this.plot.updateSpecification({
+      ...this._spec,
+      defaultData: {
+        ...this._spec.defaultData,
+        color: this._spec.defaultData.color.map((color, index) => {
+          if (
+            this.highlightedIndices.length === 0 ||
+            this.highlightedIndices.includes(index)
+          ) {
+            return color;
+          } else {
+            const rgb = isRGB(color) ? strToRGB(color) : hexToRGB(color);
+            const dimmedRgb = mixWithWhite(rgb, 0.7); // 0.7 is the dimming factor
+            return rgbToHex(dimmedRgb);
+          }
+        }),
+      },
+    });
+  }
+
+  /**
+   * Clear the highlighted indices
+   * @memberof BaseGL
+   * @return {void}
+   * @example
+   * clearHighlightedIndices()
+   * // clears all the highlighted indices
+   */
+  clearHighlightedIndices() {
+    this.highlightedIndices = [];
+    this.reRender();
+  }
 
   /**
    * Default callback handler when a lasso or box selection is made on the plot
@@ -358,7 +559,6 @@ class BaseGL {
     return pointIdxs;
   }
 
-  
   /**
    * Default callback handler when a point is clicked
    *
@@ -369,7 +569,6 @@ class BaseGL {
   clickCallback(pointIdx) {
     return pointIdx;
   }
-
 
   /**
    * Default callback handler when mouse if hovered over the rending
@@ -382,6 +581,21 @@ class BaseGL {
   hoverCallback(pointIdx) {
     return pointIdx;
   }
+
+  /**
+   * Default callback handler when highlighted indices are updated
+   * @return {array} highlighted indices
+   * @memberof BaseGL
+   * @example
+   * highlightedIndicesCallback()
+   * // returns highlighted indices
+   * // [1, 2, 3]
+   * // [4, 5, 6]
+   * // [7, 8, 9]
+   */
+  highlightedIndicesCallback(highlightedIndices) {
+    return highlightedIndices;
+  }
 }
 
 /**
@@ -391,8 +605,6 @@ class BaseGL {
  * @extends {BaseGL}
  */
 class DotplotGL extends BaseGL {
-
-  
   /**
    * Creates an instance of DotplotGL.
    * @param {string} selectorOrElement, a html dom selector or element.
@@ -402,12 +614,11 @@ class DotplotGL extends BaseGL {
     super(selectorOrElement);
   }
 
-
   /**
    * Generate the specification for Dot Plots.
    * checkout epiviz.gl for more information.
    *
-   * @return {object} a specification object that epiviz.gl can understand 
+   * @return {object} a specification object that epiviz.gl can understand
    * @memberof DotplotGL
    */
   generateSpec() {
@@ -500,12 +711,6 @@ class DotplotGL extends BaseGL {
     this._generateSpecForEncoding(spec, "color", this.state.color);
     this._generateSpecForEncoding(spec, "size", tsize);
     this._generateSpecForEncoding(spec, "opacity", this.state.opacity);
-
-    console.log("dotplot", spec);
-
-    // if ("shape" in this.state) {
-    //   this._generateSpecForEncoding(spec, "shape", this.state.shape);
-    // }
 
     return spec;
   }
@@ -652,12 +857,6 @@ class RectplotGL extends BaseGL {
     this._generateSpecForEncoding(spec, "width", spec_inputs.width);
     this._generateSpecForEncoding(spec, "height", spec_inputs.height);
 
-    console.log("rectplot", spec);
-
-    // if ("shape" in this.state) {
-    //   this._generateSpecForEncoding(spec, "shape", this.state.shape);
-    // }
-
     return spec;
   }
 }
@@ -776,12 +975,6 @@ class TickplotGL extends BaseGL {
     this._generateSpecForEncoding(spec, "color", this.state.color);
     this._generateSpecForEncoding(spec, "size", this.state.size);
     this._generateSpecForEncoding(spec, "opacity", this.state.opacity);
-
-    console.log("tickplot", spec);
-
-    // if ("shape" in this.state) {
-    //   this._generateSpecForEncoding(spec, "shape", this.state.shape);
-    // }
 
     return spec;
   }

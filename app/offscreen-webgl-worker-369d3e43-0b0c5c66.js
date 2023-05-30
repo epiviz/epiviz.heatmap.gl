@@ -2703,6 +2703,15 @@ class WebGLCanvasDrawer extends Drawer {
       premultipliedAlpha: false,
     });
 
+    this.gl.canvas.addEventListener(
+      "webglcontextlost",
+      (event) => {
+        event.preventDefault();
+        throw `WebGL context lost`;
+      },
+      false
+    );
+
     if (!this.gl) {
       console.error("Unable to initialize WebGL!");
       return;
@@ -2875,7 +2884,12 @@ class WebGLCanvasDrawer extends Drawer {
     this.programInfos = this.trackShaders.map((trackShader) =>
       createProgramInfo(
         this.gl,
-        [trackShader.buildShader(), trackShader.drawMode === "POINTS" ? varyingColorsFragmentShaderDots : varyingColorsFragmentShader],
+        [
+          trackShader.buildShader(),
+          trackShader.drawMode === "POINTS"
+            ? varyingColorsFragmentShaderDots
+            : varyingColorsFragmentShader,
+        ],
         ALL_POTENTIAL_ATTRIBUTES
       )
     );
