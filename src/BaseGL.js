@@ -1,5 +1,13 @@
 import WebGLVis from "epiviz.gl";
-import { isObject, getMinMax } from "./utils";
+import {
+  isObject,
+  getMinMax,
+  hexToRGB,
+  rgbToHex,
+  mixWithWhite,
+  isRGB,
+  strToRGB,
+} from "./utils";
 
 /**
  * Base class for all matrix like layout plots.
@@ -55,8 +63,20 @@ class BaseGL {
     // add events
     var self = this;
     this.plot.addEventListener("onSelectionEnd", (e) => {
+      e.preventDefault();
+      const sdata = e.detail.data;
+      if (
+        this.highlightEnabled &&
+        sdata &&
+        sdata.selection.indices.length > 0
+      ) {
+        this.highlightIndices(sdata.selection.indices, true);
+      }
+
       self.selectionCallback(e.detail.data);
     });
+
+    this.highlightedIndices = [];
   }
 
   /**
@@ -133,6 +153,9 @@ class BaseGL {
       "y" in data &&
       data.x.length === data.y.length
     ) {
+      this.ncols = data.xlabels?.length;
+      this.nrows = data.ylabels?.length;
+
       this.input = { ...this.input, ...data };
 
       // calc min and max
@@ -321,8 +344,122 @@ class BaseGL {
       e.preventDefault();
 
       const hdata = e.detail.data;
+
+      // Only run this code if hi
+      if (hdata && hdata.indices.length > 0 && this.nrows) {
+        const index = hdata.indices[0]; // handle only one point
+        const col = Math.floor(index / this.nrows);
+        const row = index % this.nrows;
+
+        // Invert row, considering X axis starts from bottom up
+        const rowInverted = this.nrows - 1 - row;
+        hdata["row"] = rowInverted;
+        hdata["col"] = col;
+      }
+
+      if (this.highlightEnabled && hdata && hdata.indices.length > 0) {
+        this.highlightIndices(hdata.indices);
+      }
+
       self.clickCallback(hdata);
     });
+  }
+
+  highlightIndices(indices, forceSet = false) {
+    if (forceSet) {
+      this.highlightedIndices = [...indices];
+    } else if (this.highlightedIndices.length > 0) {
+      indices.forEach((index) => {
+        const foundIndex = this.highlightedIndices.indexOf(index);
+        if (foundIndex > -1) {
+          this.highlightedIndices = this.highlightedIndices.filter(
+            (item) => item !== index
+          );
+        } else {
+          this.highlightedIndices.push(index);
+        }
+      });
+    } else {
+      this.highlightedIndices.push(...indices);
+    }
+    this.highlightedIndicesCallback(this.highlightedIndices);
+    this.reRender();
+  }
+
+  /**
+   * Enable highlight for the plot. This is useful when the plot is rendered with
+   * a subset of data and we want to highlight the points that are not rendered.
+   * @memberof BaseGL
+   * @example
+   * // Enable highlight
+   * plot.enableHighlight();
+   */
+  enableHighlight() {
+    this.highlightEnabled = true;
+  }
+
+  /**
+   * Disable highlight for the plot. This is useful when the plot is rendered with
+   * a subset of data and we want to highlight the points that are not rendered.
+   * @memberof BaseGL
+   * @example
+   * // Disable highlight
+   * plot.disableHighlight();
+   */
+  disableHighlight() {
+    this.highlightEnabled = false;
+    this.clearHighlight();
+  }
+
+  /**
+   * Clear the highlight for the plot.
+   * @memberof BaseGL
+   * @example
+   * // Clear highlight
+   * plot.clearHighlight();
+   **/
+  clearHighlight() {
+    this.highlightedIndices = [];
+    this.highlightedIndicesCallback(this.highlightedIndices);
+    this.reRender();
+  }
+
+  /**
+   * Re-render the plot. This is useful when the data is updated.
+   * @memberof BaseGL
+   */
+  reRender() {
+    this.plot.updateSpecification({
+      ...this._spec,
+      defaultData: {
+        ...this._spec.defaultData,
+        color: this._spec.defaultData.color.map((color, index) => {
+          if (
+            this.highlightedIndices.length === 0 ||
+            this.highlightedIndices.includes(index)
+          ) {
+            return color;
+          } else {
+            const rgb = isRGB(color) ? strToRGB(color) : hexToRGB(color);
+            const dimmedRgb = mixWithWhite(rgb, 0.7); // 0.7 is the dimming factor
+            return rgbToHex(dimmedRgb);
+          }
+        }),
+      },
+    });
+  }
+
+  /**
+   * Clear the highlighted indices
+   * @memberof BaseGL
+   * @return {void}
+   * @example
+   * clearHighlightedIndices()
+   * // clears all the highlighted indices
+   */
+  clearHighlightedIndices() {
+    this.highlightedIndices = [];
+    this.reRender();
   }
 
   /**
@@ -357,6 +494,21 @@ class BaseGL {
    */
   hoverCallback(pointIdx) {
     return pointIdx;
+  }
+
+  /**
+   * Default callback handler when highlighted indices are updated
+   * @return {array} highlighted indices
+   * @memberof BaseGL
+   * @example
+   * highlightedIndicesCallback()
+   * // returns highlighted indices
+   * // [1, 2, 3]
+   * // [4, 5, 6]
+   * // [7, 8, 9]
+   */
+  highlightedIndicesCallback(highlightedIndices) {
+    return highlightedIndices;
   }
 }
 
