@@ -20,7 +20,7 @@
   "main": "dist/ehgl.js",
   "module": "dist/index.js",
   "dependencies": {
-    "epiviz.gl": "^1.0.4"
+    "epiviz.gl": "^1.0.8"
   },
   "peerDependencies": {
     "react": "^18.2.0"

@@ -59,6 +59,8 @@ class DotplotGL extends BaseGL {
         labels.push({
           x: -1.05 + (2 * ilx + 1) / xlabels_len,
           y: 1.05,
+          type: "row",
+          index: ilx,
           text: this.input["xlabels"][ilx],
           fixedY: true,
           "text-anchor": "center",
@@ -76,6 +78,8 @@ class DotplotGL extends BaseGL {
         labels.push({
           x: -1.05,
           y: -1.05 + (2 * ily + 1) / ylabels_len,
+          type: "column",
+          index: ily,
           text: this.input["ylabels"][ily],
           fixedX: true,
           "text-anchor": "end",

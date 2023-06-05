@@ -70,13 +70,14 @@ class BaseGL {
         sdata &&
         sdata.selection.indices.length > 0
       ) {
-        this.highlightIndices(sdata.selection.indices, true);
+        this.highlightIndices(sdata.selection.indices, null, true);
       }
 
       self.selectionCallback(e.detail.data);
     });
 
     this.highlightedIndices = [];
+    this.indexStates = {};
   }
 
   /**
@@ -358,29 +359,64 @@ class BaseGL {
       }
 
       if (this.highlightEnabled && hdata && hdata.indices.length > 0) {
-        this.highlightIndices(hdata.indices);
+        const index = hdata.indices[0];
+        const shouldHighlight = !this.indexStates[index]; // reverse the current state
+        this.indexStates[index] = shouldHighlight;
+        this.highlightIndices([index], shouldHighlight);
       }
 
       self.clickCallback(hdata);
     });
+
+    this.plot.addEventListener("labelClicked", (e) => {
+      e.preventDefault();
+      if (this.highlightEnabled && e && e.detail && e.detail.labelObject) {
+        const type = e.detail.labelObject.type;
+        const index = e.detail.labelObject.index;
+        const indices = [];
+        if (type === "column") {
+          for (let i = index; i < this.ncols * this.nrows; i += this.nrows) {
+            indices.push(i);
+          }
+        } else if (type === "row") {
+          for (let i = index * this.nrows; i < (index + 1) * this.nrows; i++) {
+            indices.push(i);
+          }
+        }
+
+        // Decide whether to highlight or unhighlight
+        const shouldHighlight = indices.some(
+          (index) => !this.indexStates[index]
+        );
+        indices.forEach((index) => (this.indexStates[index] = shouldHighlight));
+
+        this.highlightIndices(indices, shouldHighlight);
+      }
+    });
   }
 
-  highlightIndices(indices, forceSet = false) {
+  /**
+   * Highlight the indices on the plot.
+   * @memberof BaseGL
+   * @param {Array} indices, indices to be highlighted.
+   * @param {boolean} forceSet, if true, set the indices to be highlighted, else toggle the indices.
+   * @example
+   * // Highlight indices
+   * plot.highlightIndices([1, 2, 3]);
+   **/
+  highlightIndices(indices, shouldHighlight, forceSet = false) {
     if (forceSet) {
       this.highlightedIndices = [...indices];
-    } else if (this.highlightedIndices.length > 0) {
+      indices.forEach((index) => (this.indexStates[index] = true));
+    } else {
       indices.forEach((index) => {
         const foundIndex = this.highlightedIndices.indexOf(index);
-        if (foundIndex > -1) {
-          this.highlightedIndices = this.highlightedIndices.filter(
-            (item) => item !== index
-          );
-        } else {
+        if (!shouldHighlight && foundIndex > -1) {
+          this.highlightedIndices.splice(foundIndex, 1);
+        } else if (shouldHighlight && foundIndex === -1) {
           this.highlightedIndices.push(index);
         }
       });
-    } else {
-      this.highlightedIndices.push(...indices);
     }
     this.highlightedIndicesCallback(this.highlightedIndices);
     this.reRender();
