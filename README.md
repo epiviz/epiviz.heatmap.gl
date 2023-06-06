@@ -1,7 +1,7 @@
 # epiviz.heatmap.gl
 
-- API: [https://www.jkanche.com/epiviz.heatmap.gl/docs/](https://www.jkanche.com/epiviz.heatmap.gl/docs/)
-- DEMO: [https://www.jkanche.com/epiviz.heatmap.gl/](https://www.jkanche.com/epiviz.heatmap.gl/)
+- API: [https://epiviz.github.io/epiviz.heatmap.gl/docs/](https://epiviz.github.io/epiviz.heatmap.gl/docs/)
+- DEMO: [https://epiviz.github.io/epiviz.heatmap.gl/](https://epiviz.github.io/epiviz.heatmap.gl/)
 - Examples are in the [app/index.html](./app/index.html) directory
 
 ![Demo](./assets/epiviz.heatmap.gl.png)
