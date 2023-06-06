@@ -456,6 +456,7 @@ class BaseGL {
    **/
   clearHighlight() {
     this.highlightedIndices = [];
+    this.indexStates = {};
     this.highlightedIndicesCallback(this.highlightedIndices);
     this.reRenderOnHighlight();
   }
