@@ -178,6 +178,9 @@
           <button class="canvas-pan">pan</button>
           <button class="canvas-box">box</button>
           <button class="canvas-lasso">lasso</button>
+          <button class="enable-highlight">enable highlight</button>
+          <button class="disable-highlight">disable highlight</button>
+          <button class="clear-highlight">clear highlight</button>
         </div>
       </p>
     </div>
@@ -185,11 +188,17 @@
       <button class="canvas-pan">pan</button>
       <button class="canvas-box">box</button>
       <button class="canvas-lasso">lasso</button>
+      <button class="enable-highlight">enable highlight</button>
+      <button class="disable-highlight">disable highlight</button>
+      <button class="clear-highlight">clear highlight</button>
     </div>
     <div class="rectcanvas">
       <button class="canvas-pan">pan</button>
       <button class="canvas-box">box</button>
       <button class="canvas-lasso">lasso</button>
+      <button class="enable-highlight">enable highlight</button>
+      <button class="disable-highlight">disable highlight</button>
+      <button class="clear-highlight">clear highlight</button>
     </div>
     <div class="tickcanvas">
       <button class="canvas-pan">pan</button>
@@ -229,6 +238,14 @@
       }
     };
 
+    plot.clickCallback = function (point) {
+      console.log("Dot plot => click: ", point);
+    };
+
+    plot.highlightedIndicesCallback = function(indices) {
+      console.log('Dot plot => highlighted indices: ', indices);
+    }
+
     plot.setState({
       "size": size,
       "color": color,
@@ -248,6 +265,18 @@
       plot.setInteraction("lasso");
     });
 
+    document.querySelector(".dotcanvas>.enable-highlight").addEventListener("click", () => {
+      plot.enableHighlight();
+    });
+    
+    document.querySelector(".dotcanvas>.disable-highlight").addEventListener("click", () => {
+      plot.disableHighlight();
+    });
+
+    document.querySelector(".dotcanvas>.clear-highlight").addEventListener("click", () => {
+      plot.clearHighlight();
+    });
+
 
     let plot2 = new RectplotGL(".rectcanvas");
     plot2.setInput(data);
@@ -263,6 +292,14 @@
         }
       }
     };
+
+    plot2.clickCallback = function (point) {
+      console.log("Rect plot => click: ", point);
+    };
+
+    plot2.highlightedIndicesCallback = function(indices) {
+      console.log('Rect plot => highlighted indices: ', indices);
+    }
 
     plot2.setState({
       "size": size,
@@ -281,6 +318,18 @@
 
     document.querySelector(".rectcanvas>.canvas-lasso").addEventListener("click", () => {
       plot2.setInteraction("lasso");
+    });
+
+    document.querySelector(".rectcanvas>.enable-highlight").addEventListener("click", () => {
+      plot2.enableHighlight();
+    });
+
+    document.querySelector(".rectcanvas>.disable-highlight").addEventListener("click", () => {
+      plot2.disableHighlight();
+    });
+
+    document.querySelector(".rectcanvas>.clear-highlight").addEventListener("click", () => {
+      plot2.clearHighlight();
     });
 
     import * as pbmc from './pbmc.js';
@@ -329,6 +378,15 @@
       }
     };
 
+    plotgh.clickCallback = function (point) {
+      console.log("GH plot => click: ", point);
+    };
+
+    plotgh.highlightedIndicesCallback = function(indices) {
+      console.log('GH plot => highlighted indices: ', indices);
+    }
+
+
     plotgh.setState({
       "color": gh.color,
     });
@@ -345,6 +403,18 @@
 
     document.querySelector(".ghcanvas>.canvas-lasso").addEventListener("click", () => {
       plotgh.setInteraction("lasso");
+    });
+
+    document.querySelector(".ghcanvas>.enable-highlight").addEventListener("click", () => {
+      plotgh.enableHighlight();
+    });
+
+    document.querySelector(".ghcanvas>.disable-highlight").addEventListener("click", () => {
+      plotgh.disableHighlight();
+    });
+
+    document.querySelector(".ghcanvas>.clear-highlight").addEventListener("click", () => {
+      plotgh.clearHighlight();
     });
 
   </script>

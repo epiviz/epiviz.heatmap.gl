@@ -1,7 +1,6 @@
 import BaseGL from "./BaseGL";
 import { getMinMax } from "./utils";
 
-
 /**
  * Make a DotPlot like plot
  *
@@ -9,8 +8,6 @@ import { getMinMax } from "./utils";
  * @extends {BaseGL}
  */
 class DotplotGL extends BaseGL {
-
-  
   /**
    * Creates an instance of DotplotGL.
    * @param {string} selectorOrElement, a html dom selector or element.
@@ -20,12 +17,11 @@ class DotplotGL extends BaseGL {
     super(selectorOrElement);
   }
 
-
   /**
    * Generate the specification for Dot Plots.
    * checkout epiviz.gl for more information.
    *
-   * @return {object} a specification object that epiviz.gl can understand 
+   * @return {object} a specification object that epiviz.gl can understand
    * @memberof DotplotGL
    */
   generateSpec() {
@@ -63,6 +59,8 @@ class DotplotGL extends BaseGL {
         labels.push({
           x: -1.05 + (2 * ilx + 1) / xlabels_len,
           y: 1.05,
+          type: "row",
+          index: ilx,
           text: this.input["xlabels"][ilx],
           fixedY: true,
           "text-anchor": "center",
@@ -80,6 +78,8 @@ class DotplotGL extends BaseGL {
         labels.push({
           x: -1.05,
           y: -1.05 + (2 * ily + 1) / ylabels_len,
+          type: "column",
+          index: ily,
           text: this.input["ylabels"][ily],
           fixedX: true,
           "text-anchor": "end",
