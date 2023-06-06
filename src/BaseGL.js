@@ -465,24 +465,35 @@ class BaseGL {
    * @memberof BaseGL
    */
   reRender() {
-    this.plot.updateSpecification({
+    const opacityData = this.createOpacityArray(
+      this._spec.defaultData.color.length,
+      this.highlightedIndices
+    );
+    const spec = {
       ...this._spec,
       defaultData: {
         ...this._spec.defaultData,
-        color: this._spec.defaultData.color.map((color, index) => {
-          if (
-            this.highlightedIndices.length === 0 ||
-            this.highlightedIndices.includes(index)
-          ) {
-            return color;
-          } else {
-            const rgb = isRGB(color) ? strToRGB(color) : hexToRGB(color);
-            const dimmedRgb = mixWithWhite(rgb, 0.7); // 0.7 is the dimming factor
-            return rgbToHex(dimmedRgb);
-          }
-        }),
+        opacity: opacityData,
       },
-    });
+    };
+    this._generateSpecForEncoding(spec, "opacity", opacityData);
+    this.plot.updateSpecification(spec);
+  }
+
+  /**
+   * Create an array of length `length` with the specified indexes set to 1
+   * @memberof BaseGL
+   * @param {number} length, length of the array
+   * @param {Array} indexes, indexes to be set to 1
+   * @return {Array} an array of length `length` with the specified indexes set to 1
+   **/
+  createOpacityArray(length, indexes) {
+    // Create an array of length `length` with all values set to 0.4 if indexes are specified else 1
+    const arr = new Array(length).fill(indexes.length ? 0.4 : 1);
+    for (let i of indexes) {
+      arr[i] = 1; // Set the specified indexes to 1
+    }
+    return arr;
   }
 
   /**
