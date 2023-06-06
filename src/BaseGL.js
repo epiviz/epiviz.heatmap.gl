@@ -419,7 +419,7 @@ class BaseGL {
       });
     }
     this.highlightedIndicesCallback(this.highlightedIndices);
-    this.reRender();
+    this.reRenderOnHighlight();
   }
 
   /**
@@ -457,27 +457,20 @@ class BaseGL {
   clearHighlight() {
     this.highlightedIndices = [];
     this.highlightedIndicesCallback(this.highlightedIndices);
-    this.reRender();
+    this.reRenderOnHighlight();
   }
 
   /**
-   * Re-render the plot. This is useful when the data is updated.
+   * Re-render the plot. This is useful when the highlight data is updated.
    * @memberof BaseGL
    */
-  reRender() {
+  reRenderOnHighlight() {
     const opacityData = this.createOpacityArray(
       this._spec.defaultData.color.length,
       this.highlightedIndices
     );
-    const spec = {
-      ...this._spec,
-      defaultData: {
-        ...this._spec.defaultData,
-        opacity: opacityData,
-      },
-    };
-    this._generateSpecForEncoding(spec, "opacity", opacityData);
-    this.plot.updateSpecification(spec);
+    this._generateSpecForEncoding(this._spec, "opacity", opacityData);
+    this.plot.updateSpecification(this._spec);
   }
 
   /**
@@ -506,7 +499,7 @@ class BaseGL {
    */
   clearHighlightedIndices() {
     this.highlightedIndices = [];
-    this.reRender();
+    this.reRenderOnHighlight();
   }
 
   /**
