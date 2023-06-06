@@ -7,21 +7,21 @@ function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'defau
 var WebGLVis = _interopDefault(require('epiviz.gl'));
 
 function isObject(object) {
-    return typeof object === 'object' && Array.isArray(object) === false;
+  return typeof object === "object" && Array.isArray(object) === false;
 }
 
 const getMinMax = (arr) => {
-    var max = -Number.MAX_VALUE,
-        min = Number.MAX_VALUE;
-    arr.forEach(function (x) {
-        if (max < x) {
-            max = x;
-        }
-        if (min > x) {
-            min = x;
-        }
-    });
-    return [min, max];
+  var max = -Number.MAX_VALUE,
+    min = Number.MAX_VALUE;
+  arr.forEach(function (x) {
+    if (max < x) {
+      max = x;
+    }
+    if (min > x) {
+      min = x;
+    }
+  });
+  return [min, max];
 };
 
 /**
@@ -78,8 +78,21 @@ class BaseGL {
     // add events
     var self = this;
     this.plot.addEventListener("onSelectionEnd", (e) => {
+      e.preventDefault();
+      const sdata = e.detail.data;
+      if (
+        this.highlightEnabled &&
+        sdata &&
+        sdata.selection.indices.length > 0
+      ) {
+        this.highlightIndices(sdata.selection.indices, null, true);
+      }
+
       self.selectionCallback(e.detail.data);
     });
+
+    this.highlightedIndices = [];
+    this.indexStates = {};
   }
 
   /**
@@ -156,6 +169,9 @@ class BaseGL {
       "y" in data &&
       data.x.length === data.y.length
     ) {
+      this.ncols = data.xlabels?.length;
+      this.nrows = data.ylabels?.length;
+
       this.input = { ...this.input, ...data };
 
       // calc min and max
@@ -344,8 +360,161 @@ class BaseGL {
       e.preventDefault();
 
       const hdata = e.detail.data;
+
+      // Only run this code if hi
+      if (hdata && hdata.indices.length > 0 && this.nrows) {
+        const index = hdata.indices[0]; // handle only one point
+        const col = Math.floor(index / this.nrows);
+        const row = index % this.nrows;
+
+        // Invert row, considering X axis starts from bottom up
+        const rowInverted = this.nrows - 1 - row;
+        hdata["row"] = rowInverted;
+        hdata["col"] = col;
+      }
+
+      if (this.highlightEnabled && hdata && hdata.indices.length > 0) {
+        const index = hdata.indices[0];
+        const shouldHighlight = !this.indexStates[index]; // reverse the current state
+        this.indexStates[index] = shouldHighlight;
+        this.highlightIndices([index], shouldHighlight);
+      }
+
       self.clickCallback(hdata);
     });
+
+    this.plot.addEventListener("labelClicked", (e) => {
+      e.preventDefault();
+      if (this.highlightEnabled && e && e.detail && e.detail.labelObject) {
+        const type = e.detail.labelObject.type;
+        const index = e.detail.labelObject.index;
+        const indices = [];
+        if (type === "column") {
+          for (let i = index; i < this.ncols * this.nrows; i += this.nrows) {
+            indices.push(i);
+          }
+        } else if (type === "row") {
+          for (let i = index * this.nrows; i < (index + 1) * this.nrows; i++) {
+            indices.push(i);
+          }
+        }
+
+        // Decide whether to highlight or unhighlight
+        const shouldHighlight = indices.some(
+          (index) => !this.indexStates[index]
+        );
+        indices.forEach((index) => (this.indexStates[index] = shouldHighlight));
+
+        this.highlightIndices(indices, shouldHighlight);
+      }
+    });
+  }
+
+  /**
+   * Highlight the indices on the plot.
+   * @memberof BaseGL
+   * @param {Array} indices, indices to be highlighted.
+   * @param {boolean} forceSet, if true, set the indices to be highlighted, else toggle the indices.
+   * @example
+   * // Highlight indices
+   * plot.highlightIndices([1, 2, 3]);
+   **/
+  highlightIndices(indices, shouldHighlight, forceSet = false) {
+    if (forceSet) {
+      this.highlightedIndices = [...indices];
+      indices.forEach((index) => (this.indexStates[index] = true));
+    } else {
+      indices.forEach((index) => {
+        const foundIndex = this.highlightedIndices.indexOf(index);
+        if (!shouldHighlight && foundIndex > -1) {
+          this.highlightedIndices.splice(foundIndex, 1);
+        } else if (shouldHighlight && foundIndex === -1) {
+          this.highlightedIndices.push(index);
+        }
+      });
+    }
+    this.highlightedIndicesCallback(this.highlightedIndices);
+    this.reRenderOnHighlight();
+  }
+
+  /**
+   * Enable highlight for the plot. This is useful when the plot is rendered with
+   * a subset of data and we want to highlight the points that are not rendered.
+   * @memberof BaseGL
+   * @example
+   * // Enable highlight
+   * plot.enableHighlight();
+   */
+  enableHighlight() {
+    this.highlightEnabled = true;
+  }
+
+  /**
+   * Disable highlight for the plot. This is useful when the plot is rendered with
+   * a subset of data and we want to highlight the points that are not rendered.
+   * @memberof BaseGL
+   * @example
+   * // Disable highlight
+   * plot.disableHighlight();
+   */
+  disableHighlight() {
+    this.highlightEnabled = false;
+    this.clearHighlight();
+  }
+
+  /**
+   * Clear the highlight for the plot.
+   * @memberof BaseGL
+   * @example
+   * // Clear highlight
+   * plot.clearHighlight();
+   **/
+  clearHighlight() {
+    this.highlightedIndices = [];
+    this.highlightedIndicesCallback(this.highlightedIndices);
+    this.reRenderOnHighlight();
+  }
+
+  /**
+   * Re-render the plot. This is useful when the highlight data is updated.
+   * @memberof BaseGL
+   */
+  reRenderOnHighlight() {
+    const opacityData = this.createOpacityArray(
+      this._spec.defaultData.color.length,
+      this.highlightedIndices
+    );
+    this._generateSpecForEncoding(this._spec, "opacity", opacityData);
+    this.plot.updateSpecification(this._spec);
+  }
+
+  /**
+   * Create an array of length `length` with the specified indexes set to 1
+   * @memberof BaseGL
+   * @param {number} length, length of the array
+   * @param {Array} indexes, indexes to be set to 1
+   * @return {Array} an array of length `length` with the specified indexes set to 1
+   **/
+  createOpacityArray(length, indexes) {
+    // Create an array of length `length` with all values set to 0.4 if indexes are specified else 1
+    const arr = new Array(length).fill(indexes.length ? 0.4 : 1);
+    for (let i of indexes) {
+      arr[i] = 1; // Set the specified indexes to 1
+    }
+    return arr;
+  }
+
+  /**
+   * Clear the highlighted indices
+   * @memberof BaseGL
+   * @return {void}
+   * @example
+   * clearHighlightedIndices()
+   * // clears all the highlighted indices
+   */
+  clearHighlightedIndices() {
+    this.highlightedIndices = [];
+    this.reRenderOnHighlight();
   }
 
   /**
@@ -381,6 +550,21 @@ class BaseGL {
   hoverCallback(pointIdx) {
     return pointIdx;
   }
+
+  /**
+   * Default callback handler when highlighted indices are updated
+   * @return {array} highlighted indices
+   * @memberof BaseGL
+   * @example
+   * highlightedIndicesCallback()
+   * // returns highlighted indices
+   * // [1, 2, 3]
+   * // [4, 5, 6]
+   * // [7, 8, 9]
+   */
+  highlightedIndicesCallback(highlightedIndices) {
+    return highlightedIndices;
+  }
 }
 
 /**
@@ -390,8 +574,6 @@ class BaseGL {
  * @extends {BaseGL}
  */
 class DotplotGL extends BaseGL {
-
-  
   /**
    * Creates an instance of DotplotGL.
    * @param {string} selectorOrElement, a html dom selector or element.
@@ -401,12 +583,11 @@ class DotplotGL extends BaseGL {
     super(selectorOrElement);
   }
 
-
   /**
    * Generate the specification for Dot Plots.
    * checkout epiviz.gl for more information.
    *
-   * @return {object} a specification object that epiviz.gl can understand 
+   * @return {object} a specification object that epiviz.gl can understand
    * @memberof DotplotGL
    */
   generateSpec() {
@@ -427,6 +608,8 @@ class DotplotGL extends BaseGL {
         labels.push({
           x: -1.05 + (2 * ilx + 1) / xlabels_len,
           y: 1.05,
+          type: "row",
+          index: ilx,
           text: this.input["xlabels"][ilx],
           fixedY: true,
           "text-anchor": "center",
@@ -444,6 +627,8 @@ class DotplotGL extends BaseGL {
         labels.push({
           x: -1.05,
           y: -1.05 + (2 * ily + 1) / ylabels_len,
+          type: "column",
+          index: ily,
           text: this.input["ylabels"][ily],
           fixedX: true,
           "text-anchor": "end",
@@ -511,7 +696,6 @@ class DotplotGL extends BaseGL {
  * @extends {BaseGL}
  */
 class RectplotGL extends BaseGL {
-
   /**
    * Creates an instance of RectplotGL.
    * @param {string} selectorOrElement, a html dom selector or element.
@@ -534,7 +718,7 @@ class RectplotGL extends BaseGL {
    * Generate the specification for Rect heatmap Plots.
    * checkout epiviz.gl for more information.
    *
-   * @return {object} a specification object that epiviz.gl can understand 
+   * @return {object} a specification object that epiviz.gl can understand
    * @memberof RectplotGL
    */
   generateSpec() {
@@ -576,6 +760,8 @@ class RectplotGL extends BaseGL {
         labels.push({
           x: -1.05 + (2 * ilx + 1) / xlabels_len,
           y: 1.05,
+          type: "row",
+          index: ilx,
           text: this.input["xlabels"][ilx],
           fixedY: true,
           "text-anchor": "center",
@@ -593,6 +779,8 @@ class RectplotGL extends BaseGL {
         labels.push({
           x: -1.05,
           y: -1.05 + (2 * ily + 1) / ylabels_len,
+          type: "column",
+          index: ily,
           text: this.input["ylabels"][ily],
           fixedX: true,
           "text-anchor": "end",
@@ -657,8 +845,6 @@ class RectplotGL extends BaseGL {
  * @extends {BaseGL}
  */
 class TickplotGL extends BaseGL {
-
-
   /**
    * Creates an instance of TickplotGL.
    * @param {string} selectorOrElement, a html dom selector or element.
@@ -677,12 +863,11 @@ class TickplotGL extends BaseGL {
     };
   }
 
-
   /**
    * Generate the specification for Tick Plots.
    * checkout epiviz.gl for more information.
    *
-   * @return {object} a specification object that epiviz.gl can understand 
+   * @return {object} a specification object that epiviz.gl can understand
    * @memberof TickplotGL
    */
   generateSpec() {
@@ -699,6 +884,8 @@ class TickplotGL extends BaseGL {
         labels.push({
           x: -1 + (2 * ilx + 1) / xlabels_len,
           y: 1.05,
+          type: "row",
+          index: ilx,
           text: this.input["xlabels"][ilx],
           fixedY: true,
           "text-anchor": "center",
@@ -716,6 +903,8 @@ class TickplotGL extends BaseGL {
         labels.push({
           x: -1.1,
           y: -1 + (2 * ily + 1) / ylabels_len,
+          type: "column",
+          index: ily,
           text: this.input["ylabels"][ily],
           fixedX: true,
           "text-anchor": "end",
