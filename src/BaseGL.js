@@ -26,6 +26,8 @@ class BaseGL {
    */
   constructor(selectorOrElement) {
     this.elem = selectorOrElement;
+    // Default legend position
+    this.legendPosition = "bottom";
     if (
       typeof selectorOrElement === "string" ||
       selectorOrElement instanceof String
@@ -147,7 +149,7 @@ class BaseGL {
    * @param {Array} data.ylabels, labels along the y-axis
    * @memberof BaseGL
    */
-  setInput(data) {
+  setInput(data, legendData = null) {
     if (
       isObject(data) &&
       "x" in data &&
@@ -209,6 +211,8 @@ class BaseGL {
     } else {
       throw `input data must contain x and y attributes`;
     }
+
+    this.legendData = legendData;
   }
 
   /**
@@ -271,6 +275,29 @@ class BaseGL {
   }
 
   /**
+   * Set the legend data for the intensity plot.
+   * This is used to render the legend for the intensity plot.
+   * The legend is rendered as a separate canvas element.
+   * The legend data is an array of objects, each object has the following attributes
+   * color - the color to render
+   * label - the label to render
+   * intensity - the value to render
+   *  @example
+   * [
+   * {color: "#000000", label: "label1", intensity: 0.1},
+   * {color: "#000000", label: "label2", intensity: 0.2},
+   * {color: "#000000", label: "label3", intensity: 0.3},
+   **/
+  setIntensityLegendOptions(legentPosition, legendDomElement) {
+    this.isLegendDomElementProvided = !!legendDomElement;
+    this.legendPosition = legentPosition;
+
+    if (!legendDomElement) {
+      this.legendDomElement = this.elem.lastChild;
+    } else this.legendDomElement = legendDomElement;
+  }
+
+  /**
    * resize the plot, without having to send the data to the GPU.
    *
    * @param {number} width
@@ -326,6 +353,10 @@ class BaseGL {
 
     if (height) {
       this._spec.height = height;
+    }
+    // Render the legend
+    if (this.legendData && this.legendDomElement) {
+      this.renderLegend();
     }
 
     if (this._renderCount == 0) {
@@ -393,6 +424,149 @@ class BaseGL {
         this.highlightIndices(indices, shouldHighlight);
       }
     });
+  }
+
+  /**
+   * Render the legend for the intensity plot.
+   * This is used to render the legend for the intensity plot.
+   **/
+  renderLegend() {
+    const position = this.legendPosition;
+    // Only render the legend if we have the legend data and the legend dom element
+    if (!this.legendDomElement || !this.legendData) return;
+
+    const averageCharWidth = 6; // rough estimation of the width of a single character
+    const legendWidth = this.elem.clientWidth - 2 * averageCharWidth;
+    const legendHeight = this.elem.clientHeight - 2 * averageCharWidth;
+    const legendSize = 20;
+    const labelSize = 25;
+
+    // Adjust the SVG size and the legend position according to the position parameter
+    let svgWidth, svgHeight, transformX, transformY;
+    if (position === "left" || position === "right") {
+      svgWidth = legendSize + labelSize;
+      svgHeight = this.elem.clientHeight;
+      transformY = averageCharWidth;
+    } else {
+      svgWidth = this.elem.clientWidth;
+      svgHeight = legendSize + labelSize;
+      transformX = averageCharWidth;
+    }
+
+    const svgContainer = d3
+      .select(this.legendDomElement)
+      .append("svg")
+      .attr("width", svgWidth)
+      .attr("height", svgHeight)
+      .attr("overflow", "visible");
+
+    const defs = svgContainer.append("defs");
+
+    const gradientId = `linear-gradient-${(Math.random() * 1000).toFixed()}`;
+
+    const gradient = defs
+      .append("linearGradient")
+      .attr("id", gradientId)
+      .attr("x1", "0%")
+      .attr("y1", "0%")
+      .attr("x2", position === "left" || position === "right" ? "0%" : "100%")
+      .attr("y2", position === "left" || position === "right" ? "100%" : "0%");
+
+    gradient
+      .selectAll("stop")
+      .data(this.legendData)
+      .enter()
+      .append("stop")
+      .attr("offset", (d) => d.intensity * 100 + "%")
+      .attr("stop-color", (d) => d.color);
+
+    // Create a mapping from intensity to label
+    const intensityToLabel = {};
+    this.legendData.forEach((d) => {
+      if (d.label !== "") {
+        intensityToLabel[d.intensity] = d.label;
+      }
+    });
+
+    const intensityScale = d3
+      .scaleLinear()
+      .range([
+        0,
+        position === "left" || position === "right"
+          ? legendHeight
+          : legendWidth,
+      ])
+      .domain([0, 1]);
+
+    let legendAxis;
+    if (position === "left") {
+      legendAxis = d3.axisLeft(intensityScale);
+      transformX = labelSize;
+    } else if (position === "top") {
+      legendAxis = d3.axisTop(intensityScale);
+      transformY = labelSize;
+    } else if (position === "right") {
+      transformX = legendSize;
+      legendAxis = d3.axisRight(intensityScale);
+    } else {
+      transformY = legendSize;
+      legendAxis = d3.axisBottom(intensityScale);
+    }
+
+    legendAxis
+      .tickValues(Object.keys(intensityToLabel).map(Number)) // Only use intensities that have labels
+      .tickFormat((d) => intensityToLabel[d]); // Use the intensity to label mapping
+
+    svgContainer
+      .append("g")
+      .attr("transform", `translate(${transformX}, ${transformY})`)
+      .call(legendAxis);
+
+    const maxLabelChars = Math.max(
+      ...this.legendData.map((d) => d.label.toString().length)
+    ); // length of the longest label
+
+    let rectX, rectY;
+    if (position === "top") {
+      rectX = averageCharWidth;
+      rectY = maxLabelChars * averageCharWidth + 8; // Offset to move gradient down
+    } else if (position === "left") {
+      rectX = maxLabelChars * averageCharWidth + 8; // Offset to move gradient right
+      rectY = averageCharWidth;
+    } else if (position === "right") {
+      rectY = averageCharWidth;
+      rectX = 0;
+    } else if (position === "bottom") {
+      rectX = averageCharWidth;
+      rectY = 0;
+    }
+
+    svgContainer
+      .append("rect")
+      .attr(
+        "width",
+        position === "left" || position === "right" ? legendSize : legendWidth
+      )
+      .attr(
+        "height",
+        position === "left" || position === "right" ? legendHeight : legendSize
+      )
+      .style("fill", `url(#${gradientId})`)
+      .attr("x", rectX)
+      .attr("y", rectY);
+
+    // Update margins to account for the legend only if dom element is not provided
+    if (!this.isLegendDomElementProvided) {
+      this._spec.margins = {
+        ...this._spec.margins,
+        [position]: `calc(${
+          (position === "left" || position === "right" ? 45 : 45) + "px"
+        } + ${this._spec.margins[position]})`,
+      };
+
+      // set svg container to position absolute and position value to 0
+      svgContainer.style("position", "absolute").style(position, "0px");
+    }
   }
 
   /**

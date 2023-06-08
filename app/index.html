@@ -36,11 +36,29 @@
       height: 400px;
       width: 400px;
       border: 1px solid black;
-      margin: 40px;
+      margin: 40px 40px 0 40px;
+    }
+
+    .dotcanvas-controls {
+      grid-row: 2;
+      grid-column: 2;
+      margin: 0px 40px;
+    }
+
+    .dotcanvas-intensity {
+      grid-row: 3;
+      grid-column: 2;
+      margin: 0px 40px;
+    }
+
+    .rectcanvas-controls {
+      grid-row: 4;
+      grid-column: 2;
+      margin: 0px 40px;
     }
 
     .rectcanvas {
-      grid-row: 3;
+      grid-row: 4;
       grid-column: 2;
       height: 400px;
       width: 400px;
@@ -57,8 +75,15 @@
       margin: 40px;
     }
 
+
+    .tickcanvas-controls {
+      grid-row: 5;
+      grid-column: 2;
+      margin: 0px 40px;
+    }
+
     .tickcanvas {
-      grid-row: 6;
+      grid-row: 5;
       grid-column: 2;
       height: 400px;
       width: 400px;
@@ -175,6 +200,8 @@
       <h4>Github Commit graph</h4>
       <p>someone is a profilic programmer
         <div class="ghcanvas">
+        </div>
+        <div class="ghcanvas-controls">
           <button class="canvas-pan">pan</button>
           <button class="canvas-box">box</button>
           <button class="canvas-lasso">lasso</button>
@@ -185,6 +212,8 @@
       </p>
     </div>
     <div class="dotcanvas">
+    </div>
+    <div class="dotcanvas-controls">
       <button class="canvas-pan">pan</button>
       <button class="canvas-box">box</button>
       <button class="canvas-lasso">lasso</button>
@@ -192,7 +221,10 @@
       <button class="disable-highlight">disable highlight</button>
       <button class="clear-highlight">clear highlight</button>
     </div>
+    <div class="dotcanvas-intensity"></div>
     <div class="rectcanvas">
+    </div>
+    <div class="rectcanvas-controls">
       <button class="canvas-pan">pan</button>
       <button class="canvas-box">box</button>
       <button class="canvas-lasso">lasso</button>
@@ -201,6 +233,8 @@
       <button class="clear-highlight">clear highlight</button>
     </div>
     <div class="tickcanvas">
+    </div>
+    <div class="tickcanvas-controls">
       <button class="canvas-pan">pan</button>
       <button class="canvas-box">box</button>
       <button class="canvas-lasso">lasso</button>
@@ -211,10 +245,11 @@
   </div>
   <script type="module">
     import { DotplotGL, RectplotGL, TickplotGL } from "./index.js";
-    import { data, color, size } from './data.js';
+    import { data, color, size, intensityLegendData } from './data.js';
 
     let plot = new DotplotGL(".dotcanvas");
-    plot.setInput(data);
+    plot.setInput(data, intensityLegendData);
+    plot.setIntensityLegendOptions("bottom", ".dotcanvas-intensity");
 
     plot.hoverCallback = function (point) {
       if (point) {
@@ -253,33 +288,35 @@
 
     plot.render();
 
-    document.querySelector(".dotcanvas>.canvas-box").addEventListener("click", () => {
+    document.querySelector(".dotcanvas-controls>.canvas-box").addEventListener("click", () => {
       plot.setInteraction("box");
     });
 
-    document.querySelector(".dotcanvas>.canvas-pan").addEventListener("click", () => {
+    document.querySelector(".dotcanvas-controls>.canvas-pan").addEventListener("click", () => {
       plot.setInteraction("pan");
     });
 
-    document.querySelector(".dotcanvas>.canvas-lasso").addEventListener("click", () => {
+    document.querySelector(".dotcanvas-controls>.canvas-lasso").addEventListener("click", () => {
       plot.setInteraction("lasso");
     });
 
-    document.querySelector(".dotcanvas>.enable-highlight").addEventListener("click", () => {
+    document.querySelector(".dotcanvas-controls>.enable-highlight").addEventListener("click", () => {
       plot.enableHighlight();
     });
     
-    document.querySelector(".dotcanvas>.disable-highlight").addEventListener("click", () => {
+    document.querySelector(".dotcanvas-controls>.disable-highlight").addEventListener("click", () => {
       plot.disableHighlight();
     });
 
-    document.querySelector(".dotcanvas>.clear-highlight").addEventListener("click", () => {
+    document.querySelector(".dotcanvas-controls>.clear-highlight").addEventListener("click", () => {
       plot.clearHighlight();
     });
 
 
     let plot2 = new RectplotGL(".rectcanvas");
-    plot2.setInput(data);
+
+    plot2.setInput(data, intensityLegendData);
+    plot2.setIntensityLegendOptions("right");
 
     plot2.hoverCallback = function (point) {
       if (point) {
@@ -308,27 +345,27 @@
 
     plot2.render();
 
-    document.querySelector(".rectcanvas>.canvas-box").addEventListener("click", () => {
+    document.querySelector(".rectcanvas-controls>.canvas-box").addEventListener("click", () => {
       plot2.setInteraction("box");
     });
 
-    document.querySelector(".rectcanvas>.canvas-pan").addEventListener("click", () => {
+    document.querySelector(".rectcanvas-controls>.canvas-pan").addEventListener("click", () => {
       plot2.setInteraction("pan");
     });
 
-    document.querySelector(".rectcanvas>.canvas-lasso").addEventListener("click", () => {
+    document.querySelector(".rectcanvas-controls>.canvas-lasso").addEventListener("click", () => {
       plot2.setInteraction("lasso");
     });
 
-    document.querySelector(".rectcanvas>.enable-highlight").addEventListener("click", () => {
+    document.querySelector(".rectcanvas-controls>.enable-highlight").addEventListener("click", () => {
       plot2.enableHighlight();
     });
 
-    document.querySelector(".rectcanvas>.disable-highlight").addEventListener("click", () => {
+    document.querySelector(".rectcanvas-controls>.disable-highlight").addEventListener("click", () => {
       plot2.disableHighlight();
     });
 
-    document.querySelector(".rectcanvas>.clear-highlight").addEventListener("click", () => {
+    document.querySelector(".rectcanvas-controls>.clear-highlight").addEventListener("click", () => {
       plot2.clearHighlight();
     });
 
@@ -350,15 +387,15 @@
 
     plot3.render();
 
-    document.querySelector(".tickcanvas>.canvas-box").addEventListener("click", () => {
+    document.querySelector(".tickcanvas-controls>.canvas-box").addEventListener("click", () => {
       plot3.setInteraction("box");
     });
 
-    document.querySelector(".tickcanvas>.canvas-pan").addEventListener("click", () => {
+    document.querySelector(".tickcanvas-controls>.canvas-pan").addEventListener("click", () => {
       plot3.setInteraction("pan");
     });
 
-    document.querySelector(".tickcanvas>.canvas-lasso").addEventListener("click", () => {
+    document.querySelector(".tickcanvas-controls>.canvas-lasso").addEventListener("click", () => {
       plot3.setInteraction("lasso");
     });
 
@@ -393,27 +430,27 @@
 
     plotgh.render();
 
-    document.querySelector(".ghcanvas>.canvas-box").addEventListener("click", () => {
+    document.querySelector(".ghcanvas-controls>.canvas-box").addEventListener("click", () => {
       plotgh.setInteraction("box");
     });
 
-    document.querySelector(".ghcanvas>.canvas-pan").addEventListener("click", () => {
+    document.querySelector(".ghcanvas-controls>.canvas-pan").addEventListener("click", () => {
       plotgh.setInteraction("pan");
     });
 
-    document.querySelector(".ghcanvas>.canvas-lasso").addEventListener("click", () => {
+    document.querySelector(".ghcanvas-controls>.canvas-lasso").addEventListener("click", () => {
       plotgh.setInteraction("lasso");
     });
 
-    document.querySelector(".ghcanvas>.enable-highlight").addEventListener("click", () => {
+    document.querySelector(".ghcanvas-controls>.enable-highlight").addEventListener("click", () => {
       plotgh.enableHighlight();
     });
 
-    document.querySelector(".ghcanvas>.disable-highlight").addEventListener("click", () => {
+    document.querySelector(".ghcanvas-controls>.disable-highlight").addEventListener("click", () => {
       plotgh.disableHighlight();
     });
 
-    document.querySelector(".ghcanvas>.clear-highlight").addEventListener("click", () => {
+    document.querySelector(".ghcanvas-controls>.clear-highlight").addEventListener("click", () => {
       plotgh.clearHighlight();
     });
 
