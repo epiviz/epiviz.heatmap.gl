@@ -249,7 +249,7 @@
 
     let plot = new DotplotGL(".dotcanvas");
     plot.setInput(data, intensityLegendData);
-    plot.setIntensityLegendOptions("bottom", ".dotcanvas-intensity");
+    plot.setIntensityLegendOptions("bottom", ".dotcanvas-intensity", 400, 500);
 
     plot.hoverCallback = function (point) {
       if (point) {

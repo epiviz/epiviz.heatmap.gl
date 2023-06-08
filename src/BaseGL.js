@@ -284,9 +284,11 @@ class BaseGL {
    * @param {string} legentPosition, position of the legend, can be `top`, `bottom`, `left` or `right`
    * @param {DOMElement} legendDomElement, the DOM element to use for the legend
    **/
-  setIntensityLegendOptions(legentPosition, legendDomElement) {
+  setIntensityLegendOptions(legentPosition, legendDomElement, width, height) {
     this.isLegendDomElementProvided = !!legendDomElement;
     this.legendPosition = legentPosition;
+    this.legendWidth = width;
+    this.legendHeight = height;
 
     if (!legendDomElement) {
       this.legendDomElement = this.elem.lastChild;
@@ -433,8 +435,10 @@ class BaseGL {
 
     const parsedMargins = parseMargins(this._spec.margins);
     const containerWidth =
+      this.legendWidth ||
       this.elem.clientWidth - parsedMargins.left - parsedMargins.right;
     const containerHeight =
+      this.legendHeight ||
       this.elem.clientHeight - parsedMargins.top - parsedMargins.bottom;
 
     const averageCharWidth = 6; // rough estimation of the width of a single character
@@ -461,12 +465,6 @@ class BaseGL {
       .attr("width", svgWidth)
       .attr("height", svgHeight)
       .attr("overflow", "visible");
-
-    if (position === "right" || position === "left") {
-      svgContainer.style("margin-top", parsedMargins.top);
-    } else if (position === "top" || position === "bottom") {
-      svgContainer.style("margin-left", parsedMargins.left);
-    }
 
     const defs = svgContainer.append("defs");
 
@@ -574,6 +572,12 @@ class BaseGL {
 
       // set svg container to position absolute and position value to 0
       svgContainer.style("position", "absolute").style(position, "0px");
+
+      if (position === "right" || position === "left") {
+        svgContainer.style("margin-top", parsedMargins.top);
+      } else if (position === "top" || position === "bottom") {
+        svgContainer.style("margin-left", parsedMargins.left);
+      }
     }
   }
 
