@@ -148,6 +148,10 @@ class BaseGL {
    * @param {Array} data.y, y coordinates
    * @param {Array} data.xlabels, labels along the x-axis
    * @param {Array} data.ylabels, labels along the y-axis
+   * @param {Array} legendData, data for the legend
+   * @param {Array} legendData.labels, labels for the legend
+   * @param {Array} legendData.colors, colors for the legend
+   * @param {Array} legendData.intensity, intensity for the color inside legend
    * @memberof BaseGL
    */
   setInput(data, legendData = null) {
@@ -276,18 +280,9 @@ class BaseGL {
   }
 
   /**
-   * Set the legend data for the intensity plot.
-   * This is used to render the legend for the intensity plot.
-   * The legend is rendered as a separate canvas element.
-   * The legend data is an array of objects, each object has the following attributes
-   * color - the color to render
-   * label - the label to render
-   * intensity - the value to render
-   *  @example
-   * [
-   * {color: "#000000", label: "label1", intensity: 0.1},
-   * {color: "#000000", label: "label2", intensity: 0.2},
-   * {color: "#000000", label: "label3", intensity: 0.3},
+   * Set the legend options for the visualization.
+   * @param {string} legentPosition, position of the legend, can be `top`, `bottom`, `left` or `right`
+   * @param {DOMElement} legendDomElement, the DOM element to use for the legend
    **/
   setIntensityLegendOptions(legentPosition, legendDomElement) {
     this.isLegendDomElementProvided = !!legendDomElement;
