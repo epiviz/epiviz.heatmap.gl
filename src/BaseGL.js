@@ -7,6 +7,7 @@ import {
   mixWithWhite,
   isRGB,
   strToRGB,
+  parseMargins,
 } from "./utils";
 
 /**
@@ -435,9 +436,15 @@ class BaseGL {
     // Only render the legend if we have the legend data and the legend dom element
     if (!this.legendDomElement || !this.legendData) return;
 
+    const parsedMargins = parseMargins(this._spec.margins);
+    const containerWidth =
+      this.elem.clientWidth - parsedMargins.left - parsedMargins.right;
+    const containerHeight =
+      this.elem.clientHeight - parsedMargins.top - parsedMargins.bottom;
+
     const averageCharWidth = 6; // rough estimation of the width of a single character
-    const legendWidth = this.elem.clientWidth - 2 * averageCharWidth;
-    const legendHeight = this.elem.clientHeight - 2 * averageCharWidth;
+    const legendWidth = containerWidth - 2 * averageCharWidth;
+    const legendHeight = containerHeight - 2 * averageCharWidth;
     const legendSize = 20;
     const labelSize = 25;
 
@@ -445,10 +452,10 @@ class BaseGL {
     let svgWidth, svgHeight, transformX, transformY;
     if (position === "left" || position === "right") {
       svgWidth = legendSize + labelSize;
-      svgHeight = this.elem.clientHeight;
+      svgHeight = containerHeight;
       transformY = averageCharWidth;
     } else {
-      svgWidth = this.elem.clientWidth;
+      svgWidth = containerWidth;
       svgHeight = legendSize + labelSize;
       transformX = averageCharWidth;
     }
@@ -459,6 +466,12 @@ class BaseGL {
       .attr("width", svgWidth)
       .attr("height", svgHeight)
       .attr("overflow", "visible");
+
+    if (position === "right" || position === "left") {
+      svgContainer.style("margin-top", parsedMargins.top);
+    } else if (position === "top" || position === "bottom") {
+      svgContainer.style("margin-left", parsedMargins.left);
+    }
 
     const defs = svgContainer.append("defs");
 
