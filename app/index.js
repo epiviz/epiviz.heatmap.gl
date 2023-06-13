@@ -7592,13 +7592,9 @@ class BaseGL {
    * @param {Array} data.y, y coordinates
    * @param {Array} data.xlabels, labels along the x-axis
    * @param {Array} data.ylabels, labels along the y-axis
-   * @param {Array} legendData, data for the legend
-   * @param {Array} legendData.labels, labels for the legend
-   * @param {Array} legendData.colors, colors for the legend
-   * @param {Array} legendData.intensity, intensity for the color inside legend
    * @memberof BaseGL
    */
-  setInput(data, legendData = null) {
+  setInput(data) {
     if (
       isObject(data) &&
       "x" in data &&
@@ -7660,8 +7656,6 @@ class BaseGL {
     } else {
       throw `input data must contain x and y attributes`;
     }
-
-    this.legendData = legendData;
   }
 
   /**
@@ -7673,6 +7667,8 @@ class BaseGL {
    * @param {Array|number} encoding.opacity, same as size, but sets the opacity for each cell.
    * @param {Array|number} encoding.xgap, same as size, but sets the gap along x-axis.
    * @param {Array|number} encoding.ygap, same as size, but sets the gap along y-axis.
+   * @param {Array} encoding.legendIntensityData, an array of objects containing color, intensity, and label for the legend.
+   * e.g  [{color: "#000000", intensity: 1, label: "0.1"}]
    * @memberof BaseGL
    */
   setState(encoding) {
@@ -7702,6 +7698,10 @@ class BaseGL {
 
     if ("ygap" in encoding) {
       this.state["ygap"] = encoding["ygap"];
+    }
+
+    if ("intensityLegendData" in encoding) {
+      this.intensityLegendData = encoding["intensityLegendData"];
     }
   }
 
@@ -7797,7 +7797,7 @@ class BaseGL {
       this._spec.height = height;
     }
     // Render the legend
-    if (this.legendData && this.legendDomElement) {
+    if (this.intensityLegendData && this.legendDomElement) {
       this.renderLegend();
     }
 
@@ -7875,7 +7875,7 @@ class BaseGL {
   renderLegend() {
     const position = this.legendPosition;
     // Only render the legend if we have the legend data and the legend dom element
-    if (!this.legendDomElement || !this.legendData) return;
+    if (!this.legendDomElement || !this.intensityLegendData) return;
 
     const parsedMargins = parseMargins(this._spec.margins);
     const containerWidth =
@@ -7924,7 +7924,7 @@ class BaseGL {
 
     gradient
       .selectAll("stop")
-      .data(this.legendData)
+      .data(this.intensityLegendData)
       .enter()
       .append("stop")
       .attr("offset", (d) => d.intensity * 100 + "%")
@@ -7932,7 +7932,7 @@ class BaseGL {
 
     // Create a mapping from intensity to label
     const intensityToLabel = {};
-    this.legendData.forEach((d) => {
+    this.intensityLegendData.forEach((d) => {
       if (d.label !== "") {
         intensityToLabel[d.intensity] = d.label;
       }
@@ -7973,7 +7973,7 @@ class BaseGL {
       .call(legendAxis);
 
     const maxLabelChars = Math.max(
-      ...this.legendData.map((d) => d.label.toString().length)
+      ...this.intensityLegendData.map((d) => d.label.toString().length)
     ); // length of the longest label
 
     let rectX, rectY;

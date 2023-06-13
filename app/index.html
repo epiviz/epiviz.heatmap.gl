@@ -248,7 +248,7 @@
     import { data, color, size, intensityLegendData } from './data.js';
 
     let plot = new DotplotGL(".dotcanvas");
-    plot.setInput(data, intensityLegendData);
+    plot.setInput(data);
     plot.setIntensityLegendOptions("bottom", ".dotcanvas-intensity", 400);
 
     plot.hoverCallback = function (point) {
@@ -284,6 +284,7 @@
     plot.setState({
       "size": size,
       "color": color,
+      intensityLegendData,
     });
 
     plot.render();
@@ -341,6 +342,7 @@
     plot2.setState({
       "size": size,
       "color": color,
+      intensityLegendData,
     });
 
     plot2.render();
