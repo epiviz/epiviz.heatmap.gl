@@ -29,11 +29,48 @@ package is available through [npm](https://www.npmjs.com/package/epiviz.heatmap.
 
 - [app/index.html](./app/index.html) provides an easier example and code on how to use the library
 
+#### Intensity Legend
+
+Adding an Intensity Legend is optional. If you wish to add one, the simplest way is to provide the data in the following format:
+
+```javascript
+[
+  { color: "#fff", intensity: 0.1, label: "-2" },
+  { color: "#fff", intensity: 0.2, label: "-1.5" },
+];
+```
+
+You can use the existing setState method to provide the legend Data encoding like so:
+
+```javascript
+plot.setState({
+  legendIntensityData,
+});
+```
+
+With this option, the intensity legend will render at the bottom of the graph by default. You can always change the position using the setIntensityLegendOptions method:
+
+```javascript
+setIntensityLegendOptions("top" | "bottom" | "left" | "right");
+```
+
+If you wish for the legend to be rendered somewhere else in the DOM, you must provide the selector or DOM element, along with the position/type of intensity legend you want, for example:
+
+```javascript
+setIntensityLegendOptions("top", ".intensity-legend");
+```
+
+You can also specify width and height:
+
+```javascript
+setIntensityLegendOptions("top", ".intensity-legend", 400, 500);
+```
+
 #### React Usage
 
 To use the library in a React application
 
-```
+```javascript
 import { ReactDotplot } from 'epiviz.heatmap.gl/react'
 
 const Component = () => {
@@ -107,6 +144,7 @@ plot.setInteraction("pan");
 - hoverCallback
 - clickCallback
 - selectionCallback
+- highlightedIndicesCallback
 
 **_hover and click also provide the distance of the point from the mouse location. This metric can be used to enable various interactions._**
 
@@ -124,6 +162,11 @@ plot.selectionCallback = function (points) {
   // ... do something ...
   console.log(points);
 };
+
+plot.highlightedIndicesCallback = function (indices) {
+  // ... do something ...
+  console.log(indices);
+};
 ```
 
 #### Encodings
@@ -134,6 +177,8 @@ These attributes either take a fixed value or an array of values for each data p
 - `size` - size of each dot
 - `opacity` - opacity across the entire plot
 - `xgap` or `ygap` - gap between rows and columns
+- `intensityLegendData` - an array of objects containing color, intensity, and label for the legend.
+  e.g [{color: "#000000", intensity: 1, label: "0.1"}]
 
 ```js
   plot.setState({
@@ -142,5 +187,6 @@ These attributes either take a fixed value or an array of values for each data p
     xgap: <GAPS>,
     ygap: <GAPS>,
     opacity: <OPACITY>
+    intensityLegendData: <INTENSITY_LEGEND_DATA>
   });
 ```

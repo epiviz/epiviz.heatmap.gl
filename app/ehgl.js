@@ -24,76 +24,27 @@ const getMinMax = (arr) => {
   return [min, max];
 };
 
-/**
- * Function to convert a hexadecimal color to its RGB equivalent.
- *
- * @param {string} hex - The hexadecimal color string. Must start with "#" and be followed by 6 hexadecimal digits.
- * @returns {Array<number>} An array containing the RGB values (0-255) in the order [r, g, b].
- */
-function hexToRGB(hex) {
-  let r = parseInt(hex.slice(1, 3), 16),
-    g = parseInt(hex.slice(3, 5), 16),
-    b = parseInt(hex.slice(5, 7), 16);
-  return [r, g, b];
-}
+const parseMargins = (margins) => {
+  const parsedMargins = {
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+  };
 
-/**
- * Function to convert an RGB color to its hexadecimal equivalent.
- *
- * @param {Array<number>} rgb - An array of three numbers [r, g, b] representing an RGB color.
- * @returns {string} A string representing the color in hexadecimal format.
- */
-function rgbToHex(rgb) {
-  let r = rgb[0].toString(16),
-    g = rgb[1].toString(16),
-    b = rgb[2].toString(16);
-  return (
-    "#" +
-    ((r.length == 1 ? "0" : "") + r) +
-    ((g.length == 1 ? "0" : "") + g) +
-    ((b.length == 1 ? "0" : "") + b)
-  );
-}
+  for (let key in margins) {
+    if (margins.hasOwnProperty(key)) {
+      const value = margins[key];
+      const parsedValue = parseInt(value, 10);
 
-/**
- * Function to mix a color with white to create a "brightened" effect.
- *
- * @param {Array<number>} rgb - An array of three numbers [r, g, b] representing an RGB color.
- * @param {number} amount - The brightening factor. A value between 0 (no change) and 1 (complete white).
- * @returns {Array<number>} An array containing the RGB values of the brightened color.
- */
-function mixWithWhite(rgb, amount) {
-  return [
-    Math.floor(rgb[0] + (255 - rgb[0]) * amount),
-    Math.floor(rgb[1] + (255 - rgb[1]) * amount),
-    Math.floor(rgb[2] + (255 - rgb[2]) * amount),
-  ];
-}
-
-/**
- * Function to convert a color from the "rgb(r, g, b)" string format to an array of numbers.
- *
- * @param {string} rgbStr - The color in "rgb(r, g, b)" string format.
- * @returns {Array<number>} An array containing the RGB values (0-255) in the order [r, g, b].
- */
-function strToRGB(rgbStr) {
-  let match = rgbStr.match(/rgb\((\d+), (\d+), (\d+)\)/);
-  if (match) {
-    return [parseInt(match[1]), parseInt(match[2]), parseInt(match[3])];
-  } else {
-    throw new Error("Invalid RGB string format");
+      if (!isNaN(parsedValue)) {
+        parsedMargins[key] = parsedValue;
+      }
+    }
   }
-}
 
-/**
- * Function to determine whether a given color is in RGB format.
- *
- * @param {Array<number> | string} color - The color in either RGB format (as a string in the "rgb(r, g, b)" format) or hexadecimal format (as a string).
- * @returns {boolean} True if the color is in RGB format, false otherwise.
- */
-function isRGB(color) {
-  return color.startsWith("rgb");
-}
+  return parsedMargins;
+};
 
 /**
  * Base class for all matrix like layout plots.
@@ -112,6 +63,8 @@ class BaseGL {
    */
   constructor(selectorOrElement) {
     this.elem = selectorOrElement;
+    // Default legend position
+    this.legendPosition = "bottom";
     if (
       typeof selectorOrElement === "string" ||
       selectorOrElement instanceof String
@@ -156,13 +109,14 @@ class BaseGL {
         sdata &&
         sdata.selection.indices.length > 0
       ) {
-        this.highlightIndices(sdata.selection.indices, true);
+        this.highlightIndices(sdata.selection.indices, null, true);
       }
 
       self.selectionCallback(e.detail.data);
     });
 
     this.highlightedIndices = [];
+    this.indexStates = {};
   }
 
   /**
@@ -305,6 +259,8 @@ class BaseGL {
    * @param {Array|number} encoding.opacity, same as size, but sets the opacity for each cell.
    * @param {Array|number} encoding.xgap, same as size, but sets the gap along x-axis.
    * @param {Array|number} encoding.ygap, same as size, but sets the gap along y-axis.
+   * @param {Array} encoding.legendIntensityData, an array of objects containing color, intensity, and label for the legend.
+   * e.g  [{color: "#000000", intensity: 1, label: "0.1"}]
    * @memberof BaseGL
    */
   setState(encoding) {
@@ -335,6 +291,10 @@ class BaseGL {
     if ("ygap" in encoding) {
       this.state["ygap"] = encoding["ygap"];
     }
+
+    if ("intensityLegendData" in encoding) {
+      this.intensityLegendData = encoding["intensityLegendData"];
+    }
   }
 
   /**
@@ -353,6 +313,22 @@ class BaseGL {
     }
 
     this.plot.setViewOptions({ tool: mode });
+  }
+
+  /**
+   * Set the legend options for the visualization.
+   * @param {string} legentPosition, position of the legend, can be `top`, `bottom`, `left` or `right`
+   * @param {DOMElement} legendDomElement, the DOM element to use for the legend
+   **/
+  setIntensityLegendOptions(legentPosition, legendDomElement, width, height) {
+    this.isLegendDomElementProvided = !!legendDomElement;
+    this.legendPosition = legentPosition;
+    this.legendWidth = width;
+    this.legendHeight = height;
+
+    if (!legendDomElement) {
+      this.legendDomElement = this.elem.lastChild;
+    } else this.legendDomElement = legendDomElement;
   }
 
   /**
@@ -412,6 +388,10 @@ class BaseGL {
     if (height) {
       this._spec.height = height;
     }
+    // Render the legend
+    if (this.intensityLegendData && this.legendDomElement) {
+      this.renderLegend();
+    }
 
     if (this._renderCount == 0) {
       this.plot.setSpecification(this._spec);
@@ -444,32 +424,224 @@ class BaseGL {
       }
 
       if (this.highlightEnabled && hdata && hdata.indices.length > 0) {
-        this.highlightIndices(hdata.indices);
+        const index = hdata.indices[0];
+        const shouldHighlight = !this.indexStates[index]; // reverse the current state
+        this.indexStates[index] = shouldHighlight;
+        this.highlightIndices([index], shouldHighlight);
       }
 
       self.clickCallback(hdata);
     });
+
+    this.plot.addEventListener("labelClicked", (e) => {
+      e.preventDefault();
+      if (this.highlightEnabled && e && e.detail && e.detail.labelObject) {
+        const type = e.detail.labelObject.type;
+        const index = e.detail.labelObject.index;
+        const indices = [];
+        if (type === "column") {
+          for (let i = index; i < this.ncols * this.nrows; i += this.nrows) {
+            indices.push(i);
+          }
+        } else if (type === "row") {
+          for (let i = index * this.nrows; i < (index + 1) * this.nrows; i++) {
+            indices.push(i);
+          }
+        }
+
+        // Decide whether to highlight or unhighlight
+        const shouldHighlight = indices.some(
+          (index) => !this.indexStates[index]
+        );
+        indices.forEach((index) => (this.indexStates[index] = shouldHighlight));
+
+        this.highlightIndices(indices, shouldHighlight);
+      }
+    });
   }
 
-  highlightIndices(indices, forceSet = false) {
+  /**
+   * Render the legend for the intensity plot.
+   * This is used to render the legend for the intensity plot.
+   **/
+  renderLegend() {
+    const position = this.legendPosition;
+    // Only render the legend if we have the legend data and the legend dom element
+    if (!this.legendDomElement || !this.intensityLegendData) return;
+
+    const parsedMargins = parseMargins(this._spec.margins);
+    const containerWidth =
+      this.legendWidth ||
+      this.elem.clientWidth - parsedMargins.left - parsedMargins.right;
+    const containerHeight =
+      this.legendHeight ||
+      this.elem.clientHeight - parsedMargins.top - parsedMargins.bottom;
+
+    const averageCharWidth = 6; // rough estimation of the width of a single character
+    const legendWidth = containerWidth - 2 * averageCharWidth;
+    const legendHeight = containerHeight - 2 * averageCharWidth;
+    const legendSize = 20;
+    const labelSize = 25;
+
+    // Adjust the SVG size and the legend position according to the position parameter
+    let svgWidth, svgHeight, transformX, transformY;
+    if (position === "left" || position === "right") {
+      svgWidth = legendSize + labelSize;
+      svgHeight = containerHeight;
+      transformY = averageCharWidth;
+    } else {
+      svgWidth = containerWidth;
+      svgHeight = legendSize + labelSize;
+      transformX = averageCharWidth;
+    }
+
+    const svgContainer = d3
+      .select(this.legendDomElement)
+      .append("svg")
+      .attr("width", svgWidth)
+      .attr("height", svgHeight)
+      .attr("overflow", "visible");
+
+    const defs = svgContainer.append("defs");
+
+    const gradientId = `linear-gradient-${(Math.random() * 1000).toFixed()}`;
+
+    const gradient = defs
+      .append("linearGradient")
+      .attr("id", gradientId)
+      .attr("x1", "0%")
+      .attr("y1", "0%")
+      .attr("x2", position === "left" || position === "right" ? "0%" : "100%")
+      .attr("y2", position === "left" || position === "right" ? "100%" : "0%");
+
+    gradient
+      .selectAll("stop")
+      .data(this.intensityLegendData)
+      .enter()
+      .append("stop")
+      .attr("offset", (d) => d.intensity * 100 + "%")
+      .attr("stop-color", (d) => d.color);
+
+    // Create a mapping from intensity to label
+    const intensityToLabel = {};
+    this.intensityLegendData.forEach((d) => {
+      if (d.label !== "") {
+        intensityToLabel[d.intensity] = d.label;
+      }
+    });
+
+    const intensityScale = d3
+      .scaleLinear()
+      .range([
+        0,
+        position === "left" || position === "right"
+          ? legendHeight
+          : legendWidth,
+      ])
+      .domain([0, 1]);
+
+    let legendAxis;
+    if (position === "left") {
+      legendAxis = d3.axisLeft(intensityScale);
+      transformX = labelSize;
+    } else if (position === "top") {
+      legendAxis = d3.axisTop(intensityScale);
+      transformY = labelSize;
+    } else if (position === "right") {
+      transformX = legendSize;
+      legendAxis = d3.axisRight(intensityScale);
+    } else {
+      transformY = legendSize;
+      legendAxis = d3.axisBottom(intensityScale);
+    }
+
+    legendAxis
+      .tickValues(Object.keys(intensityToLabel).map(Number)) // Only use intensities that have labels
+      .tickFormat((d) => intensityToLabel[d]); // Use the intensity to label mapping
+
+    svgContainer
+      .append("g")
+      .attr("transform", `translate(${transformX}, ${transformY})`)
+      .call(legendAxis);
+
+    const maxLabelChars = Math.max(
+      ...this.intensityLegendData.map((d) => d.label.toString().length)
+    ); // length of the longest label
+
+    let rectX, rectY;
+    if (position === "top") {
+      rectX = averageCharWidth;
+      rectY = maxLabelChars * averageCharWidth + 8; // Offset to move gradient down
+    } else if (position === "left") {
+      rectX = maxLabelChars * averageCharWidth + 8; // Offset to move gradient right
+      rectY = averageCharWidth;
+    } else if (position === "right") {
+      rectY = averageCharWidth;
+      rectX = 0;
+    } else if (position === "bottom") {
+      rectX = averageCharWidth;
+      rectY = 0;
+    }
+
+    svgContainer
+      .append("rect")
+      .attr(
+        "width",
+        position === "left" || position === "right" ? legendSize : legendWidth
+      )
+      .attr(
+        "height",
+        position === "left" || position === "right" ? legendHeight : legendSize
+      )
+      .style("fill", `url(#${gradientId})`)
+      .attr("x", rectX)
+      .attr("y", rectY);
+
+    // Update margins to account for the legend only if dom element is not provided
+    if (!this.isLegendDomElementProvided) {
+      this._spec.margins = {
+        ...this._spec.margins,
+        [position]: `calc(${
+          (position === "left" || position === "right" ? 45 : 45) + "px"
+        } + ${this._spec.margins[position]})`,
+      };
+
+      // set svg container to position absolute and position value to 0
+      svgContainer.style("position", "absolute").style(position, "0px");
+
+      if (position === "right" || position === "left") {
+        svgContainer.style("margin-top", parsedMargins.top);
+      } else if (position === "top" || position === "bottom") {
+        svgContainer.style("margin-left", parsedMargins.left);
+      }
+    }
+  }
+
+  /**
+   * Highlight the indices on the plot.
+   * @memberof BaseGL
+   * @param {Array} indices, indices to be highlighted.
+   * @param {boolean} forceSet, if true, set the indices to be highlighted, else toggle the indices.
+   * @example
+   * // Highlight indices
+   * plot.highlightIndices([1, 2, 3]);
+   **/
+  highlightIndices(indices, shouldHighlight, forceSet = false) {
     if (forceSet) {
       this.highlightedIndices = [...indices];
-    } else if (this.highlightedIndices.length > 0) {
+      indices.forEach((index) => (this.indexStates[index] = true));
+    } else {
       indices.forEach((index) => {
         const foundIndex = this.highlightedIndices.indexOf(index);
-        if (foundIndex > -1) {
-          this.highlightedIndices = this.highlightedIndices.filter(
-            (item) => item !== index
-          );
-        } else {
+        if (!shouldHighlight && foundIndex > -1) {
+          this.highlightedIndices.splice(foundIndex, 1);
+        } else if (shouldHighlight && foundIndex === -1) {
           this.highlightedIndices.push(index);
         }
       });
-    } else {
-      this.highlightedIndices.push(...indices);
     }
     this.highlightedIndicesCallback(this.highlightedIndices);
-    this.reRender();
+    this.reRenderOnHighlight();
   }
 
   /**
@@ -506,33 +678,38 @@ class BaseGL {
    **/
   clearHighlight() {
     this.highlightedIndices = [];
+    this.indexStates = {};
     this.highlightedIndicesCallback(this.highlightedIndices);
-    this.reRender();
+    this.reRenderOnHighlight();
   }
 
   /**
-   * Re-render the plot. This is useful when the data is updated.
+   * Re-render the plot. This is useful when the highlight data is updated.
    * @memberof BaseGL
    */
-  reRender() {
-    this.plot.updateSpecification({
-      ...this._spec,
-      defaultData: {
-        ...this._spec.defaultData,
-        color: this._spec.defaultData.color.map((color, index) => {
-          if (
-            this.highlightedIndices.length === 0 ||
-            this.highlightedIndices.includes(index)
-          ) {
-            return color;
-          } else {
-            const rgb = isRGB(color) ? strToRGB(color) : hexToRGB(color);
-            const dimmedRgb = mixWithWhite(rgb, 0.7); // 0.7 is the dimming factor
-            return rgbToHex(dimmedRgb);
-          }
-        }),
-      },
-    });
+  reRenderOnHighlight() {
+    const opacityData = this.createOpacityArray(
+      this._spec.defaultData.color.length,
+      this.highlightedIndices
+    );
+    this._generateSpecForEncoding(this._spec, "opacity", opacityData);
+    this.plot.updateSpecification(this._spec);
+  }
+
+  /**
+   * Create an array of length `length` with the specified indexes set to 1
+   * @memberof BaseGL
+   * @param {number} length, length of the array
+   * @param {Array} indexes, indexes to be set to 1
+   * @return {Array} an array of length `length` with the specified indexes set to 1
+   **/
+  createOpacityArray(length, indexes) {
+    // Create an array of length `length` with all values set to 0.4 if indexes are specified else 1
+    const arr = new Array(length).fill(indexes.length ? 0.4 : 1);
+    for (let i of indexes) {
+      arr[i] = 1; // Set the specified indexes to 1
+    }
+    return arr;
   }
 
   /**
@@ -545,7 +722,7 @@ class BaseGL {
    */
   clearHighlightedIndices() {
     this.highlightedIndices = [];
-    this.reRender();
+    this.reRenderOnHighlight();
   }
 
   /**
@@ -639,6 +816,8 @@ class DotplotGL extends BaseGL {
         labels.push({
           x: -1.05 + (2 * ilx + 1) / xlabels_len,
           y: 1.05,
+          type: "row",
+          index: ilx,
           text: this.input["xlabels"][ilx],
           fixedY: true,
           "text-anchor": "center",
@@ -656,6 +835,8 @@ class DotplotGL extends BaseGL {
         labels.push({
           x: -1.05,
           y: -1.05 + (2 * ily + 1) / ylabels_len,
+          type: "column",
+          index: ily,
           text: this.input["ylabels"][ily],
           fixedX: true,
           "text-anchor": "end",
@@ -723,7 +904,6 @@ class DotplotGL extends BaseGL {
  * @extends {BaseGL}
  */
 class RectplotGL extends BaseGL {
-
   /**
    * Creates an instance of RectplotGL.
    * @param {string} selectorOrElement, a html dom selector or element.
@@ -746,7 +926,7 @@ class RectplotGL extends BaseGL {
    * Generate the specification for Rect heatmap Plots.
    * checkout epiviz.gl for more information.
    *
-   * @return {object} a specification object that epiviz.gl can understand 
+   * @return {object} a specification object that epiviz.gl can understand
    * @memberof RectplotGL
    */
   generateSpec() {
@@ -788,6 +968,8 @@ class RectplotGL extends BaseGL {
         labels.push({
           x: -1.05 + (2 * ilx + 1) / xlabels_len,
           y: 1.05,
+          type: "row",
+          index: ilx,
           text: this.input["xlabels"][ilx],
           fixedY: true,
           "text-anchor": "center",
@@ -805,6 +987,8 @@ class RectplotGL extends BaseGL {
         labels.push({
           x: -1.05,
           y: -1.05 + (2 * ily + 1) / ylabels_len,
+          type: "column",
+          index: ily,
           text: this.input["ylabels"][ily],
           fixedX: true,
           "text-anchor": "end",
@@ -869,8 +1053,6 @@ class RectplotGL extends BaseGL {
  * @extends {BaseGL}
  */
 class TickplotGL extends BaseGL {
-
-
   /**
    * Creates an instance of TickplotGL.
    * @param {string} selectorOrElement, a html dom selector or element.
@@ -889,12 +1071,11 @@ class TickplotGL extends BaseGL {
     };
   }
 
-
   /**
    * Generate the specification for Tick Plots.
    * checkout epiviz.gl for more information.
    *
-   * @return {object} a specification object that epiviz.gl can understand 
+   * @return {object} a specification object that epiviz.gl can understand
    * @memberof TickplotGL
    */
   generateSpec() {
@@ -911,6 +1092,8 @@ class TickplotGL extends BaseGL {
         labels.push({
           x: -1 + (2 * ilx + 1) / xlabels_len,
           y: 1.05,
+          type: "row",
+          index: ilx,
           text: this.input["xlabels"][ilx],
           fixedY: true,
           "text-anchor": "center",
@@ -928,6 +1111,8 @@ class TickplotGL extends BaseGL {
         labels.push({
           x: -1.1,
           y: -1 + (2 * ily + 1) / ylabels_len,
+          type: "column",
+          index: ily,
           text: this.input["ylabels"][ily],
           fixedX: true,
           "text-anchor": "end",
