@@ -1,6 +1,13 @@
 import WebGLVis from "epiviz.gl";
 import { isObject, getMinMax, parseMargins } from "./utils";
 
+const INTENSITY_LEGEND_LABEL_SIZE_IN_PX = 25;
+const INTENSITY_LEGEND_GRADIENT_SIZE_IN_PX = 20;
+const INTENSITY_LEGEND_SIZE_IN_PX =
+  INTENSITY_LEGEND_GRADIENT_SIZE_IN_PX + INTENSITY_LEGEND_LABEL_SIZE_IN_PX;
+const GROUPING_LEGEND_SIZE_IN_PX = 20;
+const DEFAULT_VISIBLE_RANGE = [-1, 1];
+
 /**
  * Base class for all matrix like layout plots.
  * This class is not to be used directly.
@@ -68,6 +75,33 @@ class BaseGL {
       }
 
       self.selectionCallback(e.detail.data);
+    });
+
+    this.plot.addEventListener("zoomIn", (e) => {
+      const viewport = e.detail.viewport;
+
+      this.viewport = viewport;
+      this.renderRowGroupingLegend();
+      this.renderColumnGroupingLegend();
+      console.log("zoomIn", viewport);
+    });
+
+    this.plot.addEventListener("zoomOut", (e) => {
+      const viewport = e.detail.viewport;
+
+      this.viewport = viewport;
+      this.renderRowGroupingLegend();
+      this.renderColumnGroupingLegend();
+      console.log("zoomOut", viewport);
+    });
+
+    this.plot.addEventListener("pan", (e) => {
+      const viewport = e.detail.viewport;
+
+      this.viewport = viewport;
+      this.renderRowGroupingLegend();
+      this.renderColumnGroupingLegend();
+      console.log("pan", viewport);
     });
 
     this.highlightedIndices = [];
@@ -250,6 +284,14 @@ class BaseGL {
     if ("intensityLegendData" in encoding) {
       this.intensityLegendData = encoding["intensityLegendData"];
     }
+
+    if ("groupingRowData" in encoding) {
+      this.groupingRowData = encoding["groupingRowData"];
+    }
+
+    if ("groupingColumnData" in encoding) {
+      this.groupingColumnData = encoding["groupingColumnData"];
+    }
   }
 
   /**
@@ -284,6 +326,24 @@ class BaseGL {
     if (!legendDomElement) {
       this.legendDomElement = this.elem.lastChild;
     } else this.legendDomElement = legendDomElement;
+  }
+
+  setRowGroupingLegendOptions(legendPosition, legendDomElement) {
+    this.isRowGroupingLegendDomElementProvided = !!legendDomElement;
+    this.rowGroupingLegendPosition = legendPosition;
+
+    if (!legendDomElement) {
+      this.rowGroupingLegendDomElement = this.elem.lastChild;
+    } else this.rowGroupingLegendDomElement = legendDomElement;
+  }
+
+  setColumnGroupingLegendOptions(legendPosition, legendDomElement) {
+    this.isColumnGroupingLegendDomElementProvided = !!legendDomElement;
+    this.columnGroupingLegendPosition = legendPosition;
+
+    if (!legendDomElement) {
+      this.columnGroupingLegendDomElement = this.elem.lastChild;
+    } else this.columnGroupingLegendDomElement = legendDomElement;
   }
 
   /**
@@ -343,9 +403,20 @@ class BaseGL {
     if (height) {
       this._spec.height = height;
     }
+
+    this.updateMarginsToAccountForLegend();
+
     // Render the legend
     if (this.intensityLegendData && this.legendDomElement) {
       this.renderLegend();
+    }
+
+    if (this.groupingRowData && this.rowGroupingLegendDomElement) {
+      this.renderRowGroupingLegend();
+    }
+
+    if (this.groupingColumnData && this.columnGroupingLegendDomElement) {
+      this.renderColumnGroupingLegend();
     }
 
     if (this._renderCount == 0) {
@@ -413,6 +484,8 @@ class BaseGL {
         this.highlightIndices(indices, shouldHighlight);
       }
     });
+
+    console.log(this._spec.margins);
   }
 
   /**
@@ -435,18 +508,16 @@ class BaseGL {
     const averageCharWidth = 6; // rough estimation of the width of a single character
     const legendWidth = containerWidth - 2 * averageCharWidth;
     const legendHeight = containerHeight - 2 * averageCharWidth;
-    const legendSize = 20;
-    const labelSize = 25;
 
     // Adjust the SVG size and the legend position according to the position parameter
     let svgWidth, svgHeight, transformX, transformY;
     if (position === "left" || position === "right") {
-      svgWidth = legendSize + labelSize;
+      svgWidth = INTENSITY_LEGEND_SIZE_IN_PX;
       svgHeight = containerHeight;
       transformY = averageCharWidth;
     } else {
       svgWidth = containerWidth;
-      svgHeight = legendSize + labelSize;
+      svgHeight = INTENSITY_LEGEND_SIZE_IN_PX;
       transformX = averageCharWidth;
     }
 
@@ -498,15 +569,15 @@ class BaseGL {
     let legendAxis;
     if (position === "left") {
       legendAxis = d3.axisLeft(intensityScale);
-      transformX = labelSize;
+      transformX = INTENSITY_LEGEND_LABEL_SIZE_IN_PX;
     } else if (position === "top") {
       legendAxis = d3.axisTop(intensityScale);
-      transformY = labelSize;
+      transformY = INTENSITY_LEGEND_LABEL_SIZE_IN_PX;
     } else if (position === "right") {
-      transformX = legendSize;
+      transformX = INTENSITY_LEGEND_GRADIENT_SIZE_IN_PX;
       legendAxis = d3.axisRight(intensityScale);
     } else {
-      transformY = legendSize;
+      transformY = INTENSITY_LEGEND_GRADIENT_SIZE_IN_PX;
       legendAxis = d3.axisBottom(intensityScale);
     }
 
@@ -542,11 +613,15 @@ class BaseGL {
       .append("rect")
       .attr(
         "width",
-        position === "left" || position === "right" ? legendSize : legendWidth
+        position === "left" || position === "right"
+          ? INTENSITY_LEGEND_GRADIENT_SIZE_IN_PX
+          : legendWidth
       )
       .attr(
         "height",
-        position === "left" || position === "right" ? legendHeight : legendSize
+        position === "left" || position === "right"
+          ? legendHeight
+          : INTENSITY_LEGEND_GRADIENT_SIZE_IN_PX
       )
       .style("fill", `url(#${gradientId})`)
       .attr("x", rectX)
@@ -554,12 +629,11 @@ class BaseGL {
 
     // Update margins to account for the legend only if dom element is not provided
     if (!this.isLegendDomElementProvided) {
-      this._spec.margins = {
-        ...this._spec.margins,
-        [position]: `calc(${
-          (position === "left" || position === "right" ? 45 : 45) + "px"
-        } + ${this._spec.margins[position]})`,
-      };
+      // this._spec.margins = {
+      //   ...this._spec.margins,
+      //   [position]:
+      //     parsedMargins[position] + INTENSITY_LEGEND_SIZE_IN_PX + "px",
+      // };
 
       // set svg container to position absolute and position value to 0
       svgContainer.style("position", "absolute").style(position, "0px");
@@ -572,6 +646,200 @@ class BaseGL {
     }
   }
 
+  /**
+   * Render the row grouping legend.
+   * This is used to render the row grouping legend.
+   **/
+  renderRowGroupingLegend() {
+    const position = this.rowGroupingLegendPosition;
+    const visibleRange = this.viewport?.yRange || DEFAULT_VISIBLE_RANGE;
+
+    if (
+      !this.rowGroupingLegendDomElement ||
+      !this.groupingRowData ||
+      position === "top" ||
+      position === "bottom" ||
+      !visibleRange ||
+      !visibleRange.length
+    )
+      return;
+
+    const parsedMargins = parseMargins(this._spec.margins);
+    const containerHeight =
+      this.elem.clientHeight - parsedMargins.top - parsedMargins.bottom;
+
+    const legendWidth = GROUPING_LEGEND_SIZE_IN_PX;
+    const totalData = this.nrows; // total number of rows
+
+    const svgWidth = legendWidth;
+    const svgHeight = containerHeight;
+
+    d3.select(this.rowGroupingLegendDomElement).select("#row-group").remove();
+
+    const svgContainer = d3
+      .select(this.rowGroupingLegendDomElement)
+      .append("svg")
+      .attr("id", "row-group")
+      .attr("width", svgWidth)
+      .attr("height", svgHeight)
+      .attr("overflow", "visible");
+
+    const yScale = d3
+      .scaleLinear()
+      .domain(visibleRange) // Input range is currently visible range
+      .range([svgHeight, 0]); // Output range is SVG height
+
+    this.groupingRowData.forEach((group, idx) => {
+      const normalizedStart = (group.startIndex * 2) / totalData - 1;
+      const normalizedEnd = ((group.endIndex + 1) * 2) / totalData - 1;
+
+      if (
+        normalizedEnd >= visibleRange[0] &&
+        normalizedStart <= visibleRange[1]
+      ) {
+        const rectStartInView = Math.max(normalizedStart, visibleRange[0]);
+        const rectEndInView = Math.min(normalizedEnd, visibleRange[1]);
+
+        const rectY = yScale(rectEndInView);
+        const rectHeight = Math.abs(
+          yScale(rectEndInView) - yScale(rectStartInView)
+        );
+
+        svgContainer
+          .append("rect")
+          .attr("x", 0)
+          .attr("y", rectY)
+          .attr("width", legendWidth)
+          .attr("height", rectHeight)
+          .style("fill", group.color);
+      }
+    });
+
+    if (!this.isRowGroupingLegendDomElementProvided) {
+      svgContainer.style("position", "absolute").style(position, "0px");
+      svgContainer.style("margin-top", parsedMargins.top);
+    }
+  }
+
+  renderColumnGroupingLegend() {
+    const position = this.columnGroupingLegendPosition; // should be 'top' or 'bottom'
+    const visibleRange = this.viewport?.xRange || DEFAULT_VISIBLE_RANGE;
+
+    // Only render the legend if we have the legend data, the dom element,
+    // the position is either 'top' or 'bottom' and visibleRange exists
+    if (
+      !this.columnGroupingLegendDomElement ||
+      !this.groupingColumnData ||
+      position === "left" ||
+      position === "right" ||
+      !visibleRange ||
+      !visibleRange.length
+    )
+      return;
+
+    const parsedMargins = parseMargins(this._spec.margins);
+    const containerWidth =
+      this.elem.clientWidth - parsedMargins.left - parsedMargins.right;
+    const legendHeight = GROUPING_LEGEND_SIZE_IN_PX;
+    const totalData = this.ncols; // total number of columns
+
+    // Adjust the SVG size and the legend position according to the position parameter
+    const svgWidth = containerWidth;
+    const svgHeight = legendHeight;
+
+    // Clear the svg if it already exists
+    d3.select(this.columnGroupingLegendDomElement)
+      .select("#column-group")
+      .remove();
+
+    const svgContainer = d3
+      .select(this.columnGroupingLegendDomElement)
+      .append("svg")
+      .attr("id", "column-group")
+      .attr("width", svgWidth)
+      .attr("height", svgHeight)
+      .attr("overflow", "visible");
+
+    const xScale = d3
+      .scaleLinear()
+      .domain(visibleRange) // Input range is currently visible range
+      .range([0, svgWidth]); // Output range is SVG width
+
+    this.groupingColumnData.forEach((group, idx) => {
+      const normalizedStart = (group.startIndex * 2) / totalData - 1;
+      const normalizedEnd = ((group.endIndex + 1) * 2) / totalData - 1;
+
+      if (
+        normalizedEnd >= visibleRange[0] &&
+        normalizedStart <= visibleRange[1]
+      ) {
+        const rectStartInView = Math.max(normalizedStart, visibleRange[0]);
+        const rectEndInView = Math.min(normalizedEnd, visibleRange[1]);
+
+        const rectX = xScale(rectStartInView);
+        const rectWidth = Math.abs(
+          xScale(rectEndInView) - xScale(rectStartInView)
+        );
+
+        svgContainer
+          .append("rect")
+          .attr("x", rectX)
+          .attr("y", 0)
+          .attr("width", rectWidth)
+          .attr("height", legendHeight)
+          .style("fill", group.color);
+      }
+    });
+
+    // Update margins to account for the legend only if dom element is not provided
+    if (!this.isColumnGroupingLegendDomElementProvided) {
+      // set svg container to position absolute and position value to 0
+      svgContainer.style("position", "absolute").style(position, "0px");
+
+      if (position === "right" || position === "left") {
+        svgContainer.style("margin-top", parsedMargins.top);
+      } else if (position === "top" || position === "bottom") {
+        svgContainer.style("margin-left", parsedMargins.left);
+      }
+    }
+  }
+
+  updateMarginsToAccountForLegend() {
+    const parsedMargins = parseMargins(this._spec.margins);
+
+    const marginsToAddIn = {
+      top: 0,
+      bottom: 0,
+      left: 0,
+      right: 0,
+    };
+
+    if (this.groupingRowData && !this.isRowGroupingLegendDomElementProvided) {
+      marginsToAddIn[this.rowGroupingLegendPosition] =
+        GROUPING_LEGEND_SIZE_IN_PX;
+    }
+
+    if (
+      this.groupingColumnData &&
+      !this.isColumnGroupingLegendDomElementProvided
+    ) {
+      marginsToAddIn[this.columnGroupingLegendPosition] =
+        GROUPING_LEGEND_SIZE_IN_PX;
+    }
+
+    if (this.intensityLegendData && !this.isLegendDomElementProvided) {
+      marginsToAddIn[this.legendPosition] = INTENSITY_LEGEND_SIZE_IN_PX;
+    }
+
+    this._spec.margins = {
+      top: parsedMargins.top + marginsToAddIn.top + "px",
+      bottom: parsedMargins.bottom + marginsToAddIn.bottom + "px",
+      left: parsedMargins.left + marginsToAddIn.left + "px",
+      right: parsedMargins.right + marginsToAddIn.right + "px",
+    };
+
+    console.log(parsedMargins, marginsToAddIn, this._spec.margins);
+  }
   /**
    * Highlight the indices on the plot.
    * @memberof BaseGL
