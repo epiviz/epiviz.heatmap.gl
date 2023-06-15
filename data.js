@@ -23,7 +23,19 @@ for (let ily = 0; ily < ncols; ily++) {
 }
 
 // map intensities to color
-let color_map = var_intensity.map((x, i) => d3.interpolateViridis(x))
+let color_map = var_intensity.map((x, i) => d3.interpolateViridis(x));
+
+let intensityLegendData = [];
+
+for (let i = 0; i < 1; i += 0.1) {
+  const intensity = Math.round(i * 100) / 100;
+
+  intensityLegendData.push({
+    color: d3.interpolateViridis(i),
+    intensity,
+    label: intensity,
+  });
+}
 
 const data = {
   x: x,
@@ -35,4 +47,4 @@ const data = {
 const color = color_map;
 const size = var_size;
 
-export { data, color, size };
+export { data, color, size, intensityLegendData };
