@@ -49,44 +49,6 @@ class DotplotGL extends BaseGL {
     spec_inputs.x = this.input.x.map((e, i) => -1 + (2 * e + 1) / xlen);
     spec_inputs.y = this.input.y.map((e, i) => -1 + (2 * e + 1) / ylen);
 
-    // config for labels
-    let labels = null;
-    if ("xlabels" in this.input && this.input["xlabels"] !== null) {
-      labels = [];
-
-      const xlabels_len = this.input["xlabels"].length;
-      for (let ilx = 0; ilx < xlabels_len; ilx++) {
-        labels.push({
-          x: -1.05 + (2 * ilx + 1) / xlabels_len,
-          y: 1.05,
-          type: "row",
-          index: ilx,
-          text: this.input["xlabels"][ilx],
-          fixedY: true,
-          "text-anchor": "center",
-        });
-      }
-    }
-
-    if ("ylabels" in this.input && this.input["ylabels"] !== null) {
-      if (labels == null) {
-        labels = [];
-      }
-
-      const ylabels_len = this.input["ylabels"].length;
-      for (let ily = 0; ily < ylabels_len; ily++) {
-        labels.push({
-          x: -1.05,
-          y: -1.05 + (2 * ily + 1) / ylabels_len,
-          type: "column",
-          index: ily,
-          text: this.input["ylabels"][ily],
-          fixedX: true,
-          "text-anchor": "end",
-        });
-      }
-    }
-
     let spec = {
       margins: {
         top: "25px",
@@ -118,10 +80,6 @@ class DotplotGL extends BaseGL {
       ],
     };
 
-    if (labels !== null) {
-      spec["labels"] = labels;
-    }
-
     // scale size of dots
     let max_r = getMinMax([198 / (xlen + 1), 198 / (ylen + 1)])[1] - 5;
     let tsize = this.state["size"];
@@ -132,6 +90,7 @@ class DotplotGL extends BaseGL {
       );
     }
 
+    this._generateSpecForLabels(spec);
     this._generateSpecForEncoding(spec, "color", this.state.color);
     this._generateSpecForEncoding(spec, "size", tsize);
     this._generateSpecForEncoding(spec, "opacity", this.state.opacity);
