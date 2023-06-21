@@ -1,8 +1,10 @@
 import WebGLVis from "epiviz.gl";
 import { isObject, getMinMax, parseMargins, getTextWidth } from "./utils";
 import {
+  DEFAULT_COLUMN_LABEL_FONT_SIZE,
   DEFAULT_COLUMN_LABEL_SLINT_ANGLE,
   DEFAULT_COLUMN_MAX_LABEL_LENGTH_ALLOWED,
+  DEFAULT_ROW_LABEL_FONT_SIZE,
   DEFAULT_ROW_LABEL_SLINT_ANGLE,
   DEFAULT_ROW_MAX_LABEL_LENGTH_ALLOWED,
   LABELS_MARGIN_BUFFER_IN_PX,
@@ -64,6 +66,8 @@ class BaseGL {
       columnLabelMaxCharacters: DEFAULT_COLUMN_MAX_LABEL_LENGTH_ALLOWED,
       rowLabelSlintAngle: DEFAULT_ROW_LABEL_SLINT_ANGLE,
       columnLabelSlintAngle: DEFAULT_COLUMN_LABEL_SLINT_ANGLE,
+      rowLabelFontSize: DEFAULT_ROW_LABEL_FONT_SIZE,
+      columnLabelFontSize: DEFAULT_COLUMN_LABEL_FONT_SIZE,
     };
 
     // private properties
@@ -138,6 +142,8 @@ class BaseGL {
       columnLabelMaxCharacters,
       rowLabelSlintAngle,
       columnLabelSlintAngle,
+      rowLabelFontSize,
+      columnLabelFontSize,
     } = this.labelOptions;
 
     let labels = null;
@@ -154,17 +160,21 @@ class BaseGL {
                 columnLabelMaxCharacters - 3
               ) + "..."
             : this.input["xlabels"][ilx];
-        const truncatedLabelWidth = getTextWidth(truncatedLabel, "16px");
+        const truncatedLabelWidth = getTextWidth(
+          truncatedLabel,
+          columnLabelFontSize
+        );
 
         maxWidth = Math.max(maxWidth, truncatedLabelWidth);
         labels.push({
-          x: -1.05 + (2 * ilx + 1) / xlabels_len,
+          x: -1.02 + (2 * ilx + 1) / xlabels_len,
           y: 1.05,
           type: "row",
           index: ilx,
           text: truncatedLabel,
           fixedY: true,
           "text-anchor": "center",
+          "font-size": columnLabelFontSize,
           transformRotate: columnLabelSlintAngle,
         });
       }
@@ -185,16 +195,20 @@ class BaseGL {
                 rowLabelMaxCharacters - 3
               ) + "..."
             : this.input["ylabels"][ily];
-        const truncatedLabelWidth = getTextWidth(truncatedLabel, "16px");
+        const truncatedLabelWidth = getTextWidth(
+          truncatedLabel,
+          rowLabelFontSize
+        );
         maxWidth = Math.max(maxWidth, truncatedLabelWidth);
         labels.push({
           x: -1.05,
-          y: -1.05 + (2 * ily + 1) / ylabels_len,
+          y: -1.02 + (2 * ily + 1) / ylabels_len,
           type: "column",
           index: ily,
           text: truncatedLabel,
           fixedX: true,
           "text-anchor": "end",
+          "font-size": rowLabelFontSize,
           transformRotate: rowLabelSlintAngle,
         });
       }
@@ -400,6 +414,8 @@ class BaseGL {
    * columnLabelMaxCharacters: 10,
    * rowLabelSlintAngle: 0,
    * columnLabelSlintAngle: 0,
+   * rowLabelFontSize: 7,
+   * columnLabelFontSize: 7,
    * }
    **/
   setLabelOptions(labelOptions) {
