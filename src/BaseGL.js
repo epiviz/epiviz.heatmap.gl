@@ -405,8 +405,11 @@ class BaseGL {
    * @param {object} labelOptions, an object containing the label options
    * @param {number} labelOptions.rowLabelMaxCharacters, maximum number of characters to show for row labels
    * @param {number} labelOptions.columnLabelMaxCharacters, maximum number of characters to show for column labels
-   * @param {number} labelOptions.rowLabelSlintAngle, slint angle for row labels
-   * @param {number} labelOptions.columnLabelSlintAngle, slint angle for column labels
+   * @param {number} labelOptions.rowLabelSlintAngle, slint angle for row labels (default: 0)
+   * @param {number} labelOptions.columnLabelSlintAngle, slint angle for column labels (default: 0)
+   * @param {string | number} labelOptions.rowLabelFontSize, font size for row labels (default: 7px)
+   * @param {string | number} labelOptions.columnLabelFontSize, font size for column labels (default: 7px)
+   *
    * @memberof BaseGL
    * @example
    * this.labelOptions = {
@@ -417,6 +420,15 @@ class BaseGL {
    * rowLabelFontSize: 7,
    * columnLabelFontSize: 7,
    * }
+   * @example
+   * this.setLabelOptions({
+   * rowLabelMaxCharacters: 10,
+   *  columnLabelMaxCharacters: 10,
+   * rowLabelSlintAngle: 0,
+   * columnLabelSlintAngle: 0,
+   * rowLabelFontSize: "7px",
+   * columnLabelFontSize: "7em",
+   * })
    **/
   setLabelOptions(labelOptions) {
     this.labelOptions = {

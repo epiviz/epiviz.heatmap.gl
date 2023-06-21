@@ -66,6 +66,33 @@ You can also specify width and height:
 setIntensityLegendOptions("top", ".intensity-legend", 400, 500);
 ```
 
+#### Customizing Labels with `setLabelOptions`
+
+This method allows you to customize the label options for your visualization. All parameters are optional, providing you the flexibility to specify the options that best suit your needs.
+
+**Parameters**:
+
+- `labelOptions` (`object`): an object containing the label options
+  - `labelOptions.rowLabelMaxCharacters` (`number`, optional): maximum number of characters to show for row labels
+  - `labelOptions.columnLabelMaxCharacters` (`number`, optional): maximum number of characters to show for column labels
+  - `labelOptions.rowLabelSlintAngle` (`number`, optional): slant angle for row labels (default: 0)
+  - `labelOptions.columnLabelSlintAngle` (`number`, optional): slant angle for column labels (default: 0)
+  - `labelOptions.rowLabelFontSize` (`string | number`, optional): font size for row labels (default: 7px)
+  - `labelOptions.columnLabelFontSize` (`string | number`, optional): font size for column labels (default: 7px)
+
+**Example**:
+
+```javascript
+plot.setLabelOptions({
+  rowLabelMaxCharacters: 10,
+  columnLabelMaxCharacters: 10,
+  rowLabelSlintAngle: 45,
+  columnLabelSlintAngle: 45,
+  rowLabelFontSize: "10px",
+  columnLabelFontSize: "10px",
+});
+```
+
 #### React Usage
 
 To use the library in a React application
