@@ -7524,6 +7524,8 @@ const DEFAULT_COLUMN_MAX_LABEL_LENGTH_ALLOWED = 30;
 const LABELS_MARGIN_BUFFER_IN_PX = 20;
 const DEFAULT_ROW_LABEL_SLINT_ANGLE = 0;
 const DEFAULT_COLUMN_LABEL_SLINT_ANGLE = 0;
+const DEFAULT_ROW_LABEL_FONT_SIZE = "7px";
+const DEFAULT_COLUMN_LABEL_FONT_SIZE = "7px";
 
 /**
  * Base class for all matrix like layout plots.
@@ -7581,6 +7583,8 @@ class BaseGL {
       columnLabelMaxCharacters: DEFAULT_COLUMN_MAX_LABEL_LENGTH_ALLOWED,
       rowLabelSlintAngle: DEFAULT_ROW_LABEL_SLINT_ANGLE,
       columnLabelSlintAngle: DEFAULT_COLUMN_LABEL_SLINT_ANGLE,
+      rowLabelFontSize: DEFAULT_ROW_LABEL_FONT_SIZE,
+      columnLabelFontSize: DEFAULT_COLUMN_LABEL_FONT_SIZE,
     };
 
     // private properties
@@ -7655,6 +7659,8 @@ class BaseGL {
       columnLabelMaxCharacters,
       rowLabelSlintAngle,
       columnLabelSlintAngle,
+      rowLabelFontSize,
+      columnLabelFontSize,
     } = this.labelOptions;
 
     let labels = null;
@@ -7671,17 +7677,21 @@ class BaseGL {
                 columnLabelMaxCharacters - 3
               ) + "..."
             : this.input["xlabels"][ilx];
-        const truncatedLabelWidth = getTextWidth(truncatedLabel, "16px");
+        const truncatedLabelWidth = getTextWidth(
+          truncatedLabel,
+          columnLabelFontSize
+        );
 
         maxWidth = Math.max(maxWidth, truncatedLabelWidth);
         labels.push({
-          x: -1.05 + (2 * ilx + 1) / xlabels_len,
+          x: -1.02 + (2 * ilx + 1) / xlabels_len,
           y: 1.05,
           type: "row",
           index: ilx,
           text: truncatedLabel,
           fixedY: true,
           "text-anchor": "center",
+          "font-size": columnLabelFontSize,
           transformRotate: columnLabelSlintAngle,
         });
       }
@@ -7702,16 +7712,20 @@ class BaseGL {
                 rowLabelMaxCharacters - 3
               ) + "..."
             : this.input["ylabels"][ily];
-        const truncatedLabelWidth = getTextWidth(truncatedLabel, "16px");
+        const truncatedLabelWidth = getTextWidth(
+          truncatedLabel,
+          rowLabelFontSize
+        );
         maxWidth = Math.max(maxWidth, truncatedLabelWidth);
         labels.push({
           x: -1.05,
-          y: -1.05 + (2 * ily + 1) / ylabels_len,
+          y: -1.02 + (2 * ily + 1) / ylabels_len,
           type: "column",
           index: ily,
           text: truncatedLabel,
           fixedX: true,
           "text-anchor": "end",
+          "font-size": rowLabelFontSize,
           transformRotate: rowLabelSlintAngle,
         });
       }
@@ -7908,8 +7922,11 @@ class BaseGL {
    * @param {object} labelOptions, an object containing the label options
    * @param {number} labelOptions.rowLabelMaxCharacters, maximum number of characters to show for row labels
    * @param {number} labelOptions.columnLabelMaxCharacters, maximum number of characters to show for column labels
-   * @param {number} labelOptions.rowLabelSlintAngle, slint angle for row labels
-   * @param {number} labelOptions.columnLabelSlintAngle, slint angle for column labels
+   * @param {number} labelOptions.rowLabelSlintAngle, slint angle for row labels (default: 0)
+   * @param {number} labelOptions.columnLabelSlintAngle, slint angle for column labels (default: 0)
+   * @param {string | number} labelOptions.rowLabelFontSize, font size for row labels (default: 7px)
+   * @param {string | number} labelOptions.columnLabelFontSize, font size for column labels (default: 7px)
+   *
    * @memberof BaseGL
    * @example
    * this.labelOptions = {
@@ -7917,7 +7934,18 @@ class BaseGL {
    * columnLabelMaxCharacters: 10,
    * rowLabelSlintAngle: 0,
    * columnLabelSlintAngle: 0,
+   * rowLabelFontSize: 7,
+   * columnLabelFontSize: 7,
    * }
+   * @example
+   * this.setLabelOptions({
+   * rowLabelMaxCharacters: 10,
+   *  columnLabelMaxCharacters: 10,
+   * rowLabelSlintAngle: 0,
+   * columnLabelSlintAngle: 0,
+   * rowLabelFontSize: "7px",
+   * columnLabelFontSize: "7em",
+   * })
    **/
   setLabelOptions(labelOptions) {
     this.labelOptions = {
