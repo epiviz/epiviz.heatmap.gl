@@ -46,6 +46,21 @@ const parseMargins = (margins) => {
   return parsedMargins;
 };
 
+const getTextWidth = (text, fontSize = "16px") => {
+  // Create a temporary SVG to measure the text width
+  const svg = d3.select("body").append("svg");
+  const textNode = svg.append("text").style("font-size", fontSize).text(text);
+  const width = textNode.node().getBBox().width;
+  svg.remove();
+  return width;
+};
+
+const DEFAULT_ROW_MAX_LABEL_LENGTH_ALLOWED = 15;
+const DEFAULT_COLUMN_MAX_LABEL_LENGTH_ALLOWED = 30;
+const LABELS_MARGIN_BUFFER_IN_PX = 20;
+const DEFAULT_ROW_LABEL_SLINT_ANGLE = 0;
+const DEFAULT_COLUMN_LABEL_SLINT_ANGLE = 0;
+
 /**
  * Base class for all matrix like layout plots.
  * This class is not to be used directly.
@@ -94,6 +109,14 @@ class BaseGL {
       color: "#3182bd",
       xgap: 0.3,
       ygap: 0.3,
+    };
+
+    //Default Data for labelOptions
+    this.labelOptions = {
+      rowLabelMaxCharacters: DEFAULT_ROW_MAX_LABEL_LENGTH_ALLOWED,
+      columnLabelMaxCharacters: DEFAULT_COLUMN_MAX_LABEL_LENGTH_ALLOWED,
+      rowLabelSlintAngle: DEFAULT_ROW_LABEL_SLINT_ANGLE,
+      columnLabelSlintAngle: DEFAULT_COLUMN_LABEL_SLINT_ANGLE,
     };
 
     // private properties
@@ -162,6 +185,88 @@ class BaseGL {
     }
   }
 
+  _generateSpecForLabels(spec) {
+    const {
+      rowLabelMaxCharacters,
+      columnLabelMaxCharacters,
+      rowLabelSlintAngle,
+      columnLabelSlintAngle,
+    } = this.labelOptions;
+
+    let labels = null;
+    let maxWidth = 0;
+
+    if ("xlabels" in this.input && this.input["xlabels"] !== null) {
+      labels = [];
+      const xlabels_len = this.input["xlabels"].length;
+      for (let ilx = 0; ilx < xlabels_len; ilx++) {
+        const truncatedLabel =
+          this.input["xlabels"][ilx].length > columnLabelMaxCharacters
+            ? this.input["xlabels"][ilx].substring(
+                0,
+                columnLabelMaxCharacters - 3
+              ) + "..."
+            : this.input["xlabels"][ilx];
+        const truncatedLabelWidth = getTextWidth(truncatedLabel, "16px");
+
+        maxWidth = Math.max(maxWidth, truncatedLabelWidth);
+        labels.push({
+          x: -1.05 + (2 * ilx + 1) / xlabels_len,
+          y: 1.05,
+          type: "row",
+          index: ilx,
+          text: truncatedLabel,
+          fixedY: true,
+          "text-anchor": "center",
+          transformRotate: columnLabelSlintAngle,
+        });
+      }
+    }
+
+    const topMarginToAccountForLabels = maxWidth + LABELS_MARGIN_BUFFER_IN_PX;
+
+    if ("ylabels" in this.input && this.input["ylabels"] !== null) {
+      if (labels === null) {
+        labels = [];
+      }
+      const ylabels_len = this.input["ylabels"].length;
+      for (let ily = 0; ily < ylabels_len; ily++) {
+        const truncatedLabel =
+          this.input["ylabels"][ily].length > rowLabelMaxCharacters
+            ? this.input["ylabels"][ily].substring(
+                0,
+                rowLabelMaxCharacters - 3
+              ) + "..."
+            : this.input["ylabels"][ily];
+        const truncatedLabelWidth = getTextWidth(truncatedLabel, "16px");
+        maxWidth = Math.max(maxWidth, truncatedLabelWidth);
+        labels.push({
+          x: -1.05,
+          y: -1.05 + (2 * ily + 1) / ylabels_len,
+          type: "column",
+          index: ily,
+          text: truncatedLabel,
+          fixedX: true,
+          "text-anchor": "end",
+          transformRotate: rowLabelSlintAngle,
+        });
+      }
+    }
+
+    const leftMarginToAccountForLabels = maxWidth + LABELS_MARGIN_BUFFER_IN_PX;
+
+    if (labels !== null) {
+      spec["labels"] = labels;
+    }
+
+    spec["margins"] = {
+      ...spec["margins"],
+      top: `${topMarginToAccountForLabels}px`,
+      left: `${leftMarginToAccountForLabels}px`,
+      right: "20px",
+    };
+  }
+
   /**
    * Calculate bounds for the visualization.
    *
@@ -193,8 +298,11 @@ class BaseGL {
       "y" in data &&
       data.x.length === data.y.length
     ) {
-      this.ncols = data.xlabels?.length;
-      this.nrows = data.ylabels?.length;
+      if (data?.xlabels && data?.ylabels) {
+        this.ncols = data.xlabels?.length;
+        this.nrows = data.ylabels?.length;
+        this.originalLabelsCombined = [...data.xlabels, ...data.ylabels];
+      }
 
       this.input = { ...this.input, ...data };
 
@@ -332,6 +440,29 @@ class BaseGL {
   }
 
   /**
+   * Set the label options for the visualization.
+   * @param {object} labelOptions, an object containing the label options
+   * @param {number} labelOptions.rowLabelMaxCharacters, maximum number of characters to show for row labels
+   * @param {number} labelOptions.columnLabelMaxCharacters, maximum number of characters to show for column labels
+   * @param {number} labelOptions.rowLabelSlintAngle, slint angle for row labels
+   * @param {number} labelOptions.columnLabelSlintAngle, slint angle for column labels
+   * @memberof BaseGL
+   * @example
+   * this.labelOptions = {
+   * rowLabelMaxCharacters: 10,
+   * columnLabelMaxCharacters: 10,
+   * rowLabelSlintAngle: 0,
+   * columnLabelSlintAngle: 0,
+   * }
+   **/
+  setLabelOptions(labelOptions) {
+    this.labelOptions = {
+      ...this.labelOptions,
+      ...labelOptions,
+    };
+  }
+
+  /**
    * resize the plot, without having to send the data to the GPU.
    *
    * @param {number} width
@@ -456,6 +587,35 @@ class BaseGL {
         indices.forEach((index) => (this.indexStates[index] = shouldHighlight));
 
         this.highlightIndices(indices, shouldHighlight);
+      }
+    });
+
+    this.plot.addEventListener("labelHovered", (e) => {
+      const hoveredIndex = e.detail.index;
+      e.preventDefault();
+      let tooltip = d3
+        .select(this.elem)
+        .append("div")
+        .attr("id", "tooltip")
+        .style("position", "absolute")
+        .style("background", "#f9f9f9")
+        .style("padding", "8px")
+        .style("border", "1px solid #ccc")
+        .style("border-radius", "6px")
+        .style("z-index", "1000")
+        .style("visibility", "hidden");
+
+      tooltip
+        .style("visibility", "visible")
+        .text(this.originalLabelsCombined[hoveredIndex])
+        .style("left", e.detail.event.pageX + 10 + "px")
+        .style("top", e.detail.event.pageY - 10 + "px");
+    });
+
+    this.plot.addEventListener("labelUnhovered", (e) => {
+      let tooltip = d3.select(this.elem).select("#tooltip");
+      if (tooltip) {
+        tooltip.remove();
       }
     });
   }
@@ -806,44 +966,6 @@ class DotplotGL extends BaseGL {
     spec_inputs.x = this.input.x.map((e, i) => -1 + (2 * e + 1) / xlen);
     spec_inputs.y = this.input.y.map((e, i) => -1 + (2 * e + 1) / ylen);
 
-    // config for labels
-    let labels = null;
-    if ("xlabels" in this.input && this.input["xlabels"] !== null) {
-      labels = [];
-
-      const xlabels_len = this.input["xlabels"].length;
-      for (let ilx = 0; ilx < xlabels_len; ilx++) {
-        labels.push({
-          x: -1.05 + (2 * ilx + 1) / xlabels_len,
-          y: 1.05,
-          type: "row",
-          index: ilx,
-          text: this.input["xlabels"][ilx],
-          fixedY: true,
-          "text-anchor": "center",
-        });
-      }
-    }
-
-    if ("ylabels" in this.input && this.input["ylabels"] !== null) {
-      if (labels == null) {
-        labels = [];
-      }
-
-      const ylabels_len = this.input["ylabels"].length;
-      for (let ily = 0; ily < ylabels_len; ily++) {
-        labels.push({
-          x: -1.05,
-          y: -1.05 + (2 * ily + 1) / ylabels_len,
-          type: "column",
-          index: ily,
-          text: this.input["ylabels"][ily],
-          fixedX: true,
-          "text-anchor": "end",
-        });
-      }
-    }
-
     let spec = {
       margins: {
         top: "25px",
@@ -875,10 +997,6 @@ class DotplotGL extends BaseGL {
       ],
     };
 
-    if (labels !== null) {
-      spec["labels"] = labels;
-    }
-
     // scale size of dots
     let max_r = getMinMax([198 / (xlen + 1), 198 / (ylen + 1)])[1] - 5;
     let tsize = this.state["size"];
@@ -889,6 +1007,7 @@ class DotplotGL extends BaseGL {
       );
     }
 
+    this._generateSpecForLabels(spec);
     this._generateSpecForEncoding(spec, "color", this.state.color);
     this._generateSpecForEncoding(spec, "size", tsize);
     this._generateSpecForEncoding(spec, "opacity", this.state.opacity);
@@ -958,44 +1077,6 @@ class RectplotGL extends BaseGL {
     spec_inputs.width = this.input.x.map((e, i) => default_width - xGaps(i));
     spec_inputs.height = this.input.y.map((e, i) => default_height - yGaps(i));
 
-    // config for labels
-    let labels = null;
-    if ("xlabels" in this.input && this.input["xlabels"] !== null) {
-      labels = [];
-
-      const xlabels_len = this.input["xlabels"].length;
-      for (let ilx = 0; ilx < xlabels_len; ilx++) {
-        labels.push({
-          x: -1.05 + (2 * ilx + 1) / xlabels_len,
-          y: 1.05,
-          type: "row",
-          index: ilx,
-          text: this.input["xlabels"][ilx],
-          fixedY: true,
-          "text-anchor": "center",
-        });
-      }
-    }
-
-    if ("ylabels" in this.input && this.input["ylabels"] !== null) {
-      if (labels == null) {
-        labels = [];
-      }
-
-      const ylabels_len = this.input["ylabels"].length;
-      for (let ily = 0; ily < ylabels_len; ily++) {
-        labels.push({
-          x: -1.05,
-          y: -1.05 + (2 * ily + 1) / ylabels_len,
-          type: "column",
-          index: ily,
-          text: this.input["ylabels"][ily],
-          fixedX: true,
-          "text-anchor": "end",
-        });
-      }
-    }
-
     let spec = {
       margins: {
         top: "25px",
@@ -1031,10 +1112,7 @@ class RectplotGL extends BaseGL {
       ],
     };
 
-    if (labels !== null) {
-      spec["labels"] = labels;
-    }
-
+    this._generateSpecForLabels(spec);
     this._generateSpecForEncoding(spec, "color", this.state.color);
     this._generateSpecForEncoding(spec, "size", this.state.size);
     this._generateSpecForEncoding(spec, "opacity", this.state.opacity);
