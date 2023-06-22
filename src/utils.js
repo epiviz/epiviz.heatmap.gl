@@ -37,3 +37,12 @@ export const parseMargins = (margins) => {
 
   return parsedMargins;
 };
+
+export const getTextWidth = (text, fontSize = "16px") => {
+  // Create a temporary SVG to measure the text width
+  const svg = d3.select("body").append("svg");
+  const textNode = svg.append("text").style("font-size", fontSize).text(text);
+  const width = textNode.node().getBBox().width;
+  svg.remove();
+  return width;
+};

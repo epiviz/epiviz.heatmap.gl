@@ -1,6 +1,6 @@
 {
   "name": "epiviz.heatmap.gl",
-  "version": "0.0.9",
+  "version": "0.0.11",
   "repository": "https://github.com/jkanche/epiviz.heatmap.gl",
   "homepage": "https://github.com/jkanche/epiviz.heatmap.gl",
   "author": {
@@ -20,7 +20,7 @@
   "main": "dist/ehgl.js",
   "module": "dist/index.js",
   "dependencies": {
-    "epiviz.gl": "^1.0.8"
+    "epiviz.gl": "^1.0.9"
   },
   "peerDependencies": {
     "react": "^18.2.0"
