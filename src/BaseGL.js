@@ -1,4 +1,7 @@
 import WebGLVis from "epiviz.gl";
+import { select } from "d3-selection";
+import { scaleLinear } from "d3-scale";
+import { axisBottom, axisLeft, axisRight, axisTop } from "d3-axis";
 import {
   isObject,
   getMinMax,
@@ -729,8 +732,7 @@ class BaseGL {
       }
     });
 
-    const intensityScale = d3
-      .scaleLinear()
+    const intensityScale = scaleLinear()
       .range([
         0,
         position === "left" || position === "right"
@@ -741,17 +743,17 @@ class BaseGL {
 
     let legendAxis;
     if (position === "left") {
-      legendAxis = d3.axisLeft(intensityScale);
+      legendAxis = axisLeft(intensityScale);
       transformX = INTENSITY_LEGEND_LABEL_SIZE_IN_PX;
     } else if (position === "top") {
-      legendAxis = d3.axisTop(intensityScale);
+      legendAxis = axisTop(intensityScale);
       transformY = INTENSITY_LEGEND_LABEL_SIZE_IN_PX;
     } else if (position === "right") {
       transformX = INTENSITY_LEGEND_GRADIENT_SIZE_IN_PX;
-      legendAxis = d3.axisRight(intensityScale);
+      legendAxis = axisRight(intensityScale);
     } else {
       transformY = INTENSITY_LEGEND_GRADIENT_SIZE_IN_PX;
-      legendAxis = d3.axisBottom(intensityScale);
+      legendAxis = axisBottom(intensityScale);
     }
 
     legendAxis
@@ -847,18 +849,16 @@ class BaseGL {
     const svgWidth = legendWidth;
     const svgHeight = containerHeight;
 
-    d3.select(this.rowGroupingLegendDomElement).select("#row-group").remove();
+    select(this.rowGroupingLegendDomElement).select("#row-group").remove();
 
-    const svgContainer = d3
-      .select(this.rowGroupingLegendDomElement)
+    const svgContainer = select(this.rowGroupingLegendDomElement)
       .append("svg")
       .attr("id", "row-group")
       .attr("width", svgWidth)
       .attr("height", svgHeight)
       .attr("overflow", "visible");
 
-    const yScale = d3
-      .scaleLinear()
+    const yScale = scaleLinear()
       .domain(visibleRange) // Input range is currently visible range
       .range([svgHeight, 0]); // Output range is SVG height
 
@@ -884,7 +884,14 @@ class BaseGL {
           .attr("y", rectY)
           .attr("width", legendWidth)
           .attr("height", rectHeight)
-          .style("fill", group.color);
+          .style("fill", group.color)
+          .on("mouseover", (e) => {
+            const text = group.label;
+            createTooltip(this.elem, text, e.pageX, e.pageY);
+          })
+          .on("mouseout", (e) => {
+            removeTooltip(this.elem);
+          });
       }
     });
 
@@ -921,20 +928,18 @@ class BaseGL {
     const svgHeight = legendHeight;
 
     // Clear the svg if it already exists
-    d3.select(this.columnGroupingLegendDomElement)
+    select(this.columnGroupingLegendDomElement)
       .select("#column-group")
       .remove();
 
-    const svgContainer = d3
-      .select(this.columnGroupingLegendDomElement)
+    const svgContainer = select(this.columnGroupingLegendDomElement)
       .append("svg")
       .attr("id", "column-group")
       .attr("width", svgWidth)
       .attr("height", svgHeight)
       .attr("overflow", "visible");
 
-    const xScale = d3
-      .scaleLinear()
+    const xScale = scaleLinear()
       .domain(visibleRange) // Input range is currently visible range
       .range([0, svgWidth]); // Output range is SVG width
 
@@ -960,7 +965,14 @@ class BaseGL {
           .attr("y", 0)
           .attr("width", rectWidth)
           .attr("height", legendHeight)
-          .style("fill", group.color);
+          .style("fill", group.color)
+          .on("mouseover", (e) => {
+            const text = group.label;
+            createTooltip(this.elem, text, e.pageX, e.pageY);
+          })
+          .on("mouseout", (e) => {
+            removeTooltip(this.elem);
+          });
       }
     });
 
