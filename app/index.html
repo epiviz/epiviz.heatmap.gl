@@ -251,7 +251,7 @@
     </div>
   </div>
   <script type="module">
-    import { DotplotGL, RectplotGL, TickplotGL } from "./../dist/index.js";
+    import { DotplotGL, RectplotGL, TickplotGL } from "./index.js";
     import { data, color, size, intensityLegendData, groupingRowData, groupingColumnData } from './data.js';
 
     let plot = new DotplotGL(".dotcanvas");
@@ -406,7 +406,7 @@
       }
     };
 
-    // plot3.render();
+    plot3.render();
 
     document.querySelector(".tickcanvas-controls>.canvas-box").addEventListener("click", () => {
       plot3.setInteraction("box");
