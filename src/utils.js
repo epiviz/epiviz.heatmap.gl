@@ -46,3 +46,31 @@ export const getTextWidth = (text, fontSize = "16px") => {
   svg.remove();
   return width;
 };
+
+export const createTooltip = (container, text, posX, posY) => {
+  let tooltip = d3
+    .select(container)
+    .append("div")
+    .attr("id", "tooltip")
+    .style("position", "absolute")
+    .style("background", "#f9f9f9")
+    .style("padding", "8px")
+    .style("border", "1px solid #ccc")
+    .style("border-radius", "6px")
+    .style("z-index", "1000")
+    .style("visibility", "hidden");
+
+  tooltip
+    .style("visibility", "visible")
+    .text(text)
+    .style("left", posX + 10 + "px")
+    .style("top", posY - 10 + "px");
+};
+
+export const removeTooltip = (container) => {
+  const tooltip = d3.select(container).select("#tooltip");
+
+  if (tooltip) {
+    tooltip.remove();
+  }
+};

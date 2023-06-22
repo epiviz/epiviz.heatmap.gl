@@ -1,5 +1,12 @@
 import WebGLVis from "epiviz.gl";
-import { isObject, getMinMax, parseMargins, getTextWidth } from "./utils";
+import {
+  isObject,
+  getMinMax,
+  parseMargins,
+  getTextWidth,
+  createTooltip,
+  removeTooltip,
+} from "./utils";
 import {
   DEFAULT_COLUMN_LABEL_FONT_SIZE,
   DEFAULT_COLUMN_LABEL_SLINT_ANGLE,
@@ -639,30 +646,18 @@ class BaseGL {
     this.plot.addEventListener("labelHovered", (e) => {
       const hoveredIndex = e.detail.index;
       e.preventDefault();
-      let tooltip = d3
-        .select(this.elem)
-        .append("div")
-        .attr("id", "tooltip")
-        .style("position", "absolute")
-        .style("background", "#f9f9f9")
-        .style("padding", "8px")
-        .style("border", "1px solid #ccc")
-        .style("border-radius", "6px")
-        .style("z-index", "1000")
-        .style("visibility", "hidden");
 
-      tooltip
-        .style("visibility", "visible")
-        .text(this.originalLabelsCombined[hoveredIndex])
-        .style("left", e.detail.event.pageX + 10 + "px")
-        .style("top", e.detail.event.pageY - 10 + "px");
+      createTooltip(
+        this.elem,
+        this.originalLabelsCombined[hoveredIndex],
+        e.detail.event.pageX,
+        e.detail.event.pageY
+      );
     });
 
     this.plot.addEventListener("labelUnhovered", (e) => {
-      let tooltip = d3.select(this.elem).select("#tooltip");
-      if (tooltip) {
-        tooltip.remove();
-      }
+      e.preventDefault();
+      removeTooltip(this.elem);
     });
   }
 
