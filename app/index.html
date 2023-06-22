@@ -45,7 +45,7 @@
       margin: 0px 40px;
     }
 
-    .dotcanvas-intensity {
+    .dotcanvas-extras {
       grid-row: 3;
       grid-column: 2;
       margin: 0px 40px;
@@ -221,7 +221,14 @@
       <button class="disable-highlight">disable highlight</button>
       <button class="clear-highlight">clear highlight</button>
     </div>
-    <div class="dotcanvas-intensity"></div>
+    <div class="dotcanvas-extras">
+      <h5>Intensity: </h5>
+      <div class="dotcanvas-intensity"></div>
+      <h5>Row Group Labels: </h5>
+      <div class="dotcanvas-row-grouping-label"></div>
+      <h5>Column Group Labels: </h5>
+      <div class="dotcanvas-column-grouping-label"></div>
+    </div>
     <div class="rectcanvas">
     </div>
     <div class="rectcanvas-controls">
@@ -245,69 +252,15 @@
   </div>
   <script type="module">
     import { DotplotGL, RectplotGL, TickplotGL } from "./../dist/index.js";
-    import { data, color, size, intensityLegendData } from './data.js';
+    import { data, color, size, intensityLegendData, groupingRowData, groupingColumnData } from './data.js';
 
     let plot = new DotplotGL(".dotcanvas");
     plot.setInput(data);
 
-    const groupingRowData = [{
-      startIndex: 0,
-      endIndex: 1,
-      color: "#52bc9a",
-      label: "group 1"
-    }, {
-      startIndex: 2,
-      endIndex: 4,
-      color: "#f7ea4d",
-      label: "group 2",
-    }, {
-      startIndex: 5,
-      endIndex: 7,
-      color: "#450154",
-      label: "group 3"
-    }, {
-      startIndex: 7,
-      endIndex: 9,
-      color: "#38588b",
-      label: "group 4"
-    }, {
-      startIndex: 10,
-      endIndex: 12,
-      color: "#6a649c",
-      label: "group 5"
-    }, {
-      startIndex: 13,
-      endIndex: 14,
-      color: "#9cdc6f",
-      label: "group 6"
-    }];
-
-    const groupingColumnData = [{
-      startIndex: 0,
-      endIndex: 2,
-      color: "#6a649c",
-      label: "group 1"
-    }, {
-      startIndex: 3,
-      endIndex: 5,
-      color: "#52bc9a",
-      label: "group 2",
-    }, {
-      startIndex: 6,
-      endIndex: 7,
-      color: "#f7ea4d",
-      label: "group 3"
-    }, {
-      startIndex: 8,
-      endIndex: 9,
-      color: "#6d4688",
-      label: "group 4"
-    }];
-
     plot.setIntensityLegendOptions("bottom", ".dotcanvas-intensity", 400);
 
-    plot.setRowGroupingLegendOptions("left");
-    plot.setColumnGroupingLegendOptions("top");
+    plot.setRowGroupingLegendOptions("left", null, ".dotcanvas-row-grouping-label");
+    plot.setColumnGroupingLegendOptions("top", null, ".dotcanvas-column-grouping-label");
 
 
     plot.hoverCallback = function (point) {
@@ -440,8 +393,6 @@
     import * as pbmc from './pbmc.js';
     let plot3 = new TickplotGL(".tickcanvas");
     plot3.setInput(pbmc.data);
-
-    console.log(pbmc.data);
 
     plot3.hoverCallback = function (point) {
       if (point) {

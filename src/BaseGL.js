@@ -112,7 +112,6 @@ class BaseGL {
       this.viewport = viewport;
       this.renderRowGroupingLegend();
       this.renderColumnGroupingLegend();
-      console.log("zoomIn", viewport);
     });
 
     this.plot.addEventListener("zoomOut", (e) => {
@@ -121,7 +120,6 @@ class BaseGL {
       this.viewport = viewport;
       this.renderRowGroupingLegend();
       this.renderColumnGroupingLegend();
-      console.log("zoomOut", viewport);
     });
 
     this.plot.addEventListener("pan", (e) => {
@@ -130,7 +128,6 @@ class BaseGL {
       this.viewport = viewport;
       this.renderRowGroupingLegend();
       this.renderColumnGroupingLegend();
-      console.log("pan", viewport);
     });
 
     this.highlightedIndices = [];
@@ -452,18 +449,28 @@ class BaseGL {
     } else this.legendDomElement = legendDomElement;
   }
 
-  setRowGroupingLegendOptions(legendPosition, legendDomElement) {
+  setRowGroupingLegendOptions(
+    legendPosition,
+    legendDomElement,
+    labelDomElement
+  ) {
     this.isRowGroupingLegendDomElementProvided = !!legendDomElement;
     this.rowGroupingLegendPosition = legendPosition;
+    this.rowGroupingLabelDomElement = labelDomElement;
 
     if (!legendDomElement) {
       this.rowGroupingLegendDomElement = this.elem.lastChild;
     } else this.rowGroupingLegendDomElement = legendDomElement;
   }
 
-  setColumnGroupingLegendOptions(legendPosition, legendDomElement) {
+  setColumnGroupingLegendOptions(
+    legendPosition,
+    legendDomElement,
+    labelDomElement
+  ) {
     this.isColumnGroupingLegendDomElementProvided = !!legendDomElement;
     this.columnGroupingLegendPosition = legendPosition;
+    this.columnGroupingLabelDomElement = labelDomElement;
 
     if (!legendDomElement) {
       this.columnGroupingLegendDomElement = this.elem.lastChild;
@@ -574,10 +581,20 @@ class BaseGL {
 
     if (this.groupingRowData && this.rowGroupingLegendDomElement) {
       this.renderRowGroupingLegend();
+      this.renderGroupingLabels(
+        this.rowGroupingLabelDomElement,
+        this.groupingRowData,
+        "vertical"
+      );
     }
 
     if (this.groupingColumnData && this.columnGroupingLegendDomElement) {
       this.renderColumnGroupingLegend();
+      this.renderGroupingLabels(
+        this.columnGroupingLabelDomElement,
+        this.groupingColumnData,
+        "horizontal"
+      );
     }
 
     if (this._renderCount == 0) {
@@ -989,6 +1006,46 @@ class BaseGL {
     }
   }
 
+  renderGroupingLabels(parentElement, groupingRowData, orientation) {
+    const parent = d3.select(parentElement);
+    const svg = parent.append("svg");
+
+    svg.attr("width", "100%").style("overflow", "inherit");
+    if (orientation === "horizontal") {
+      svg.attr("height", 25);
+    } else {
+      svg.attr("height", groupingRowData.length * 25);
+    }
+
+    const labelHeight = 25;
+    let xOffset = 0;
+    let yOffset = 0;
+
+    groupingRowData.forEach((data) => {
+      const group = svg.append("g");
+
+      group
+        .append("rect")
+        .attr("x", xOffset)
+        .attr("y", yOffset)
+        .attr("width", 20)
+        .attr("height", 20)
+        .style("fill", data.color);
+
+      group
+        .append("text")
+        .attr("x", xOffset + 25)
+        .attr("y", yOffset + 15)
+        .text(data.label);
+
+      if (orientation === "horizontal") {
+        xOffset += 25 + data.label.length * 8 + 20;
+      } else {
+        yOffset += labelHeight;
+      }
+    });
+  }
+
   updateMarginsToAccountForLegend() {
     const parsedMargins = parseMargins(this._spec.margins);
 
@@ -1022,8 +1079,6 @@ class BaseGL {
       left: parsedMargins.left + marginsToAddIn.left + "px",
       right: parsedMargins.right + marginsToAddIn.right + "px",
     };
-
-    console.log(parsedMargins, marginsToAddIn, this._spec.margins);
   }
   /**
    * Highlight the indices on the plot.
