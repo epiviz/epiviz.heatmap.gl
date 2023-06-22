@@ -17,15 +17,13 @@ import {
   DEFAULT_ROW_LABEL_FONT_SIZE,
   DEFAULT_ROW_LABEL_SLINT_ANGLE,
   DEFAULT_ROW_MAX_LABEL_LENGTH_ALLOWED,
+  DEFAULT_VISIBLE_RANGE,
   LABELS_MARGIN_BUFFER_IN_PX,
+  INTENSITY_LEGEND_LABEL_SIZE_IN_PX,
+  INTENSITY_LEGEND_GRADIENT_SIZE_IN_PX,
+  INTENSITY_LEGEND_SIZE_IN_PX,
+  GROUPING_LEGEND_SIZE_IN_PX,
 } from "./constants";
-
-const INTENSITY_LEGEND_LABEL_SIZE_IN_PX = 25;
-const INTENSITY_LEGEND_GRADIENT_SIZE_IN_PX = 20;
-const INTENSITY_LEGEND_SIZE_IN_PX =
-  INTENSITY_LEGEND_GRADIENT_SIZE_IN_PX + INTENSITY_LEGEND_LABEL_SIZE_IN_PX;
-const GROUPING_LEGEND_SIZE_IN_PX = 20;
-const DEFAULT_VISIBLE_RANGE = [-1, 1];
 
 /**
  * Base class for all matrix like layout plots.
@@ -452,11 +450,13 @@ class BaseGL {
   setRowGroupingLegendOptions(
     legendPosition,
     legendDomElement,
-    labelDomElement
+    labelDomElement,
+    labelOrientation
   ) {
     this.isRowGroupingLegendDomElementProvided = !!legendDomElement;
     this.rowGroupingLegendPosition = legendPosition;
     this.rowGroupingLabelDomElement = labelDomElement;
+    this.rowGroupingLabelOrientation = labelOrientation;
 
     if (!legendDomElement) {
       this.rowGroupingLegendDomElement = this.elem.lastChild;
@@ -466,11 +466,13 @@ class BaseGL {
   setColumnGroupingLegendOptions(
     legendPosition,
     legendDomElement,
-    labelDomElement
+    labelDomElement,
+    labelOrientation
   ) {
     this.isColumnGroupingLegendDomElementProvided = !!legendDomElement;
     this.columnGroupingLegendPosition = legendPosition;
     this.columnGroupingLabelDomElement = labelDomElement;
+    this.columnGroupingLabelOrientation = labelOrientation;
 
     if (!legendDomElement) {
       this.columnGroupingLegendDomElement = this.elem.lastChild;
@@ -584,7 +586,7 @@ class BaseGL {
       this.renderGroupingLabels(
         this.rowGroupingLabelDomElement,
         this.groupingRowData,
-        "vertical"
+        this.rowGroupingLabelOrientation || "vertical"
       );
     }
 
@@ -593,7 +595,7 @@ class BaseGL {
       this.renderGroupingLabels(
         this.columnGroupingLabelDomElement,
         this.groupingColumnData,
-        "horizontal"
+        this.columnGroupingLabelOrientation || "horizontal"
       );
     }
 
@@ -821,12 +823,6 @@ class BaseGL {
 
     // Update margins to account for the legend only if dom element is not provided
     if (!this.isLegendDomElementProvided) {
-      // this._spec.margins = {
-      //   ...this._spec.margins,
-      //   [position]:
-      //     parsedMargins[position] + INTENSITY_LEGEND_SIZE_IN_PX + "px",
-      // };
-
       // set svg container to position absolute and position value to 0
       svgContainer.style("position", "absolute").style(position, "0px");
 
@@ -918,6 +914,10 @@ class BaseGL {
     }
   }
 
+  /**
+   * Render the column grouping legend.
+   * This is used to render the column grouping legend.
+   * */
   renderColumnGroupingLegend() {
     const position = this.columnGroupingLegendPosition; // should be 'top' or 'bottom'
     const visibleRange = this.viewport?.xRange || DEFAULT_VISIBLE_RANGE;
@@ -1006,6 +1006,13 @@ class BaseGL {
     }
   }
 
+  /**
+   * Renders the grouping labels for the grouping legend
+   * @param {HTMLElement} parentElement - The parent element to render the grouping labels in
+   * @param {Array} groupingRowData - The data to render the grouping labels with
+   * @param {string} orientation - The orientation of the grouping labels
+   * @returns {void}
+   **/
   renderGroupingLabels(parentElement, groupingRowData, orientation) {
     const parent = d3.select(parentElement);
     const svg = parent.append("svg");
@@ -1046,6 +1053,9 @@ class BaseGL {
     });
   }
 
+  /**
+   * Update the margins to account for the legend
+   */
   updateMarginsToAccountForLegend() {
     const parsedMargins = parseMargins(this._spec.margins);
 
@@ -1080,6 +1090,7 @@ class BaseGL {
       right: parsedMargins.right + marginsToAddIn.right + "px",
     };
   }
+
   /**
    * Highlight the indices on the plot.
    * @memberof BaseGL
