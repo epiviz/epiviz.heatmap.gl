@@ -45,7 +45,7 @@
       margin: 0px 40px;
     }
 
-    .dotcanvas-intensity {
+    .dotcanvas-extras {
       grid-row: 3;
       grid-column: 2;
       margin: 0px 40px;
@@ -221,7 +221,14 @@
       <button class="disable-highlight">disable highlight</button>
       <button class="clear-highlight">clear highlight</button>
     </div>
-    <div class="dotcanvas-intensity"></div>
+    <div class="dotcanvas-extras">
+      <h5>Intensity: </h5>
+      <div class="dotcanvas-intensity"></div>
+      <h5>Row Group Labels: </h5>
+      <div class="dotcanvas-row-grouping-label"></div>
+      <h5>Column Group Labels: </h5>
+      <div class="dotcanvas-column-grouping-label"></div>
+    </div>
     <div class="rectcanvas">
     </div>
     <div class="rectcanvas-controls">
@@ -245,11 +252,16 @@
   </div>
   <script type="module">
     import { DotplotGL, RectplotGL, TickplotGL } from "./index.js";
-    import { data, color, size, intensityLegendData } from './data.js';
+    import { data, color, size, intensityLegendData, groupingRowData, groupingColumnData } from './data.js';
 
     let plot = new DotplotGL(".dotcanvas");
     plot.setInput(data);
+
     plot.setIntensityLegendOptions("bottom", ".dotcanvas-intensity", 400);
+
+    plot.setRowGroupingLegendOptions("left", null, ".dotcanvas-row-grouping-label", "vertical");
+    plot.setColumnGroupingLegendOptions("top", null, ".dotcanvas-column-grouping-label", "horizontal");
+
 
     plot.hoverCallback = function (point) {
       if (point) {
@@ -285,6 +297,8 @@
       "size": size,
       "color": color,
       intensityLegendData,
+      groupingRowData,
+      groupingColumnData
     });
 
     plot.render();
@@ -316,8 +330,11 @@
 
     let plot2 = new RectplotGL(".rectcanvas");
 
-    plot2.setInput(data, intensityLegendData);
-    plot2.setIntensityLegendOptions("right");
+    plot2.setInput(data);
+    plot2.setIntensityLegendOptions("bottom");
+
+    plot2.setRowGroupingLegendOptions("right");
+    plot2.setColumnGroupingLegendOptions("top");
 
     plot2.hoverCallback = function (point) {
       if (point) {
@@ -343,6 +360,8 @@
       "size": size,
       "color": color,
       intensityLegendData,
+      groupingRowData,
+      groupingColumnData,
     });
 
     plot2.render();
