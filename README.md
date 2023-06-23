@@ -93,6 +93,104 @@ plot.setLabelOptions({
 });
 ```
 
+#### Grouping Bars and Labels for Rows and Columns
+
+This feature allows users to add grouping bars and labels to both rows and columns of the heatmap. It provides a convenient way to visually represent different groups in your heatmap data.
+
+##### Usage
+
+You can use this feature by providing `groupingRowData` and `groupingColumnData` in your heatmap configuration. Both of these properties accept an array of objects, where each object represents a group and has the following properties:
+
+- `startIndex`: The start index of the group in the data.
+- `endIndex`: The end index of the group in the data.
+- `color`: The color of the group bar.
+- `label`: The label of the group.
+
+Here's an example of how you can define your group data:
+
+```javascript
+const groups = [
+  {
+    startIndex: 0,
+    endIndex: 1,
+    color: "#52bc9a",
+    label: "group 1",
+  },
+  // Additional groups...
+];
+```
+
+Once the data is constructed, pass it to the library using the setState function:
+
+```javascript
+plot.setState({
+  groupingRowData,
+  groupingColumnData,
+});
+```
+
+By default, the grouping color legends will be added inside the main DOM element, and the graph and x,y labels will be auto adjusted. There will be no labels for groups. However, users can hover over the legends to see the group name on the tooltip. You can customize this behavior with the help of the `setRowGroupingLegendOptions` and `setColumnGroupingLegendOptions` methods.
+
+```javascript
+plot.setRowGroupingLegendOptions(
+  "left",
+  null,
+  ".grouping-labels-rows",
+  "vertical"
+);
+plot.setColumnGroupingLegendOptions(
+  "top",
+  ".grouping-color-bar",
+  ".grouping-labels-columns"
+);
+```
+
+The first argument represents the positioning. For rows, it can be either "left" or "right". For columns, it can be either "top" or "bottom". The second argument is a DOM element reference for grouping color bars in case you want it to be rendered somewhere else in the DOM. You can also pass null if you wish to keep the default behavior. The third argument is for grouping labels. As mentioned earlier, by default there will be no labels for groups. Group names will be visible via tooltip by default. If you wish to render them, you must provide the DOM element to render it to. The third argument represents the DOM element for it. The fourth argument represents the orientation of labels. If you want to place them vertically from top to bottom or horizontally. This is optional. By default for rows, it will be vertical, and for columns, it will be horizontal.
+
+#### Customizing Row Group Legend with `setRowGroupingLegendOptions`
+
+This method allows you to customize the row group legend in your heatmap. It offers various parameters for flexibility.
+
+##### Parameters
+
+- `position` (`string`): Position of the legend, can be "left" or "right".
+- `groupingColorBarDOM` (`string` or `null`): DOM element reference for grouping color bars, or `null` for default behavior.
+- `groupingLabelDOM` (`string`): DOM element reference for grouping labels.
+- `orientation` (`string`): Orientation of the legend, can be "horizontal" or "vertical".
+
+##### Example
+
+```javascript
+plot.setRowGroupingLegendOptions(
+  "left",
+  null,
+  ".grouping-labels-rows",
+  "vertical"
+);
+```
+
+#### Customizing Column Group Legend with `setColumnGroupingLegendOptions`
+
+This method allows you to customize the column group legend in your heatmap.
+
+**Parameters**:
+
+- `position` (`string`): Position of the legend, can be "top" or "bottom".
+- `groupingColorBarDOM` (`string` or `null`): DOM element reference for grouping color bars, or `null` to keep the default behavior.
+- `groupingLabelDOM` (`string`): DOM element reference for grouping labels.
+- `orientation` (`string`, optional): Orientation of labels, either "horizontal" or "vertical". Default is "horizontal".
+
+**Example**:
+
+```javascript
+plot.setColumnGroupingLegendOptions(
+  "top",
+  ".grouping-color-bar",
+  ".grouping-labels-columns",
+  "horizontal"
+);
+```
+
 #### React Usage
 
 To use the library in a React application
