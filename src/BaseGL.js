@@ -1014,7 +1014,7 @@ class BaseGL {
    * @returns {void}
    **/
   renderGroupingLabels(parentElement, groupingRowData, orientation) {
-    const parent = d3.select(parentElement);
+    const parent = select(parentElement);
     const svg = parent.append("svg");
 
     svg.attr("width", "100%").style("overflow", "inherit");

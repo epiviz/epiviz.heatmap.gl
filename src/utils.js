@@ -1,3 +1,5 @@
+import { select } from "d3-selection";
+
 export function isObject(object) {
   return typeof object === "object" && Array.isArray(object) === false;
 }
@@ -40,7 +42,7 @@ export const parseMargins = (margins) => {
 
 export const getTextWidth = (text, fontSize = "16px") => {
   // Create a temporary SVG to measure the text width
-  const svg = d3.select("body").append("svg");
+  const svg = select("body").append("svg");
   const textNode = svg.append("text").style("font-size", fontSize).text(text);
   const width = textNode.node().getBBox().width;
   svg.remove();
@@ -68,7 +70,7 @@ export const createTooltip = (container, text, posX, posY) => {
 };
 
 export const removeTooltip = (container) => {
-  const tooltip = d3.select(container).select("#tooltip");
+  const tooltip = select(container).select("#tooltip");
 
   if (tooltip) {
     tooltip.remove();

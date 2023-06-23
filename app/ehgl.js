@@ -51,7 +51,7 @@ const parseMargins = (margins) => {
 
 const getTextWidth = (text, fontSize = "16px") => {
   // Create a temporary SVG to measure the text width
-  const svg = d3.select("body").append("svg");
+  const svg = d3Selection.select("body").append("svg");
   const textNode = svg.append("text").style("font-size", fontSize).text(text);
   const width = textNode.node().getBBox().width;
   svg.remove();
@@ -79,7 +79,7 @@ const createTooltip = (container, text, posX, posY) => {
 };
 
 const removeTooltip = (container) => {
-  const tooltip = d3.select(container).select("#tooltip");
+  const tooltip = d3Selection.select(container).select("#tooltip");
 
   if (tooltip) {
     tooltip.remove();
@@ -1090,7 +1090,7 @@ class BaseGL {
    * @returns {void}
    **/
   renderGroupingLabels(parentElement, groupingRowData, orientation) {
-    const parent = d3.select(parentElement);
+    const parent = d3Selection.select(parentElement);
     const svg = parent.append("svg");
 
     svg.attr("width", "100%").style("overflow", "inherit");
