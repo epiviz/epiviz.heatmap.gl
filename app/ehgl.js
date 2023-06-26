@@ -377,7 +377,6 @@ class BaseGL {
       if (data?.xlabels && data?.ylabels) {
         this.ncols = data.xlabels?.length;
         this.nrows = data.ylabels?.length;
-        this.originalLabelsCombined = [...data.xlabels, ...data.ylabels];
       }
 
       this.input = { ...this.input, ...data };
@@ -742,12 +741,15 @@ class BaseGL {
     });
 
     this.plot.addEventListener("labelHovered", (e) => {
-      const hoveredIndex = e.detail.index;
+      const hoveredIndex = e.detail.labelObject.index;
+      const labelType = e.detail.labelObject.type;
       e.preventDefault();
 
       createTooltip(
         this.elem,
-        this.originalLabelsCombined[hoveredIndex],
+        labelType === "row"
+          ? this.input.xlabels[hoveredIndex]
+          : this.input.ylabels[hoveredIndex],
         e.detail.event.pageX,
         e.detail.event.pageY
       );

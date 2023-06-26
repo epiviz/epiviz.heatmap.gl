@@ -151,14 +151,14 @@ The first argument represents the positioning. For rows, it can be either "left"
 
 This method allows you to customize the row group legend in your heatmap. It offers various parameters for flexibility.
 
-##### Parameters
+**Parameters**:
 
 - `position` (`string`): Position of the legend, can be "left" or "right".
 - `groupingColorBarDOM` (`string` or `null`): DOM element reference for grouping color bars, or `null` for default behavior.
 - `groupingLabelDOM` (`string`): DOM element reference for grouping labels.
 - `orientation` (`string`): Orientation of the legend, can be "horizontal" or "vertical".
 
-##### Example
+**Example**:
 
 ```javascript
 plot.setRowGroupingLegendOptions(
