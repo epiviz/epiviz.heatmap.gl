@@ -1,4 +1,5 @@
 import { select } from "d3-selection";
+import { TOOLTIP_IDENTIFIER } from "./constants";
 
 export function isObject(object) {
   return typeof object === "object" && Array.isArray(object) === false;
@@ -53,7 +54,7 @@ export const createTooltip = (container, text, posX, posY) => {
   let tooltip = d3
     .select(container)
     .append("div")
-    .attr("id", "tooltip")
+    .attr("id", TOOLTIP_IDENTIFIER)
     .style("position", "absolute")
     .style("background", "#f9f9f9")
     .style("padding", "8px")
@@ -70,7 +71,7 @@ export const createTooltip = (container, text, posX, posY) => {
 };
 
 export const removeTooltip = (container) => {
-  const tooltip = select(container).select("#tooltip");
+  const tooltip = select(container).select(`#${TOOLTIP_IDENTIFIER}`);
 
   if (tooltip) {
     tooltip.remove();
