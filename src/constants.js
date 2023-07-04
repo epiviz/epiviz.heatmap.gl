@@ -12,4 +12,4 @@ export const INTENSITY_LEGEND_GRADIENT_SIZE_IN_PX = 20;
 export const INTENSITY_LEGEND_SIZE_IN_PX =
   INTENSITY_LEGEND_GRADIENT_SIZE_IN_PX + INTENSITY_LEGEND_LABEL_SIZE_IN_PX;
 export const GROUPING_LEGEND_SIZE_IN_PX = 20;
-export const TOOLTIP_IDENTIFIER = "epiviz.heatmap.gl-label-tooltip";
+export const TOOLTIP_IDENTIFIER = "ehgl-tooltip";

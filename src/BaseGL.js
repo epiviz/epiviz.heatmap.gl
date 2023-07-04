@@ -904,10 +904,10 @@ class BaseGL {
           .style("fill", group.color)
           .on("mouseover", (e) => {
             const text = group.label;
-            createTooltip(this.elem, text, e.pageX, e.pageY);
+            createTooltip(document.body, text, e.pageX, e.pageY);
           })
           .on("mouseout", (e) => {
-            removeTooltip(this.elem);
+            removeTooltip(document.body);
           });
       }
     });
@@ -989,10 +989,10 @@ class BaseGL {
           .style("fill", group.color)
           .on("mouseover", (e) => {
             const text = group.label;
-            createTooltip(this.elem, text, e.pageX, e.pageY);
+            createTooltip(document.body, text, e.pageX, e.pageY);
           })
           .on("mouseout", (e) => {
-            removeTooltip(this.elem);
+            removeTooltip(document.body);
           });
       }
     });
@@ -1272,7 +1272,7 @@ class BaseGL {
    * @example
    * labelUnHoveredCallback()
    **/
-  labelUnHoveredCallback(label) {
+  labelUnhoveredCallback(label) {
     return label;
   }
 }
