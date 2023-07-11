@@ -1,6 +1,6 @@
 {
   "name": "epiviz.heatmap.gl",
-  "version": "0.0.13",
+  "version": "0.0.15",
   "repository": "https://github.com/jkanche/epiviz.heatmap.gl",
   "homepage": "https://github.com/jkanche/epiviz.heatmap.gl",
   "author": {
@@ -20,7 +20,7 @@
   "main": "dist/ehgl.js",
   "module": "dist/index.js",
   "dependencies": {
-    "epiviz.gl": "^1.0.9",
+    "epiviz.gl": "^1.0.11",
     "d3-axis": "^3.0.0",
     "d3-scale": "^4.0.2",
     "d3-selection": "^3.0.0"

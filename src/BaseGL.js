@@ -110,6 +110,8 @@ class BaseGL {
       this.viewport = viewport;
       this.renderRowGroupingLegend();
       this.renderColumnGroupingLegend();
+
+      this.viewportChangeCallback(viewport);
     });
 
     this.plot.addEventListener("zoomOut", (e) => {
@@ -118,6 +120,8 @@ class BaseGL {
       this.viewport = viewport;
       this.renderRowGroupingLegend();
       this.renderColumnGroupingLegend();
+
+      this.viewportChangeCallback(viewport);
     });
 
     this.plot.addEventListener("pan", (e) => {
@@ -126,6 +130,8 @@ class BaseGL {
       this.viewport = viewport;
       this.renderRowGroupingLegend();
       this.renderColumnGroupingLegend();
+
+      this.viewportChangeCallback(viewport);
     });
 
     this.highlightedIndices = [];
@@ -1248,6 +1254,15 @@ class BaseGL {
    */
   highlightedIndicesCallback(highlightedIndices) {
     return highlightedIndices;
+  }
+
+  /**
+   *
+   * Default callback handler when viewport is changed
+   * @param {object} viewport
+   */
+  viewportChangeCallback(viewport) {
+    return viewport;
   }
 }
 
