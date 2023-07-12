@@ -264,11 +264,21 @@ Supports three modes
 plot.setInteraction("pan");
 ```
 
+#### Highlighting
+
+Highlighting is supported for dot and rect plots. It can be enabled by calling the `enableHighlight` method, to disable it, call `disableHighlight`. Once you enable you can use the `highlightedIndicesCallback` to capture the highlighted indices. The callback will be called with an array of indices. You can use this to update other plots or do other things. The callback will be called with an empty array if there are no highlighted indices. Users can highlight the indices by clicking on the plot to select a single point, or use box selection to select multiple points. You can also click on labels to highlight the entire row or column. Along with that `highlightIndices` method can be used to highlight indices programmatically.
+
+```js
+plot.enableHighlight();
+plot.disableHighlight();
+```
+
 #### Events
 
 - hoverCallback
 - clickCallback
 - selectionCallback
+- viewportChangeCallback
 - highlightedIndicesCallback
 
 **_hover and click also provide the distance of the point from the mouse location. This metric can be used to enable various interactions._**
@@ -286,6 +296,11 @@ plot.hoverCallback = function (point) {
 plot.selectionCallback = function (points) {
   // ... do something ...
   console.log(points);
+};
+
+plot.viewportChangeCallback = function (viewport) {
+  // ... do something ...
+  console.log(viewport);
 };
 
 plot.highlightedIndicesCallback = function (indices) {
