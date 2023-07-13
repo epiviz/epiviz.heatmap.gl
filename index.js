@@ -9917,8 +9917,7 @@ const getTextWidth = (text, fontSize = "16px") => {
 };
 
 const createTooltip = (container, text, posX, posY) => {
-  let tooltip = d3
-    .select(container)
+  let tooltip = select$1(container)
     .append("div")
     .attr("id", TOOLTIP_IDENTIFIER)
     .style("position", "absolute")
@@ -10029,6 +10028,8 @@ class BaseGL {
       this.viewport = viewport;
       this.renderRowGroupingLegend();
       this.renderColumnGroupingLegend();
+
+      this.viewportChangeCallback(viewport);
     });
 
     this.plot.addEventListener("zoomOut", (e) => {
@@ -10037,6 +10038,8 @@ class BaseGL {
       this.viewport = viewport;
       this.renderRowGroupingLegend();
       this.renderColumnGroupingLegend();
+
+      this.viewportChangeCallback(viewport);
     });
 
     this.plot.addEventListener("pan", (e) => {
@@ -10045,6 +10048,8 @@ class BaseGL {
       this.viewport = viewport;
       this.renderRowGroupingLegend();
       this.renderColumnGroupingLegend();
+
+      this.viewportChangeCallback(viewport);
     });
 
     this.highlightedIndices = [];
@@ -11193,6 +11198,15 @@ class BaseGL {
    **/
   labelUnhoveredCallback(label) {
     return label;
+  }
+
+  /**
+   *
+   * Default callback handler when viewport is changed
+   * @param {object} viewport
+   */
+  viewportChangeCallback(viewport) {
+    return viewport;
   }
 }
 
