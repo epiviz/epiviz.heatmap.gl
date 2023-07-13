@@ -51,8 +51,7 @@ export const getTextWidth = (text, fontSize = "16px") => {
 };
 
 export const createTooltip = (container, text, posX, posY) => {
-  let tooltip = d3
-    .select(container)
+  let tooltip = select(container)
     .append("div")
     .attr("id", TOOLTIP_IDENTIFIER)
     .style("position", "absolute")
