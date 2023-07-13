@@ -280,6 +280,8 @@ plot.disableHighlight();
 - selectionCallback
 - viewportChangeCallback
 - highlightedIndicesCallback
+- labelHoveredCallback
+- labelUnhoveredCallback
 
 **_hover and click also provide the distance of the point from the mouse location. This metric can be used to enable various interactions._**
 
@@ -306,6 +308,16 @@ plot.viewportChangeCallback = function (viewport) {
 plot.highlightedIndicesCallback = function (indices) {
   // ... do something ...
   console.log(indices);
+};
+
+plot.labelHoveredCallback = function (label) {
+  // ... do something ...
+  console.log(label);
+};
+
+plot.labelUnhoveredCallback = function (label) {
+  // ... do something ...
+  console.log(label);
 };
 ```
 

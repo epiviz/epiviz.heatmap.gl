@@ -9,6 +9,22 @@ var d3Selection = require('d3-selection');
 var d3Scale = require('d3-scale');
 var d3Axis = require('d3-axis');
 
+const DEFAULT_ROW_MAX_LABEL_LENGTH_ALLOWED = 15;
+const DEFAULT_COLUMN_MAX_LABEL_LENGTH_ALLOWED = 30;
+const DEFAULT_ROW_LABEL_SLINT_ANGLE = 0;
+const DEFAULT_COLUMN_LABEL_SLINT_ANGLE = 0;
+const DEFAULT_ROW_LABEL_FONT_SIZE = "7px";
+const DEFAULT_COLUMN_LABEL_FONT_SIZE = "7px";
+const DEFAULT_VISIBLE_RANGE = [-1, 1];
+
+const LABELS_MARGIN_BUFFER_IN_PX = 20;
+const INTENSITY_LEGEND_LABEL_SIZE_IN_PX = 25;
+const INTENSITY_LEGEND_GRADIENT_SIZE_IN_PX = 20;
+const INTENSITY_LEGEND_SIZE_IN_PX =
+  INTENSITY_LEGEND_GRADIENT_SIZE_IN_PX + INTENSITY_LEGEND_LABEL_SIZE_IN_PX;
+const GROUPING_LEGEND_SIZE_IN_PX = 20;
+const TOOLTIP_IDENTIFIER = "ehgl-tooltip";
+
 function isObject(object) {
   return typeof object === "object" && Array.isArray(object) === false;
 }
@@ -62,7 +78,7 @@ const createTooltip = (container, text, posX, posY) => {
   let tooltip = d3
     .select(container)
     .append("div")
-    .attr("id", "tooltip")
+    .attr("id", TOOLTIP_IDENTIFIER)
     .style("position", "absolute")
     .style("background", "#f9f9f9")
     .style("padding", "8px")
@@ -79,27 +95,12 @@ const createTooltip = (container, text, posX, posY) => {
 };
 
 const removeTooltip = (container) => {
-  const tooltip = d3Selection.select(container).select("#tooltip");
+  const tooltip = d3Selection.select(container).select(`#${TOOLTIP_IDENTIFIER}`);
 
   if (tooltip) {
     tooltip.remove();
   }
 };
-
-const DEFAULT_ROW_MAX_LABEL_LENGTH_ALLOWED = 15;
-const DEFAULT_COLUMN_MAX_LABEL_LENGTH_ALLOWED = 30;
-const DEFAULT_ROW_LABEL_SLINT_ANGLE = 0;
-const DEFAULT_COLUMN_LABEL_SLINT_ANGLE = 0;
-const DEFAULT_ROW_LABEL_FONT_SIZE = "7px";
-const DEFAULT_COLUMN_LABEL_FONT_SIZE = "7px";
-const DEFAULT_VISIBLE_RANGE = [-1, 1];
-
-const LABELS_MARGIN_BUFFER_IN_PX = 20;
-const INTENSITY_LEGEND_LABEL_SIZE_IN_PX = 25;
-const INTENSITY_LEGEND_GRADIENT_SIZE_IN_PX = 20;
-const INTENSITY_LEGEND_SIZE_IN_PX =
-  INTENSITY_LEGEND_GRADIENT_SIZE_IN_PX + INTENSITY_LEGEND_LABEL_SIZE_IN_PX;
-const GROUPING_LEGEND_SIZE_IN_PX = 20;
 
 /**
  * Base class for all matrix like layout plots.
@@ -746,18 +747,20 @@ class BaseGL {
       e.preventDefault();
 
       createTooltip(
-        this.elem,
+        document.body,
         labelType === "row"
           ? this.input.xlabels[hoveredIndex]
           : this.input.ylabels[hoveredIndex],
         e.detail.event.pageX,
         e.detail.event.pageY
       );
+      this.labelHoveredCallback(e.detail);
     });
 
     this.plot.addEventListener("labelUnhovered", (e) => {
       e.preventDefault();
-      removeTooltip(this.elem);
+      removeTooltip(document.body);
+      this.labelUnhoveredCallback(e.detail);
     });
   }
 
@@ -978,10 +981,10 @@ class BaseGL {
           .style("fill", group.color)
           .on("mouseover", (e) => {
             const text = group.label;
-            createTooltip(this.elem, text, e.pageX, e.pageY);
+            createTooltip(document.body, text, e.pageX, e.pageY);
           })
           .on("mouseout", (e) => {
-            removeTooltip(this.elem);
+            removeTooltip(document.body);
           });
       }
     });
@@ -1063,10 +1066,10 @@ class BaseGL {
           .style("fill", group.color)
           .on("mouseover", (e) => {
             const text = group.label;
-            createTooltip(this.elem, text, e.pageX, e.pageY);
+            createTooltip(document.body, text, e.pageX, e.pageY);
           })
           .on("mouseout", (e) => {
-            removeTooltip(this.elem);
+            removeTooltip(document.body);
           });
       }
     });
@@ -1324,6 +1327,30 @@ class BaseGL {
    */
   highlightedIndicesCallback(highlightedIndices) {
     return highlightedIndices;
+  }
+
+  /**
+   *  Default callback handler when a label is hovered
+   * @param {object} label, label hovered
+   * @return {object} label hovered
+   * @memberof BaseGL
+   * @example
+   * labelHoveredCallback()
+   **/
+  labelHoveredCallback(label) {
+    return label;
+  }
+
+  /**
+   * Default callback handler when a label is unhovered
+   * @param {object} label, label unhovered
+   * @return {object} label unhovered
+   * @memberof BaseGL
+   * @example
+   * labelUnHoveredCallback()
+   **/
+  labelUnhoveredCallback(label) {
+    return label;
   }
 }
 

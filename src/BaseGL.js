@@ -676,18 +676,20 @@ class BaseGL {
       e.preventDefault();
 
       createTooltip(
-        this.elem,
+        document.body,
         labelType === "row"
           ? this.input.xlabels[hoveredIndex]
           : this.input.ylabels[hoveredIndex],
         e.detail.event.pageX,
         e.detail.event.pageY
       );
+      this.labelHoveredCallback(e.detail);
     });
 
     this.plot.addEventListener("labelUnhovered", (e) => {
       e.preventDefault();
-      removeTooltip(this.elem);
+      removeTooltip(document.body);
+      this.labelUnhoveredCallback(e.detail);
     });
   }
 
@@ -908,10 +910,10 @@ class BaseGL {
           .style("fill", group.color)
           .on("mouseover", (e) => {
             const text = group.label;
-            createTooltip(this.elem, text, e.pageX, e.pageY);
+            createTooltip(document.body, text, e.pageX, e.pageY);
           })
           .on("mouseout", (e) => {
-            removeTooltip(this.elem);
+            removeTooltip(document.body);
           });
       }
     });
@@ -993,10 +995,10 @@ class BaseGL {
           .style("fill", group.color)
           .on("mouseover", (e) => {
             const text = group.label;
-            createTooltip(this.elem, text, e.pageX, e.pageY);
+            createTooltip(document.body, text, e.pageX, e.pageY);
           })
           .on("mouseout", (e) => {
-            removeTooltip(this.elem);
+            removeTooltip(document.body);
           });
       }
     });
@@ -1254,6 +1256,30 @@ class BaseGL {
    */
   highlightedIndicesCallback(highlightedIndices) {
     return highlightedIndices;
+  }
+
+  /**
+   *  Default callback handler when a label is hovered
+   * @param {object} label, label hovered
+   * @return {object} label hovered
+   * @memberof BaseGL
+   * @example
+   * labelHoveredCallback()
+   **/
+  labelHoveredCallback(label) {
+    return label;
+  }
+
+  /**
+   * Default callback handler when a label is unhovered
+   * @param {object} label, label unhovered
+   * @return {object} label unhovered
+   * @memberof BaseGL
+   * @example
+   * labelUnHoveredCallback()
+   **/
+  labelUnhoveredCallback(label) {
+    return label;
   }
 
   /**
