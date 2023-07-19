@@ -66,6 +66,47 @@ You can also specify width and height:
 setIntensityLegendOptions("top", ".intensity-legend", 400, 500);
 ```
 
+#### Setting up the Size Legend (Only for DotplotGL)
+
+The `DotplotGL` class offers a feature to add a size legend, which visually represents the range and steps of dot sizes.
+To embed a size legend to your `DotplotGL` instance, you first need to provide the relevant data using the `setState` method:
+
+```javascript
+plot.setState({
+  sizeLegendData: {
+    minSize: 1,
+    maxSize: 10,
+    steps: 5,
+  },
+  // Other data
+});
+```
+
+Then, apply the `setSizeLegendOptions` method:
+
+```javascript
+dotplotInstance.setSizeLegendOptions(legendOptions, legendDomElement);
+```
+
+#### Parameters:
+
+- `legendOptions`: (Object) This parameter comprises several optional properties to customize the appearance and behavior of the size legend:
+
+  - `orientation`: (string) Determines the layout direction of the legend. Accepted values include: 'horizontal', 'horizontal-inverted', 'vertical', and 'vertical-inverted'. Default: 'horizontal'.
+  - `position`: (string) Dictates the legend's location on the screen. Can be set to 'top-left', 'top-right', 'bottom-left', or 'bottom-right'. Default: 'top-right'.
+  - `circleColor`: (string) Sets the color for the circles in the legend. Default: 'gray'.
+  - `fontSize`: (string) Configures the font size for legend labels. Default: '12px'.
+  - `fontColor`: (string) Sets the text color for legend labels. Default: 'black'.
+  - `svgPadding`: (number) Adjusts the padding around the legend. Default value is derived from the constant: `DEFAULT_SIZE_LEGEND_SVG_PADDING`.
+  - `circleGap`: (number) Modifies the space between circles in the legend. Default value is fetched from the constant: `DEFAULT_SIZE_LEGEND_CIRCLE_GAP`.
+  - `circleTextGap`: (number) Configures the gap between circles and their associated text in the legend. Default value stems from the constant: `DEFAULT_SIZE_LEGEND_CIRCLE_TEXT_GAP`.
+
+- `legendDomElement`: (DOMElement) If you intend to manually specify a DOM element for the legend, this parameter allows for that. By default, if not provided, the legend will be appended to the last child of the `DotplotGL` element.
+
+### Displaying the Size Legend
+
+Once you've set the options and provided the data for your size legend, it will automatically render when you invoke the `render` method of the `DotplotGL` instance.
+
 #### Customizing Labels with `setLabelOptions`
 
 This method allows you to customize the label options for your visualization. All parameters are optional, providing you the flexibility to specify the options that best suit your needs.
@@ -330,7 +371,13 @@ These attributes either take a fixed value or an array of values for each data p
 - `opacity` - opacity across the entire plot
 - `xgap` or `ygap` - gap between rows and columns
 - `intensityLegendData` - an array of objects containing color, intensity, and label for the legend.
-  e.g [{color: "#000000", intensity: 1, label: "0.1"}]
+  `e.g [{color: "#000000", intensity: 1, label: "0.1"}]`
+- `sizeLegendData` - an object containing minSize, maxSize, and steps for the legend.
+  `e.g {minSize: 1, maxSize: 10, steps: 5}`
+- `rowGroupingData` - an array of objects containing the startIndex, endIndex, color, and label for the row grouping.
+  `e.g [{startIndex: 0, endIndex: 10, color: "#000000", label: "group1"}]`
+- `columnGroupingData` - an array of objects containing the startIndex, endIndex, color, and label for the column grouping.
+  `e.g [{startIndex: 0, endIndex: 10, color: "#000000", label: "group1"}]`
 
 ```js
   plot.setState({
@@ -339,6 +386,9 @@ These attributes either take a fixed value or an array of values for each data p
     xgap: <GAPS>,
     ygap: <GAPS>,
     opacity: <OPACITY>
-    intensityLegendData: <INTENSITY_LEGEND_DATA>
+    intensityLegendData: <INTENSITY_LEGEND_DATA>,
+    sizeLegendData: <SIZE_LEGEND_DATA>,
+    rowGroupingData: <ROW_GROUPING_DATA>,
+    columnGroupingData: <COLUMN_GROUPING_DATA>,
   });
 ```
