@@ -1279,6 +1279,53 @@ const getQuadraticBezierCurveForPoints = (P0, P1, P2) => {
   return (t) => [x(t), y(t)];
 };
 
+const cloneMouseEvent = (e) => {
+  return {
+    altKey: e.altKey,
+    button: e.button,
+    buttons: e.buttons,
+    clientX: e.clientX,
+    clientY: e.clientY,
+    ctrlKey: e.ctrlKey,
+    metaKey: e.metaKey,
+    movementX: e.movementX,
+    movementY: e.movementY,
+    offsetX: e.offsetX,
+    offsetY: e.offsetY,
+    pageX: e.pageX,
+    pageY: e.pageY,
+    screenX: e.screenX,
+    screenY: e.screenY,
+    shiftKey: e.shiftKey,
+    x: e.x,
+    y: e.y,
+    detail: e.detail,
+    bubbles: e.bubbles,
+    cancelable: e.cancelable,
+    composed: e.composed,
+    eventPhase: e.eventPhase,
+    isTrusted: e.isTrusted,
+    returnValue: e.returnValue,
+    timeStamp: e.timeStamp,
+    type: e.type,
+  };
+};
+
+const getPointsBySelectMode = (selectMode, originalPoints, xRange, yRange) => {
+  const points = [...originalPoints];
+  switch (selectMode) {
+    case "horizontal":
+      points[1] = yRange[0];
+      points[3] = yRange[1];
+      break;
+    case "vertical":
+      points[0] = xRange[0];
+      points[2] = xRange[1];
+      break;
+  }
+  return points;
+};
+
 function basis(t1, v0, v1, v2, v3) {
   var t2 = t1 * t1, t3 = t2 * t1;
   return ((1 - 3 * t1 + 3 * t2 - t3) * v0
@@ -1379,4 +1426,4 @@ function rgbSpline(spline) {
 
 var rgbBasis = rgbSpline(basis$1);
 
-export { Color as C, DEFAULT_WIDTH as D, Rgb as R, DEFAULT_HEIGHT as a, getViewportForSpecification as b, getScaleForSpecification as c, formatPrefix as d, exponent as e, formatSpecifier as f, getDimAndMarginStyleForSpecification as g, format as h, constant as i, color as j, define as k, extend as l, rgbBasis as m, rgb$1 as n, rgbConvert as o, precisionRound as p, nogamma as q, rgb as r, scale as s, hue as t, brighter as u, darker as v, colorSpecifierToHex as w, rgbStringToHex as x, getQuadraticBezierCurveForPoints as y };
+export { getQuadraticBezierCurveForPoints as A, Color as C, DEFAULT_WIDTH as D, Rgb as R, DEFAULT_HEIGHT as a, getViewportForSpecification as b, cloneMouseEvent as c, getPointsBySelectMode as d, getScaleForSpecification as e, formatSpecifier as f, getDimAndMarginStyleForSpecification as g, exponent as h, formatPrefix as i, format as j, constant as k, color as l, define as m, extend as n, rgbBasis as o, precisionRound as p, rgb$1 as q, rgb as r, scale as s, rgbConvert as t, nogamma as u, hue as v, brighter as w, darker as x, colorSpecifierToHex as y, rgbStringToHex as z };

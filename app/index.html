@@ -258,7 +258,13 @@
     plot.setInput(data);
 
     plot.setIntensityLegendOptions("bottom", ".dotcanvas-intensity", 400);
-
+    plot.setSizeLegendOptions({
+      orientation: "vertical-inverted",
+      position: "bottom-right",
+      circleColor: "gray",
+      fontSize: "6px",
+      fontColor: "gray"
+    });
     plot.setRowGroupingLegendOptions("left", null, ".dotcanvas-row-grouping-label", "vertical");
     plot.setColumnGroupingLegendOptions("top", null, ".dotcanvas-column-grouping-label", "horizontal");
 
@@ -297,8 +303,13 @@
       "size": size,
       "color": color,
       intensityLegendData,
-      groupingRowData,
-      groupingColumnData
+      sizeLegendData: {
+        "minSize": 2,
+        "maxSize": 10,
+        "steps": 7,
+      },
+      groupingColumnData,
+      groupingRowData
     });
 
     plot.render();

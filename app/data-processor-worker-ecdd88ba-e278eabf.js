@@ -1,5 +1,5 @@
-import { b as getViewportForSpecification } from './rgb-6a05388e-71531c98.js';
-import { S as SpecificationProcessor, a as SIZE_UNITS, t as transformGenomicRangeArcToStandard, b as transformGenomicRangeToStandard } from './specification-processor-c99b2c15-95130668.js';
+import { b as getViewportForSpecification } from './rgb-a271cd82-534c38df.js';
+import { S as SpecificationProcessor, a as SIZE_UNITS, t as transformGenomicRangeArcToStandard, b as transformGenomicRangeToStandard } from './specification-processor-b06cdb23-b9293fe3.js';
 
 class FlatQueue {
 
@@ -1917,6 +1917,7 @@ self.onmessage = (message) => {
         type: message.data.type,
         selection: self.processor.selectBox(message.data.points),
         bounds: message.data.points,
+        event: message.data?.event,
       });
       break;
     case "selectLasso":
@@ -1924,6 +1925,7 @@ self.onmessage = (message) => {
         type: message.data.type,
         selection: self.processor.selectLasso(message.data.points),
         bounds: message.data.points,
+        event: message.data?.event,
       });
       break;
     case "getClosestPoint":
