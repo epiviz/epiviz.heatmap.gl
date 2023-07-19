@@ -284,6 +284,7 @@ class DotplotGL extends BaseGL {
         "height",
         circleGroupBBox.height +
           textGroupBBox.height +
+          +this.sizeLegendOptions.circleTextGap +
           this.sizeLegendOptions.svgPadding * 2
       );
     } else {
@@ -295,6 +296,7 @@ class DotplotGL extends BaseGL {
         .attr(
           "width",
           circleGroupBBox.width +
+            this.sizeLegendOptions.circleTextGap +
             textGroupBBox.width +
             this.sizeLegendOptions.svgPadding * 2
         );
@@ -304,14 +306,10 @@ class DotplotGL extends BaseGL {
       this.sizeLegendSvgNode.style("position", "absolute");
       switch (this.sizeLegendOptions.position) {
         case "top-left":
-          this.sizeLegendSvgNode
-            .style("top", this._spec.margins.top)
-            .style("left", "0px");
+          this.sizeLegendSvgNode.style("top", "0px").style("left", "0px");
           break;
         case "top-right":
-          this.sizeLegendSvgNode
-            .style("top", this._spec.margins.top)
-            .style("right", "0px");
+          this.sizeLegendSvgNode.style("top", "0px").style("right", "0px");
           break;
         case "bottom-left":
           this.sizeLegendSvgNode
