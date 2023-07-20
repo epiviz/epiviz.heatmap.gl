@@ -284,7 +284,7 @@ class DotplotGL extends BaseGL {
         "height",
         circleGroupBBox.height +
           textGroupBBox.height +
-          +this.sizeLegendOptions.circleTextGap +
+          this.sizeLegendOptions.circleTextGap +
           this.sizeLegendOptions.svgPadding * 2
       );
     } else {
