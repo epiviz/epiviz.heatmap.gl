@@ -1050,7 +1050,19 @@ class BaseGL {
    * @param {string} orientation - The orientation of the grouping labels
    * @returns {void}
    **/
-  renderGroupingLabels(parentElement, groupingRowData, orientation) {
+  renderGroupingLabels(parentElement, groupingData, orientation) {
+    // Filter out duplicate labels in the grouping data
+    groupingData = groupingData.reduce(
+      (acc, obj) => {
+        if (!acc.seen[obj.label]) {
+          acc.seen[obj.label] = true;
+          acc.result.push(obj);
+        }
+        return acc;
+      },
+      { seen: {}, result: [] }
+    ).result;
+
     const parent = select(parentElement);
     const svg = parent.append("svg");
 
@@ -1058,14 +1070,14 @@ class BaseGL {
     if (orientation === "horizontal") {
       svg.attr("height", 25);
     } else {
-      svg.attr("height", groupingRowData.length * 25);
+      svg.attr("height", groupingData.length * 25);
     }
 
     const labelHeight = 25;
     let xOffset = 0;
     let yOffset = 0;
 
-    groupingRowData.forEach((data) => {
+    groupingData.forEach((data) => {
       const group = svg.append("g");
 
       group
