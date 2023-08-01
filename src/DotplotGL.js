@@ -1,5 +1,5 @@
 import BaseGL from "./BaseGL";
-import { getMinMax } from "./utils";
+import { getMinMax, mapArrayOrTypedArray } from "./utils";
 
 /**
  * Make a DotPlot like plot
@@ -46,8 +46,14 @@ class DotplotGL extends BaseGL {
     let spec_inputs = {};
     let xlen = getMinMax(this.input.x)[1] + 1,
       ylen = getMinMax(this.input.y)[1] + 1;
-    spec_inputs.x = this.input.x.map((e, i) => -1 + (2 * e + 1) / xlen);
-    spec_inputs.y = this.input.y.map((e, i) => -1 + (2 * e + 1) / ylen);
+    spec_inputs.x = mapArrayOrTypedArray(
+      this.input.x,
+      (e, i) => -1 + (2 * e + 1) / xlen
+    );
+    spec_inputs.y = mapArrayOrTypedArray(
+      this.input.y,
+      (e, i) => -1 + (2 * e + 1) / ylen
+    );
 
     let spec = {
       margins: this.margins,

@@ -1,24 +1,38 @@
 import { select } from "d3-selection";
 import { TOOLTIP_IDENTIFIER } from "./constants";
 
+/**
+ * Check if a given variable is an object and not an array.
+ *
+ * @param {any} object - The variable to check.
+ * @returns {boolean} - Returns true if the variable is an object, and not an array.
+ */
 export function isObject(object) {
   return typeof object === "object" && Array.isArray(object) === false;
 }
 
+/**
+ * Get the minimum and maximum values from an array.
+ *
+ * @param {Array<number>} arr - An array of numbers.
+ * @returns {Array<number>} - An array containing the minimum and maximum values, in that order.
+ */
 export const getMinMax = (arr) => {
   var max = -Number.MAX_VALUE,
     min = Number.MAX_VALUE;
   arr.forEach(function (x) {
-    if (max < x) {
-      max = x;
-    }
-    if (min > x) {
-      min = x;
-    }
+    if (max < x) max = x;
+    if (min > x) min = x;
   });
   return [min, max];
 };
 
+/**
+ * Parses an object of margins and returns an object with top, bottom, left, and right margins as integers.
+ *
+ * @param {Object} margins - An object with potential margin properties.
+ * @returns {Object} - An object with top, bottom, left, and right margins as integers.
+ */
 export const parseMargins = (margins) => {
   const parsedMargins = {
     top: 0,
@@ -41,6 +55,13 @@ export const parseMargins = (margins) => {
   return parsedMargins;
 };
 
+/**
+ * Measure the width of a text string for a given font size using SVG.
+ *
+ * @param {string} text - The text to measure.
+ * @param {string} fontSize - The font size to use for the measurement, e.g., '16px'.
+ * @returns {number} - The width of the text in pixels.
+ */
 export const getTextWidth = (text, fontSize = "16px") => {
   // Create a temporary SVG to measure the text width
   const svg = select("body").append("svg");
@@ -50,6 +71,14 @@ export const getTextWidth = (text, fontSize = "16px") => {
   return width;
 };
 
+/**
+ * Create a tooltip on a specified container at the given position.
+ *
+ * @param {HTMLElement} container - The container element.
+ * @param {string} text - The text for the tooltip.
+ * @param {number} posX - The x-coordinate for the tooltip.
+ * @param {number} posY - The y-coordinate for the tooltip.
+ */
 export const createTooltip = (container, text, posX, posY) => {
   let tooltip = select(container)
     .append("div")
@@ -69,10 +98,61 @@ export const createTooltip = (container, text, posX, posY) => {
     .style("top", posY - 10 + "px");
 };
 
+/**
+ * Remove a tooltip from the specified container.
+ *
+ * @param {HTMLElement} container - The container from which to remove the tooltip.
+ */
 export const removeTooltip = (container) => {
   const tooltip = select(container).select(`#${TOOLTIP_IDENTIFIER}`);
 
   if (tooltip) {
     tooltip.remove();
+  }
+};
+
+/**
+ * A function to map over both regular JavaScript arrays and typed arrays.
+ *
+ * @param {Array|TypedArray} array - The input array or typed array.
+ * @param {Function} callback - A function that produces an element of the new array,
+ *      taking three arguments:
+ *      currentValue - The current element being processed in the array.
+ *      index - The index of the current element being processed in the array.
+ *      array - The array map was called upon.
+ * @returns {Array|TypedArray} - A new array or typed array with each element being the result
+ *      of the callback function.
+ * @throws {Error} - Throws an error if the input is neither a regular array nor a typed array.
+ */
+export const mapArrayOrTypedArray = (array, callback) => {
+  // Check if the input is a regular JavaScript array.
+  if (Array.isArray(array)) {
+    return array.map(callback);
+  }
+  // Check if the input is a typed array.
+  else if (
+    array instanceof Int8Array ||
+    array instanceof Uint8Array ||
+    array instanceof Uint8ClampedArray ||
+    array instanceof Int16Array ||
+    array instanceof Uint16Array ||
+    array instanceof Int32Array ||
+    array instanceof Uint32Array ||
+    array instanceof Float32Array ||
+    array instanceof Float64Array
+  ) {
+    // Create a new typed array of the same type and size as the input.
+    let result = new array.constructor(array.length);
+
+    // Use forEach to emulate the map functionality for typed arrays.
+    array.forEach((value, index) => {
+      result[index] = callback(value, index);
+    });
+
+    return result;
+  }
+  // Handle the case where the input is neither a regular array nor a typed array.
+  else {
+    throw new Error("Input is neither a normal array nor a typed array.");
   }
 };
