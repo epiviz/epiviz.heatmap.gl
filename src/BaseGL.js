@@ -80,6 +80,10 @@ class BaseGL {
 
     //Default Data for labelOptions
     this.labelOptions = {
+      rowLabelsSvgXOffset: -1.05,
+      rowLabelsSvgYOffset: 1,
+      columnLabelsSvgXOffset: 1,
+      columnLabelsSvgYOffset: -1.05,
       rowLabelMaxCharacters: DEFAULT_ROW_MAX_LABEL_LENGTH_ALLOWED,
       columnLabelMaxCharacters: DEFAULT_COLUMN_MAX_LABEL_LENGTH_ALLOWED,
       rowLabelSlintAngle: DEFAULT_ROW_LABEL_SLINT_ANGLE,
@@ -186,6 +190,10 @@ class BaseGL {
 
   _generateSpecForLabels(spec) {
     const {
+      rowLabelsSvgXOffset,
+      rowLabelsSvgYOffset,
+      columnLabelsSvgXOffset,
+      columnLabelsSvgYOffset,
       rowLabelMaxCharacters,
       columnLabelMaxCharacters,
       rowLabelSlintAngle,
@@ -215,8 +223,8 @@ class BaseGL {
 
         maxWidth = Math.max(maxWidth, truncatedLabelWidth);
         labels.push({
-          x: -1.02 + (2 * ilx + 1) / xlabels_len,
-          y: 1.05,
+          x: columnLabelsSvgXOffset + (2 * ilx + 1) / xlabels_len,
+          y: columnLabelsSvgYOffset,
           type: "row",
           index: ilx,
           text: truncatedLabel,
@@ -249,8 +257,8 @@ class BaseGL {
         );
         maxWidth = Math.max(maxWidth, truncatedLabelWidth);
         labels.push({
-          x: -1.05,
-          y: -1.02 + (2 * ily + 1) / ylabels_len,
+          x: rowLabelsSvgXOffset,
+          y: rowLabelsSvgYOffset + (2 * ily + 1) / ylabels_len,
           type: "column",
           index: ily,
           text: truncatedLabel,
@@ -500,6 +508,10 @@ class BaseGL {
    * @memberof BaseGL
    * @example
    * this.labelOptions = {
+   * rowLabelsSvgXOffset: 0,
+   * rowLabelsSvgYOffset: 0,
+   * columnLabelsSvgXOffset: 0,
+   * columnLabelsSvgYOffset: 0,
    * rowLabelMaxCharacters: 10,
    * columnLabelMaxCharacters: 10,
    * rowLabelSlintAngle: 0,
@@ -509,8 +521,12 @@ class BaseGL {
    * }
    * @example
    * this.setLabelOptions({
+   * rowLabelsSvgXOffset: 0,
+   * rowLabelsSvgYOffset: 0,
+   * columnLabelsSvgXOffset: 0,
+   * columnLabelsSvgYOffset: 0,
    * rowLabelMaxCharacters: 10,
-   *  columnLabelMaxCharacters: 10,
+   * columnLabelMaxCharacters: 10,
    * rowLabelSlintAngle: 0,
    * columnLabelSlintAngle: 0,
    * rowLabelFontSize: "7px",
