@@ -50,12 +50,7 @@ class DotplotGL extends BaseGL {
     spec_inputs.y = this.input.y.map((e, i) => -1 + (2 * e + 1) / ylen);
 
     let spec = {
-      margins: {
-        top: "25px",
-        bottom: "50px",
-        left: "50px",
-        right: "10px",
-      },
+      margins: this.margins,
       defaultData: {
         x: spec_inputs.x,
         y: spec_inputs.y,

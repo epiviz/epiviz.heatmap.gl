@@ -23,6 +23,7 @@ import {
   INTENSITY_LEGEND_GRADIENT_SIZE_IN_PX,
   INTENSITY_LEGEND_SIZE_IN_PX,
   GROUPING_LEGEND_SIZE_IN_PX,
+  DEFAULT_MARGINS,
 } from "./constants";
 
 /**
@@ -74,6 +75,8 @@ class BaseGL {
       xgap: 0.3,
       ygap: 0.3,
     };
+
+    this.margins = DEFAULT_MARGINS;
 
     //Default Data for labelOptions
     this.labelOptions = {
@@ -269,7 +272,7 @@ class BaseGL {
       ...spec["margins"],
       top: `${topMarginToAccountForLabels}px`,
       left: `${leftMarginToAccountForLabels}px`,
-      right: "20px",
+      right: `${GROUPING_LEGEND_SIZE_IN_PX}px`,
     };
   }
 
@@ -518,6 +521,30 @@ class BaseGL {
     this.labelOptions = {
       ...this.labelOptions,
       ...labelOptions,
+    };
+  }
+
+  /**
+   * Set the margins for the visualization.
+   * all properties are optional, if not provided, the default values will be used.
+   * @param {object} margins, an object containing the margins
+   * @param {number} margins.top, top margin
+   * @param {number} margins.bottom, bottom margin
+   * @param {number} margins.left, left margin
+   * @param {number} margins.right, right margin
+   * @memberof BaseGL
+   * @example
+   * this.setMargins({
+   * top: '10px',
+   * bottom: '10px',
+   * left: '10px',
+   * right: '10px',
+   * })
+   **/
+  setMargins(margins) {
+    this.margins = {
+      ...this.margins,
+      ...margins,
     };
   }
 

@@ -63,12 +63,7 @@ class RectplotGL extends BaseGL {
     spec_inputs.height = this.input.y.map((e, i) => default_height - yGaps(i));
 
     let spec = {
-      margins: {
-        top: "25px",
-        bottom: "50px",
-        left: "50px",
-        right: "10px",
-      },
+      margins: this.margins,
       defaultData: {
         x: spec_inputs.x,
         y: spec_inputs.y,
