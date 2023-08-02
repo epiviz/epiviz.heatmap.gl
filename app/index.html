@@ -253,6 +253,19 @@
   <script type="module">
     import { DotplotGL, RectplotGL, TickplotGL } from "./index.js";
     import { data, color, size, intensityLegendData, groupingRowData, groupingColumnData } from './data.js';
+    const getMinMax = (arr) => {
+      let max = -Number.MAX_VALUE,
+        min = Number.MAX_VALUE;
+      arr.forEach(function (x) {
+        if (max < x) {
+          max = x;
+        }
+        if (min > x) {
+          min = x;
+        }
+      });
+      return [min, max];
+    };
 
     let plot = new DotplotGL(".dotcanvas");
     plot.setInput(data);
@@ -299,15 +312,17 @@
       console.log('Dot plot => highlighted indices: ', indices);
     }
 
+    const [minSize, maxSize] = getMinMax(size);
+    const sizeLegendData = {
+      "minSize": minSize,
+      "maxSize": maxSize,
+      "steps": 5,
+    };
     plot.setState({
       "size": size,
       "color": color,
       intensityLegendData,
-      sizeLegendData: {
-        "minSize": 2,
-        "maxSize": 10,
-        "steps": 7,
-      },
+      sizeLegendData,
       groupingColumnData,
       groupingRowData
     });

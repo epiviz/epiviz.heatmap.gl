@@ -1,7 +1,12 @@
 import { select } from "d3-selection";
 import { range } from "d3-array";
 import BaseGL from "./BaseGL";
-import { getMinMax, parseMargins } from "./utils";
+import {
+  getMaxRadiusForDotplot,
+  getMinMax,
+  getScaledRadiusForDotplot,
+  parseMargins,
+} from "./utils";
 import {
   DEFAULT_SIZE_LEGEND_CIRCLE_GAP,
   DEFAULT_SIZE_LEGEND_CIRCLE_TEXT_GAP,
@@ -87,8 +92,10 @@ class DotplotGL extends BaseGL {
     };
 
     let spec_inputs = {};
-    let xlen = getMinMax(this.input.x)[1] + 1,
-      ylen = getMinMax(this.input.y)[1] + 1;
+    const [, maxX] = getMinMax(this.input.x);
+    const [, maxY] = getMinMax(this.input.y);
+    let xlen = maxX + 1,
+      ylen = maxY + 1;
     spec_inputs.x = this.input.x.map((e, i) => -1 + (2 * e + 1) / xlen);
     spec_inputs.y = this.input.y.map((e, i) => -1 + (2 * e + 1) / ylen);
 
@@ -124,13 +131,22 @@ class DotplotGL extends BaseGL {
     };
 
     // scale size of dots
-    let max_r = getMinMax([198 / (xlen + 1), 198 / (ylen + 1)])[1] - 5;
+    const maxRadiusScaled = getMaxRadiusForDotplot(xlen, ylen);
     let tsize = this.state["size"];
     if (Array.isArray(this.state["size"])) {
-      let sMinMax = getMinMax(this.state["size"]);
-      tsize = this.state["size"].map(
-        (e) => (max_r - 5) * ((e - sMinMax[0]) / (sMinMax[1] - sMinMax[0])) + 5
+      let [minRadiusOriginal, maxRadiusOriginal] = getMinMax(
+        this.state["size"]
       );
+      tsize = this.state["size"].map((radius) =>
+        getScaledRadiusForDotplot(
+          radius,
+          maxRadiusScaled,
+          minRadiusOriginal,
+          maxRadiusOriginal
+        )
+      );
+
+      console.log(getMinMax(tsize), "tize", tsize);
     }
 
     this._generateSpecForLabels(spec);
@@ -210,7 +226,28 @@ class DotplotGL extends BaseGL {
    */
   renderSizeLegend() {
     if (!this.sizeLegendData) return;
-    const { minSize, maxSize, steps } = this.sizeLegendData;
+    let { minSize, maxSize, steps } = this.sizeLegendData;
+    const [, maxX] = getMinMax(this.input.x);
+    const [, maxY] = getMinMax(this.input.y);
+    let xlen = maxX + 1,
+      ylen = maxY + 1;
+
+    const [minRadiusOriginal, maxRadiusOriginal] = getMinMax(
+      this.state["size"]
+    );
+    const maxRadiusScaled = getMaxRadiusForDotplot(xlen, ylen);
+    minSize = getScaledRadiusForDotplot(
+      minSize,
+      maxRadiusScaled,
+      minRadiusOriginal,
+      maxRadiusOriginal
+    );
+    maxSize = getScaledRadiusForDotplot(
+      maxSize,
+      maxRadiusScaled,
+      minRadiusOriginal,
+      maxRadiusOriginal
+    );
     const orientation = this.sizeLegendOptions.orientation;
 
     // Calculate step size
@@ -265,7 +302,7 @@ class DotplotGL extends BaseGL {
 
     circleGroup
       .selectAll("circle")
-      .data(d3.range(steps))
+      .data(range(steps))
       .enter()
       .append("circle")
       .attr("cx", circleCoordinates.x)

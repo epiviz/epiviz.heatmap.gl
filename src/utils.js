@@ -76,3 +76,20 @@ export const removeTooltip = (container) => {
     tooltip.remove();
   }
 };
+
+export const getMaxRadiusForDotplot = (xlen, ylen) => {
+  return getMinMax([198 / (xlen + 1), 198 / (ylen + 1)])[1] - 5;
+};
+
+export const getScaledRadiusForDotplot = (
+  radius,
+  maxRadiusScaled,
+  minRadiusOriginal,
+  maxRadiusOriginal
+) => {
+  return (
+    (maxRadiusScaled - 5) *
+      ((radius - minRadiusOriginal) / (maxRadiusOriginal - minRadiusOriginal)) +
+    5
+  );
+};
