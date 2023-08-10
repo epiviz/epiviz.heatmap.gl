@@ -79,8 +79,11 @@ This method allows you to customize the label options for your visualization. Al
   - `labelOptions.columnLabelSlintAngle` (`number`, optional): slant angle for column labels (default: 0)
   - `labelOptions.rowLabelFontSize` (`string | number`, optional): font size for row labels (default: 7px)
   - `labelOptions.columnLabelFontSize` (`string | number`, optional): font size for column labels (default: 7px)
-
-**Example**:
+  - `labelOptions.rowLabelsSvgXOffset` (`number`, optional): x offset for row labels (default: -1.05)
+  - `labelOptions.rowLabelsSvgYOffset` (`number`, optional): y offset for row labels (default: -1.02)
+  - `labelOptions.columnLabelsSvgXOffset` (`number`, optional): x offset for column labels (default: -1.02)
+  - `labelOptions.columnLabelsSvgYOffset` (`number`, optional): y offset for column labels (default: 1.05)
+    **Example**:
 
 ```javascript
 plot.setLabelOptions({
@@ -90,6 +93,29 @@ plot.setLabelOptions({
   columnLabelSlintAngle: 45,
   rowLabelFontSize: "10px",
   columnLabelFontSize: "10px",
+});
+```
+
+#### Customizing Margins with `setMargins`
+
+This method allows you to customize the margins for your visualization. All parameters are optional, providing you the flexibility to specify the options that best suit your needs.
+
+**Parameters**:
+
+- `margins` (`object`): an object containing the margin options
+  - `margins.top` (`number`, optional): top margin (default: 25px)
+  - `margins.bottom` (`number`, optional): bottom margin (default: 50px)
+  - `margins.left` (`number`, optional): left margin (default: 50px)
+  - `margins.right` (`number`, optional): right margin (default: 10px)
+
+**Example**:
+
+```javascript
+plot.setMargins({
+  top: 10,
+  bottom: 10,
+  left: 10,
+  right: 10,
 });
 ```
 
