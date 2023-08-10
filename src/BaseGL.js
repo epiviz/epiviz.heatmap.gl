@@ -81,9 +81,9 @@ class BaseGL {
     //Default Data for labelOptions
     this.labelOptions = {
       rowLabelsSvgXOffset: -1.05,
-      rowLabelsSvgYOffset: 1,
-      columnLabelsSvgXOffset: 1,
-      columnLabelsSvgYOffset: -1.05,
+      rowLabelsSvgYOffset: -1.02,
+      columnLabelsSvgXOffset: -1.02,
+      columnLabelsSvgYOffset: 1.05,
       rowLabelMaxCharacters: DEFAULT_ROW_MAX_LABEL_LENGTH_ALLOWED,
       columnLabelMaxCharacters: DEFAULT_COLUMN_MAX_LABEL_LENGTH_ALLOWED,
       rowLabelSlintAngle: DEFAULT_ROW_LABEL_SLINT_ANGLE,
