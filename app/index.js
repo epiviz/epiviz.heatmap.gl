@@ -1,4 +1,4 @@
-import { g as getDimAndMarginStyleForSpecification, D as DEFAULT_WIDTH, a as DEFAULT_HEIGHT, b as getViewportForSpecification, c as cloneMouseEvent, d as getPointsBySelectMode, s as scale, e as getScaleForSpecification, f as formatSpecifier$1, h as exponent$1, p as precisionRound$1, i as formatPrefix$1, j as format$1, k as constant$3, l as color$1, r as rgb$2 } from './rgb-a271cd82-534c38df.js';
+import { g as getDimAndMarginStyleForSpecification, D as DEFAULT_WIDTH, a as DEFAULT_HEIGHT, t as throttleWithRAF, b as getViewportForSpecification, c as cloneMouseEvent, d as getPointsBySelectMode, e as calculateZoomLevel, s as scale, f as getScaleForSpecification, h as formatSpecifier$1, i as exponent$1, p as precisionRound$1, j as formatPrefix$1, k as format$1, l as constant$3, m as color$1, r as rgb$2 } from './rgb-b646728b-0756143b.js';
 
 var xhtml = "http://www.w3.org/1999/xhtml";
 
@@ -3567,7 +3567,6 @@ class SVGInteractor {
     this.svg.style.width = "100%";
     this.svg.style.height = "100%";
     this.svg.style.position = "absolute";
-    this.svg.style.zIndex = "1000";
     this.svg.style.pointerEvents = "none";
     this.svg.style.overflow = "visible";
 
@@ -3676,6 +3675,11 @@ class SVGInteractor {
       );
     }
 
+    const svgNode = this.d3SVG.node();
+    const svgRect = svgNode.getBoundingClientRect();
+    const svgWidth = svgRect.width;
+    const svgHeight = svgRect.height;
+
     const labels = select$1(this._labelMarker)
       .selectAll("text")
       .data(this.specification.labels);
@@ -3709,6 +3713,7 @@ class SVGInteractor {
           label: d.text,
           index: hoveredIndex,
           labelObject: d,
+          groupNode: this._labelMarker,
           event,
         });
       })
@@ -3722,38 +3727,31 @@ class SVGInteractor {
           label: d.text,
           index: hoveredIndex,
           labelObject: d,
+          groupNode: this._labelMarker,
           event,
         });
       })
       .attr("x", (d, i, nodes) => {
-        const svgNode = this.d3SVG.node();
-        const rect = svgNode.getBoundingClientRect();
-        const width = rect.width;
-
         if (d.fixedX) {
           return this.initialX[i];
         }
 
         const xPos = this._calculateViewportSpotInverse(d.x, d.y)[0];
 
-        if (xPos < 0 || xPos > width) {
+        if (xPos < 0 || xPos > svgWidth) {
           select$1(nodes[i]).remove();
         } else {
           return xPos;
         }
       })
       .attr("y", (d, i, nodes) => {
-        const svgNode = this.d3SVG.node();
-        const rect = svgNode.getBoundingClientRect();
-        const height = rect.height;
-
         if (d.fixedY) {
           return this.initialY[i];
         }
 
         const yPos = this._calculateViewportSpotInverse(d.x, d.y)[1];
 
-        if (yPos < 0 || yPos > height) {
+        if (yPos < 0 || yPos > svgHeight) {
           select$1(nodes[i]).remove();
         } else {
           return yPos;
@@ -3884,7 +3882,7 @@ class SVGInteractor {
   /**
    * Updates user selection view if they have selected a box
    */
-  _updateBoxSelectView(points, selectMode) {
+  _updateBoxSelectView(points) {
     if (points.length !== 4) {
       return;
     }
@@ -3898,29 +3896,6 @@ class SVGInteractor {
       points[2],
       points[3]
     );
-
-    // if (selectMode === "vertical") {
-    //   topLeftCorner[0] = 0;
-    //   bottomRightCorner[0] = this.width;
-    // }
-
-    // if (selectMode === "horizontal") {
-    //   topLeftCorner[1] = 0;
-    //   bottomRightCorner[1] = this.height;
-    // }
-    // topLeftCorner[1] = 0;
-    // bottomRightCorner[1] = this.height;
-
-    // topLeftCorner[0] = 0;
-    // bottomRightCorner[0] = this.width;
-
-    // console.log(
-    //   "sel this.currentYRange",
-    //   this.currentYRange,
-    //   this.currentYRange,
-    //   this.width,
-    //   this._calculateViewportSpotInverse(this.width, this.height)
-    // );
 
     let pointAttr = `${topLeftCorner[0]},${topLeftCorner[1]} 
                      ${topLeftCorner[0]},${bottomRightCorner[1]}, 
@@ -3936,9 +3911,9 @@ class SVGInteractor {
    *
    * @param {Array} points 1D array of coordinates that are used for selection ex. [x1,y1,x2,y2,...]
    */
-  updateSelectView(points, selectMode) {
+  updateSelectView(points) {
     if (points.length === 4) {
-      this._updateBoxSelectView(points, selectMode);
+      this._updateBoxSelectView(points);
       return;
     }
     if (points.length < 6) {
@@ -4017,7 +3992,6 @@ class MouseReader {
     this._currentSelectionPoints = [];
 
     this.tool = "pan";
-    this.selectMode = "box";
     this.selectStartPoint = null;
     this.selectEndPoint = null;
 
@@ -4028,6 +4002,8 @@ class MouseReader {
       handler.dispatchEvent.bind(handler, "labelHovered"),
       handler.dispatchEvent.bind(handler, "labelUnhovered")
     );
+    this.throttledUpdateSVG = throttleWithRAF(this._updateSVG.bind(this));
+    this.uniDirectionalSelectionEnabled = true;
   }
 
   /**
@@ -4081,6 +4057,8 @@ class MouseReader {
           case "pan":
             break;
           case "box":
+          case "boxh":
+          case "boxv":
           case "lasso":
             {
               this._currentSelectionPoints = [
@@ -4115,6 +4093,8 @@ class MouseReader {
             this._onPan(event);
             break;
           case "box":
+          case "boxh":
+          case "boxv":
             this._currentSelectionPoints = this._currentSelectionPoints
               .slice(0, 2)
               .concat(
@@ -4133,35 +4113,41 @@ class MouseReader {
               this.selectStartPoint.y - this.selectEndPoint.y
             );
 
-            if (diffX <= SELECT_THRESHOLD && diffY > SELECT_THRESHOLD) {
-              if (this.selectMode !== "vertical") {
-                this.selectMode = "vertical";
-              }
+            if (this.lockedX) {
+              this.tool = "boxv";
+            } else if (this.lockedY) {
+              this.tool = "boxh";
+            } else if (diffX <= SELECT_THRESHOLD && diffY > SELECT_THRESHOLD) {
+              this.tool = "boxv";
             } else if (diffY <= SELECT_THRESHOLD && diffX > SELECT_THRESHOLD) {
-              if (this.selectMode !== "horizontal") {
-                this.selectMode = "horizontal";
-              }
+              this.tool = "boxh";
             } else {
-              if (this.selectMode !== "box") {
-                this.selectMode = "box";
-              }
+              this.tool = "box";
             }
-            this.handler.dispatchEvent.call(this.handler, "onSelection", {
-              bounds: getPointsBySelectMode(
-                this.selectMode,
-                this._currentSelectionPoints,
-                this.currentXRange,
-                this.currentYRange
-              ),
-              type: this.tool,
-              event: cloneMouseEvent(event),
-            });
+            if (this.isUniDirectionalSelectionAllowed) {
+              this.handler.dispatchEvent("onSelection", {
+                bounds: getPointsBySelectMode(
+                  this.tool,
+                  this._currentSelectionPoints,
+                  this.currentXRange,
+                  this.currentYRange
+                ),
+                type: this.tool,
+                event: cloneMouseEvent(event),
+              });
+            } else {
+              this.handler.dispatchEvent("onSelection", {
+                bounds: this._currentSelectionPoints,
+                type: this.tool,
+                event: cloneMouseEvent(event),
+              });
+            }
             break;
           case "lasso":
             this._currentSelectionPoints.push(
               ...this._calculateViewportSpot(...getLayerXandYFromEvent(event))
             );
-            this.handler.dispatchEvent.call(this.handler, "onSelection", {
+            this.handler.dispatchEvent("onSelection", {
               bounds: this._currentSelectionPoints,
               type: this.tool,
               event: cloneMouseEvent(event),
@@ -4181,36 +4167,12 @@ class MouseReader {
         case "pan":
           break;
         case "box":
+        case "boxh":
+        case "boxv":
           if (this._currentSelectionPoints.length !== 4) {
             this._currentSelectionPoints = [];
             return;
           }
-          console.log(
-            "e => before",
-            this._currentSelectionPoints,
-            this.selectMode,
-            this.currentXRange,
-            this.currentYRange
-          );
-          console.log("e => ranges", this.currentXRange, this.currentYRange);
-          // if (this.selectMode === "vertical") {
-          //   // this._currentSelectionPoints[0] = this._calculateViewportSpot(
-          //   //   this.currentXRange[0]
-          //   // );
-          //   // this._currentSelectionPoints[2] = this._calculateViewportSpot(
-          //   //   this.currentXRange[1]
-          //   // );
-          //   this._currentSelectionPoints[0] = this.currentXRange[0];
-          //   this._currentSelectionPoints[2] = this.currentXRange[1];
-          // } else if (this.selectMode === "horizontal") {
-          //   this._currentSelectionPoints[1] = this.currentYRange[0];
-          //   this._currentSelectionPoints[3] = this.currentYRange[1];
-          // }
-          console.log(
-            "e => after",
-            this._currentSelectionPoints,
-            this.selectMode
-          );
           this._updateSVG();
           this._onSelect(cloneMouseEvent(event));
           break;
@@ -4267,8 +4229,11 @@ class MouseReader {
    */
   _onWheel(event) {
     event.preventDefault();
+
+    let previousX = null;
+    let previousY = null;
     if (!this.lockedX) {
-      const previousX = [...this.currentXRange]; // ... to avoid aliasing
+      previousX = [...this.currentXRange]; // ... to avoid aliasing
       const t = -event.wheelDelta / 1000;
       const inDataSpace = this._calculateViewportSpot(
         ...getLayerXandYFromEvent(event)
@@ -4281,15 +4246,10 @@ class MouseReader {
 
       this.currentXRange[0] = Math.max(this.currentXRange[0], this.minX);
       this.currentXRange[1] = Math.min(this.currentXRange[1], this.maxX);
-
-      if (!this._validateXRange()) {
-        // Zoom in limit
-        this.currentXRange = previousX;
-      }
     }
 
     if (!this.lockedY) {
-      const previousY = [...this.currentYRange];
+      previousY = [...this.currentYRange];
       const t = -event.wheelDelta / 1000;
       const inDataSpace = this._calculateViewportSpot(
         ...getLayerXandYFromEvent(event)
@@ -4301,24 +4261,38 @@ class MouseReader {
         t * inDataSpace[1] + (1 - t) * this.currentYRange[1];
       this.currentYRange[0] = Math.max(this.currentYRange[0], this.minY);
       this.currentYRange[1] = Math.min(this.currentYRange[1], this.maxY);
+    }
 
-      if (!this._validateYRange()) {
+    if (!this.lockedX || !this.lockedY) {
+      const { xZoomLevel, yZoomLevel } = calculateZoomLevel(this.getViewport());
+      if (
+        !this.lockedX &&
+        (!this._validateXRange() ||
+          (this.maxZoomLevel && this.maxZoomLevel < xZoomLevel))
+      ) {
+        // Zoom in limit
+        this.currentXRange = previousX;
+      }
+
+      if (
+        !this.lockedY &&
+        (!this._validateYRange() ||
+          (this.maxZoomLevel && this.maxZoomLevel < yZoomLevel))
+      ) {
         // Zoom in limit
         this.currentYRange = previousY;
       }
     }
-    this.handler.dispatchEvent.call(
-      this.handler,
-      event.wheelDelta < 0 ? "zoomIn" : "zoomOut",
-      {
-        viewport: this.getViewport(),
-        type: this.tool,
-        event: cloneMouseEvent(event),
-      }
-    );
+
+    this.handler.dispatchEvent(event.wheelDelta < 0 ? "zoomIn" : "zoomOut", {
+      viewport: this.getViewport(),
+      zoomLevel: calculateZoomLevel(this.getViewport()),
+      type: this.tool,
+      event: cloneMouseEvent(event),
+    });
 
     this.handler.sendDrawerState(this.getViewport());
-    this._updateSVG();
+    this.throttledUpdateSVG();
   }
 
   /**
@@ -4353,7 +4327,7 @@ class MouseReader {
       }
     }
 
-    this.handler.dispatchEvent.call(this.handler, "pan", {
+    this.handler.dispatchEvent("pan", {
       viewport: this.getViewport(),
       type: this.tool,
       event: cloneMouseEvent(event),
@@ -4394,32 +4368,34 @@ class MouseReader {
       this.width,
       this.height
     );
-    if (this.tool === "box") {
-      this.SVGInteractor.updateSelectView(
-        getPointsBySelectMode(
-          this.selectMode,
-          this._currentSelectionPoints,
-          this.currentXRange,
-          this.currentYRange
-        )
+
+    let selectionPoints = this._currentSelectionPoints;
+
+    if (
+      this.isUniDirectionalSelectionAllowed &&
+      (this.tool === "box" || this.tool === "boxh" || this.tool === "boxv")
+    ) {
+      selectionPoints = getPointsBySelectMode(
+        this.tool,
+        this._currentSelectionPoints,
+        this.currentXRange,
+        this.currentYRange
       );
-    } else {
-      this.SVGInteractor.updateSelectView(this._currentSelectionPoints);
     }
-    // this.SVGInteractor.updateSelectView(
-    //   this._currentSelectionPoints,
-    //   this.selectMode
-    // );
+
+    this.SVGInteractor.updateSelectView(selectionPoints);
   }
 
   /**
    * Executes when user has confirmed selection points (typically by releasing mouse)
+   * and calls handler.selectPoints with the points.
+   * @param {MouseEvent} event from the event it is called from
    */
   _onSelect(event) {
-    if (this.tool === "box") {
+    if (this.tool === "box" && this.isUniDirectionalSelectionAllowed) {
       this.handler.selectPoints(
         getPointsBySelectMode(
-          this.selectMode,
+          this.tool,
           this._currentSelectionPoints,
           this.currentXRange,
           this.currentYRange
@@ -4449,6 +4425,10 @@ class MouseReader {
   clear() {
     this._currentSelectionPoints = [];
     this.SVGInteractor.clear();
+  }
+
+  get isUniDirectionalSelectionAllowed() {
+    return this.uniDirectionalSelectionEnabled || this.lockedX || this.lockedY;
   }
 }
 
@@ -8364,6 +8344,8 @@ class WebGLVis {
       "viewport",
       "currentXRange",
       "currentYRange",
+      "uniDirectionalSelectionEnabled",
+      "maxZoomLevel",
     ]);
   }
 
@@ -8407,7 +8389,7 @@ class WebGLVis {
 
     const offscreenCanvas = this.canvas.transferControlToOffscreen();
 
-    this.webglWorker = new Worker(new URL("offscreen-webgl-worker-27aaf1b4-09354f24.js", import.meta.url),
+    this.webglWorker = new Worker(new URL("offscreen-webgl-worker-368f04c5-12a46a85.js", import.meta.url),
       { type: "module" }
     );
     this.webglWorker.postMessage(
@@ -8431,7 +8413,7 @@ class WebGLVis {
     };
 
     this.dataWorkerStream = [];
-    this.dataWorker = new Worker(new URL("data-processor-worker-ecdd88ba-e278eabf.js", import.meta.url),
+    this.dataWorker = new Worker(new URL("data-processor-worker-a4482939-6147ac31.js", import.meta.url),
       { type: "module" }
     );
     this.dataWorker.onmessage = (message) => {
@@ -8471,7 +8453,9 @@ class WebGLVis {
    *   viewport: [minX, maxX, minY, maxY] (all Numbers)
    *   currentXRange: [x1, x2] (Numbers that should be within the viewport minX and maxX)
    *   currentYRange: [y1, y2] (Numbers that should be within the viewport minY and maxY)
+   *   uniDirectionalSelectionEnabled: boolean
    *   tool: one of ["pan", "box", "lasso"]
+   *   maxZoomLevel: Number
    *
    * @param {Object} options with keys under WebGLVis.POSSIBLE_MOUSE_READER_OPTIONS
    */
@@ -8554,6 +8538,7 @@ class WebGLVis {
    *
    * Does not return, posts result to this.dataWorkerStream.
    * @param {Array} points array in format [x1,y1,x2,y2,x3,y3,...]
+   * @param {Event} event that triggered the selection
    *  if points.length == 4, does a box select, if points.length >= 6 does a lasso select
    *    using points as a polygon
    */
@@ -10086,6 +10071,23 @@ const removeTooltip = (container) => {
   }
 };
 
+const getMaxRadiusForDotplot = (xlen, ylen) => {
+  return getMinMax([198 / (xlen + 1), 198 / (ylen + 1)])[1] - 5;
+};
+
+const getScaledRadiusForDotplot = (
+  radius,
+  maxRadiusScaled,
+  minRadiusOriginal,
+  maxRadiusOriginal
+) => {
+  return (
+    (maxRadiusScaled - 5) *
+      ((radius - minRadiusOriginal) / (maxRadiusOriginal - minRadiusOriginal)) +
+    5
+  );
+};
+
 /**
  * Base class for all matrix like layout plots.
  * This class is not to be used directly.
@@ -11416,8 +11418,10 @@ class DotplotGL extends BaseGL {
   generateSpec() {
 
     let spec_inputs = {};
-    let xlen = getMinMax(this.input.x)[1] + 1,
-      ylen = getMinMax(this.input.y)[1] + 1;
+    const [, maxX] = getMinMax(this.input.x);
+    const [, maxY] = getMinMax(this.input.y);
+    let xlen = maxX + 1,
+      ylen = maxY + 1;
     spec_inputs.x = this.input.x.map((e, i) => -1 + (2 * e + 1) / xlen);
     spec_inputs.y = this.input.y.map((e, i) => -1 + (2 * e + 1) / ylen);
 
@@ -11453,13 +11457,22 @@ class DotplotGL extends BaseGL {
     };
 
     // scale size of dots
-    let max_r = getMinMax([198 / (xlen + 1), 198 / (ylen + 1)])[1] - 5;
+    const maxRadiusScaled = getMaxRadiusForDotplot(xlen, ylen);
     let tsize = this.state["size"];
     if (Array.isArray(this.state["size"])) {
-      let sMinMax = getMinMax(this.state["size"]);
-      tsize = this.state["size"].map(
-        (e) => (max_r - 5) * ((e - sMinMax[0]) / (sMinMax[1] - sMinMax[0])) + 5
+      let [minRadiusOriginal, maxRadiusOriginal] = getMinMax(
+        this.state["size"]
       );
+      tsize = this.state["size"].map((radius) =>
+        getScaledRadiusForDotplot(
+          radius,
+          maxRadiusScaled,
+          minRadiusOriginal,
+          maxRadiusOriginal
+        )
+      );
+
+      console.log(getMinMax(tsize), "tize", tsize);
     }
 
     this._generateSpecForLabels(spec);
@@ -11539,7 +11552,28 @@ class DotplotGL extends BaseGL {
    */
   renderSizeLegend() {
     if (!this.sizeLegendData) return;
-    const { minSize, maxSize, steps } = this.sizeLegendData;
+    let { minSize, maxSize, steps } = this.sizeLegendData;
+    const [, maxX] = getMinMax(this.input.x);
+    const [, maxY] = getMinMax(this.input.y);
+    let xlen = maxX + 1,
+      ylen = maxY + 1;
+
+    const [minRadiusOriginal, maxRadiusOriginal] = getMinMax(
+      this.state["size"]
+    );
+    const maxRadiusScaled = getMaxRadiusForDotplot(xlen, ylen);
+    minSize = getScaledRadiusForDotplot(
+      minSize,
+      maxRadiusScaled,
+      minRadiusOriginal,
+      maxRadiusOriginal
+    );
+    maxSize = getScaledRadiusForDotplot(
+      maxSize,
+      maxRadiusScaled,
+      minRadiusOriginal,
+      maxRadiusOriginal
+    );
     const orientation = this.sizeLegendOptions.orientation;
 
     // Calculate step size
@@ -11594,7 +11628,7 @@ class DotplotGL extends BaseGL {
 
     circleGroup
       .selectAll("circle")
-      .data(d3.range(steps))
+      .data(range(steps))
       .enter()
       .append("circle")
       .attr("cx", circleCoordinates.x)
@@ -11613,7 +11647,7 @@ class DotplotGL extends BaseGL {
         "height",
         circleGroupBBox.height +
           textGroupBBox.height +
-          +this.sizeLegendOptions.circleTextGap +
+          this.sizeLegendOptions.circleTextGap +
           this.sizeLegendOptions.svgPadding * 2
       );
     } else {

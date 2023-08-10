@@ -1279,8 +1279,15 @@ const getQuadraticBezierCurveForPoints = (P0, P1, P2) => {
   return (t) => [x(t), y(t)];
 };
 
+/**
+ * Clones the relevant properties of a MouseEvent.
+ *
+ * @param {MouseEvent} e - The original mouse event to clone.
+ * @returns {Object} - An object containing the relevant properties of the mouse event.
+ */
 const cloneMouseEvent = (e) => {
   return {
+    // Basic mouse properties
     altKey: e.altKey,
     button: e.button,
     buttons: e.buttons,
@@ -1299,6 +1306,8 @@ const cloneMouseEvent = (e) => {
     shiftKey: e.shiftKey,
     x: e.x,
     y: e.y,
+
+    // Other event properties
     detail: e.detail,
     bubbles: e.bubbles,
     cancelable: e.cancelable,
@@ -1311,19 +1320,72 @@ const cloneMouseEvent = (e) => {
   };
 };
 
+const calculateZoomLevel = (viewport) => {
+  const { minX, minY, maxX, maxY, xRange, yRange } = viewport;
+  // Calculate the full range for content
+  const fullXRange = maxX - minX;
+  const fullYRange = maxY - minY;
+
+  // Calculate the range of the visible viewport
+  const viewportWidth = xRange[1] - xRange[0];
+  const viewportHeight = yRange[1] - yRange[0];
+
+  // Determine the zoom levels for X and Y
+  const xZoomLevel = fullXRange / viewportWidth;
+  const yZoomLevel = fullYRange / viewportHeight;
+
+  return {
+    xZoomLevel,
+    yZoomLevel,
+  };
+};
+
+/**
+ * Adjusts the given points based on the selected mode.
+ *
+ * @param {string} selectMode - The mode of selection ("boxh" or "boxv").
+ * @param {Array<number>} originalPoints - The original set of points.
+ * @param {Array<number>} xRange - The range for the x-axis.
+ * @param {Array<number>} yRange - The range for the y-axis.
+ * @returns {Array<number>} - The adjusted points based on the selected mode.
+ */
 const getPointsBySelectMode = (selectMode, originalPoints, xRange, yRange) => {
   const points = [...originalPoints];
   switch (selectMode) {
-    case "horizontal":
+    case "boxh":
       points[1] = yRange[0];
       points[3] = yRange[1];
       break;
-    case "vertical":
+    case "boxv":
       points[0] = xRange[0];
       points[2] = xRange[1];
       break;
   }
   return points;
+};
+
+/**
+ * Throttles a callback function using the requestAnimationFrame method.
+ *
+ * This ensures that the callback function is not called too often,
+ * and instead, is called only once per frame, providing a smoother experience.
+ *
+ * @param {Function} callback - The callback function to be throttled.
+ * @returns {Function} - A throttled version of the provided callback.
+ */
+const throttleWithRAF = (callback) => {
+  let scheduledFrame;
+
+  return function (...args) {
+    if (!scheduledFrame) {
+      scheduledFrame = true;
+
+      requestAnimationFrame(() => {
+        scheduledFrame = false;
+        callback(...args);
+      });
+    }
+  };
 };
 
 function basis(t1, v0, v1, v2, v3) {
@@ -1426,4 +1488,4 @@ function rgbSpline(spline) {
 
 var rgbBasis = rgbSpline(basis$1);
 
-export { getQuadraticBezierCurveForPoints as A, Color as C, DEFAULT_WIDTH as D, Rgb as R, DEFAULT_HEIGHT as a, getViewportForSpecification as b, cloneMouseEvent as c, getPointsBySelectMode as d, getScaleForSpecification as e, formatSpecifier as f, getDimAndMarginStyleForSpecification as g, exponent as h, formatPrefix as i, format as j, constant as k, color as l, define as m, extend as n, rgbBasis as o, precisionRound as p, rgb$1 as q, rgb as r, scale as s, rgbConvert as t, nogamma as u, hue as v, brighter as w, darker as x, colorSpecifierToHex as y, rgbStringToHex as z };
+export { colorSpecifierToHex as A, rgbStringToHex as B, Color as C, DEFAULT_WIDTH as D, getQuadraticBezierCurveForPoints as E, Rgb as R, DEFAULT_HEIGHT as a, getViewportForSpecification as b, cloneMouseEvent as c, getPointsBySelectMode as d, calculateZoomLevel as e, getScaleForSpecification as f, getDimAndMarginStyleForSpecification as g, formatSpecifier as h, exponent as i, formatPrefix as j, format as k, constant as l, color as m, define as n, extend as o, precisionRound as p, rgbBasis as q, rgb as r, scale as s, throttleWithRAF as t, rgb$1 as u, rgbConvert as v, nogamma as w, hue as x, brighter as y, darker as z };
