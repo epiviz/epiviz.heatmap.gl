@@ -130,8 +130,10 @@ class DotplotGL extends BaseGL {
       ],
     };
 
+    const PADDING = 1; // Padding between dots
     // scale size of dots
-    const maxRadiusScaled = getMaxRadiusForDotplot(xlen, ylen);
+    const maxRadiusScaled = getMaxRadiusForDotplot(xlen, ylen, PADDING);
+
     let tsize = this.state["size"];
     if (Array.isArray(this.state["size"])) {
       let [minRadiusOriginal, maxRadiusOriginal] = getMinMax(

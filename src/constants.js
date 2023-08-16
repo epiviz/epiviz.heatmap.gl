@@ -17,3 +17,5 @@ export const TOOLTIP_IDENTIFIER = "ehgl-tooltip";
 export const DEFAULT_SIZE_LEGEND_SVG_PADDING = 10;
 export const DEFAULT_SIZE_LEGEND_CIRCLE_GAP = 10;
 export const DEFAULT_SIZE_LEGEND_CIRCLE_TEXT_GAP = 10;
+
+export const DEFAULT_MIN_RADIUS_FOR_DOTPLOT = 5;
