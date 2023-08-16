@@ -1,17 +1,19 @@
-import { select } from "d3-selection";
 import { range } from "d3-array";
+import { scaleLinear } from "d3-scale";
+import { select } from "d3-selection";
 import BaseGL from "./BaseGL";
+import {
+  DEFAULT_MARGIN_BETWEEN_DOTS,
+  DEFAULT_SIZE_LEGEND_CIRCLE_GAP,
+  DEFAULT_SIZE_LEGEND_CIRCLE_TEXT_GAP,
+  DEFAULT_SIZE_LEGEND_SVG_PADDING,
+} from "./constants";
 import {
   getMaxRadiusForDotplot,
   getMinMax,
   getScaledRadiusForDotplot,
   parseMargins,
 } from "./utils";
-import {
-  DEFAULT_SIZE_LEGEND_CIRCLE_GAP,
-  DEFAULT_SIZE_LEGEND_CIRCLE_TEXT_GAP,
-  DEFAULT_SIZE_LEGEND_SVG_PADDING,
-} from "./constants";
 
 /**
  * Make a DotPlot like plot
@@ -52,7 +54,7 @@ class DotplotGL extends BaseGL {
    * @param {Array|number} encoding.xgap, same as size, but sets the gap along x-axis.
    * @param {Array|number} encoding.ygap, same as size, but sets the gap along y-axis.
    * @param {Array} encoding.intensityLegendData - an array of objects containing the color, intensity and label for the legend.
-   * @param {Array} encoding.sizeLegendData - an object containing minSize, maxSize and steps for the legend.
+   * @param {Array} encoding.sizeLegendData - an object containing minSize, maxSize, steps and maxSizeInPx for the legend.
    * @param {Array} encoding.rowGroupingData - an array of objects containing the startIndex, endIndex, color and label for the row grouping.
    * @param {Array} encoding.columnGroupingData - an array of objects containing the startIndex, endIndex, color and label for the column grouping.
    * @memberof BaseGL
@@ -130,9 +132,12 @@ class DotplotGL extends BaseGL {
       ],
     };
 
-    const PADDING = 1; // Padding between dots
     // scale size of dots
-    const maxRadiusScaled = getMaxRadiusForDotplot(xlen, ylen, PADDING);
+    const maxRadiusScaled = getMaxRadiusForDotplot(
+      xlen,
+      ylen,
+      DEFAULT_MARGIN_BETWEEN_DOTS
+    );
 
     let tsize = this.state["size"];
     if (Array.isArray(this.state["size"])) {
@@ -147,8 +152,6 @@ class DotplotGL extends BaseGL {
           maxRadiusOriginal
         )
       );
-
-      console.log(getMinMax(tsize), "tize", tsize);
     }
 
     this._generateSpecForLabels(spec);
@@ -228,7 +231,7 @@ class DotplotGL extends BaseGL {
    */
   renderSizeLegend() {
     if (!this.sizeLegendData) return;
-    let { minSize, maxSize, steps } = this.sizeLegendData;
+    let { minSize, maxSize, steps, maxSizeInPx } = this.sizeLegendData;
     const [, maxX] = getMinMax(this.input.x);
     const [, maxY] = getMinMax(this.input.y);
     let xlen = maxX + 1,
@@ -237,19 +240,37 @@ class DotplotGL extends BaseGL {
     const [minRadiusOriginal, maxRadiusOriginal] = getMinMax(
       this.state["size"]
     );
-    const maxRadiusScaled = getMaxRadiusForDotplot(xlen, ylen);
+    const maxRadiusAsPerPlot = getMaxRadiusForDotplot(
+      xlen,
+      ylen,
+      DEFAULT_MARGIN_BETWEEN_DOTS
+    );
     minSize = getScaledRadiusForDotplot(
-      minSize,
-      maxRadiusScaled,
+      minSize || minRadiusOriginal, // if minSize is not provided, use minRadiusOriginal
+      maxRadiusAsPerPlot,
       minRadiusOriginal,
       maxRadiusOriginal
     );
     maxSize = getScaledRadiusForDotplot(
-      maxSize,
-      maxRadiusScaled,
+      maxSize || maxRadiusOriginal, // if maxSize is not provided, use maxRadiusOriginal
+      maxRadiusAsPerPlot,
       minRadiusOriginal,
       maxRadiusOriginal
     );
+
+    // Desired max size in pixels
+    const maxPx = maxSizeInPx || maxSize;
+
+    // Calculate the desired minimum size in pixels proportionally
+    const minPx = (minSize * maxPx) / maxSize;
+
+    // Create a linear scale
+    const sizeScale = scaleLinear()
+      .domain([minSize, maxSize])
+      .range([minPx, maxPx]);
+
+    minSize = sizeScale(minSize);
+    maxSize = sizeScale(maxSize);
     const orientation = this.sizeLegendOptions.orientation;
 
     // Calculate step size

@@ -372,8 +372,8 @@ These attributes either take a fixed value or an array of values for each data p
 - `xgap` or `ygap` - gap between rows and columns
 - `intensityLegendData` - an array of objects containing color, intensity, and label for the legend.
   `e.g [{color: "#000000", intensity: 1, label: "0.1"}]`
-- `sizeLegendData` - an object containing minSize, maxSize, and steps for the legend.
-  `e.g {minSize: 1, maxSize: 10, steps: 5}`
+- `sizeLegendData` - an object containing minSize, maxSize, and steps for the legend. You can also provide the maxSizeInPx to set the maximum size of the dot in pixels. minSize and maxSize is optional, if not provided, the library will automatically calculate the min and max size from the data.
+  `e.g {minSize: 1, maxSize: 10, steps: 5, maxSizeInPx: 20}`
 - `rowGroupingData` - an array of objects containing the startIndex, endIndex, color, and label for the row grouping.
   `e.g [{startIndex: 0, endIndex: 10, color: "#000000", label: "group1"}]`
 - `columnGroupingData` - an array of objects containing the startIndex, endIndex, color, and label for the column grouping.
