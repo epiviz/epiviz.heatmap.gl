@@ -253,12 +253,31 @@
   <script type="module">
     import { DotplotGL, RectplotGL, TickplotGL } from "./index.js";
     import { data, color, size, intensityLegendData, groupingRowData, groupingColumnData } from './data.js';
+    const getMinMax = (arr) => {
+      let max = -Number.MAX_VALUE,
+        min = Number.MAX_VALUE;
+      arr.forEach(function (x) {
+        if (max < x) {
+          max = x;
+        }
+        if (min > x) {
+          min = x;
+        }
+      });
+      return [min, max];
+    };
 
     let plot = new DotplotGL(".dotcanvas");
     plot.setInput(data);
 
     plot.setIntensityLegendOptions("bottom", ".dotcanvas-intensity", 400);
-
+    plot.setSizeLegendOptions({
+      orientation: "vertical-inverted",
+      position: "bottom-right",
+      circleColor: "gray",
+      fontSize: "6px",
+      fontColor: "gray"
+    });
     plot.setRowGroupingLegendOptions("left", null, ".dotcanvas-row-grouping-label", "vertical");
     plot.setColumnGroupingLegendOptions("top", null, ".dotcanvas-column-grouping-label", "horizontal");
 
@@ -293,12 +312,19 @@
       console.log('Dot plot => highlighted indices: ', indices);
     }
 
+    const [minSize, maxSize] = getMinMax(size);
+    const sizeLegendData = {
+      "minSize": minSize,
+      "maxSize": maxSize,
+      "steps": 5,
+    };
     plot.setState({
       "size": size,
       "color": color,
       intensityLegendData,
-      groupingRowData,
-      groupingColumnData
+      sizeLegendData,
+      groupingColumnData,
+      groupingRowData
     });
 
     plot.render();
