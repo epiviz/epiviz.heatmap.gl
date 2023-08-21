@@ -372,8 +372,9 @@ class BaseGL {
    * @param {Array|number} encoding.opacity, same as size, but sets the opacity for each cell.
    * @param {Array|number} encoding.xgap, same as size, but sets the gap along x-axis.
    * @param {Array|number} encoding.ygap, same as size, but sets the gap along y-axis.
-   * @param {Array} encoding.legendIntensityData, an array of objects containing color, intensity, and label for the legend.
-   * e.g  [{color: "#000000", intensity: 1, label: "0.1"}]
+   * @param {Array} encoding.intensityLegendData - an array of objects containing the color, intensity and label for the legend.
+   * @param {Array} encoding.rowGroupingData - an array of objects containing the startIndex, endIndex, color and label for the row grouping.
+   * @param {Array} encoding.columnGroupingData - an array of objects containing the startIndex, endIndex, color and label for the column grouping.
    * @memberof BaseGL
    */
   setState(encoding) {
