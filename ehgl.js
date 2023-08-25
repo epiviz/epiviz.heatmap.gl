@@ -829,8 +829,7 @@ class BaseGL {
       transformX = averageCharWidth;
     }
 
-    const svgContainer = d3
-      .select(this.legendDomElement)
+    const svgContainer = d3Selection.select(this.legendDomElement)
       .append("svg")
       .attr("width", svgWidth)
       .attr("height", svgHeight)
