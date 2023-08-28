@@ -4,8 +4,9 @@ Object.defineProperty(exports, '__esModule', { value: true });
 
 function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
 
-var WebGLVis = _interopDefault(require('epiviz.gl'));
 var d3Selection = require('d3-selection');
+var d3Array = require('d3-array');
+var WebGLVis = _interopDefault(require('epiviz.gl'));
 var d3Scale = require('d3-scale');
 var d3Axis = require('d3-axis');
 
@@ -24,6 +25,10 @@ const INTENSITY_LEGEND_SIZE_IN_PX =
   INTENSITY_LEGEND_GRADIENT_SIZE_IN_PX + INTENSITY_LEGEND_LABEL_SIZE_IN_PX;
 const GROUPING_LEGEND_SIZE_IN_PX = 20;
 const TOOLTIP_IDENTIFIER = "ehgl-tooltip";
+
+const DEFAULT_SIZE_LEGEND_SVG_PADDING = 10;
+const DEFAULT_SIZE_LEGEND_CIRCLE_GAP = 10;
+const DEFAULT_SIZE_LEGEND_CIRCLE_TEXT_GAP = 10;
 
 function isObject(object) {
   return typeof object === "object" && Array.isArray(object) === false;
@@ -75,8 +80,7 @@ const getTextWidth = (text, fontSize = "16px") => {
 };
 
 const createTooltip = (container, text, posX, posY) => {
-  let tooltip = d3
-    .select(container)
+  let tooltip = d3Selection.select(container)
     .append("div")
     .attr("id", TOOLTIP_IDENTIFIER)
     .style("position", "absolute")
@@ -100,6 +104,23 @@ const removeTooltip = (container) => {
   if (tooltip) {
     tooltip.remove();
   }
+};
+
+const getMaxRadiusForDotplot = (xlen, ylen) => {
+  return getMinMax([198 / (xlen + 1), 198 / (ylen + 1)])[1] - 5;
+};
+
+const getScaledRadiusForDotplot = (
+  radius,
+  maxRadiusScaled,
+  minRadiusOriginal,
+  maxRadiusOriginal
+) => {
+  return (
+    (maxRadiusScaled - 5) *
+      ((radius - minRadiusOriginal) / (maxRadiusOriginal - minRadiusOriginal)) +
+    5
+  );
 };
 
 /**
@@ -187,6 +208,8 @@ class BaseGL {
       this.viewport = viewport;
       this.renderRowGroupingLegend();
       this.renderColumnGroupingLegend();
+
+      this.viewportChangeCallback(viewport);
     });
 
     this.plot.addEventListener("zoomOut", (e) => {
@@ -195,6 +218,8 @@ class BaseGL {
       this.viewport = viewport;
       this.renderRowGroupingLegend();
       this.renderColumnGroupingLegend();
+
+      this.viewportChangeCallback(viewport);
     });
 
     this.plot.addEventListener("pan", (e) => {
@@ -203,6 +228,8 @@ class BaseGL {
       this.viewport = viewport;
       this.renderRowGroupingLegend();
       this.renderColumnGroupingLegend();
+
+      this.viewportChangeCallback(viewport);
     });
 
     this.highlightedIndices = [];
@@ -443,8 +470,9 @@ class BaseGL {
    * @param {Array|number} encoding.opacity, same as size, but sets the opacity for each cell.
    * @param {Array|number} encoding.xgap, same as size, but sets the gap along x-axis.
    * @param {Array|number} encoding.ygap, same as size, but sets the gap along y-axis.
-   * @param {Array} encoding.legendIntensityData, an array of objects containing color, intensity, and label for the legend.
-   * e.g  [{color: "#000000", intensity: 1, label: "0.1"}]
+   * @param {Array} encoding.intensityLegendData - an array of objects containing the color, intensity and label for the legend.
+   * @param {Array} encoding.rowGroupingData - an array of objects containing the startIndex, endIndex, color and label for the row grouping.
+   * @param {Array} encoding.columnGroupingData - an array of objects containing the startIndex, endIndex, color and label for the column grouping.
    * @memberof BaseGL
    */
   setState(encoding) {
@@ -1352,6 +1380,15 @@ class BaseGL {
   labelUnhoveredCallback(label) {
     return label;
   }
+
+  /**
+   *
+   * Default callback handler when viewport is changed
+   * @param {object} viewport
+   */
+  viewportChangeCallback(viewport) {
+    return viewport;
+  }
 }
 
 /**
@@ -1368,6 +1405,42 @@ class DotplotGL extends BaseGL {
    */
   constructor(selectorOrElement) {
     super(selectorOrElement);
+
+    this.sizeLegendOptions = {
+      orientation: "horizontal", // horizontal, horizontal-inverted, vertical, vertical-inverted
+      position: "top-right", // top-left, top-right, bottom-left, bottom-right
+      circleColor: "gray",
+      fontSize: "12px",
+      fontColor: "black",
+      svgPadding: DEFAULT_SIZE_LEGEND_SVG_PADDING,
+      circleGap: DEFAULT_SIZE_LEGEND_CIRCLE_GAP,
+      circleTextGap: DEFAULT_SIZE_LEGEND_CIRCLE_TEXT_GAP,
+    };
+
+    this.sizeLegendSvgNode = null;
+  }
+
+  /**
+   * Set the state of the visualization.
+   *
+   * @param {object} encoding, a set of attributes that modify the rendering
+   * @param {Array|number} encoding.size, an array of size for each x-y cell or a singular size to apply for all cells.
+   * @param {Array|number} encoding.color, an array of colors for each x-y cell or a singular color to apply for all cells.
+   * @param {Array|number} encoding.opacity, same as size, but sets the opacity for each cell.
+   * @param {Array|number} encoding.xgap, same as size, but sets the gap along x-axis.
+   * @param {Array|number} encoding.ygap, same as size, but sets the gap along y-axis.
+   * @param {Array} encoding.intensityLegendData - an array of objects containing the color, intensity and label for the legend.
+   * @param {Array} encoding.sizeLegendData - an object containing minSize, maxSize and steps for the legend.
+   * @param {Array} encoding.rowGroupingData - an array of objects containing the startIndex, endIndex, color and label for the row grouping.
+   * @param {Array} encoding.columnGroupingData - an array of objects containing the startIndex, endIndex, color and label for the column grouping.
+   * @memberof BaseGL
+   */
+  setState(encoding) {
+    super.setState(encoding);
+
+    if (encoding.sizeLegendData) {
+      this.sizeLegendData = encoding.sizeLegendData;
+    }
   }
 
   /**
@@ -1380,8 +1453,10 @@ class DotplotGL extends BaseGL {
   generateSpec() {
 
     let spec_inputs = {};
-    let xlen = getMinMax(this.input.x)[1] + 1,
-      ylen = getMinMax(this.input.y)[1] + 1;
+    const [, maxX] = getMinMax(this.input.x);
+    const [, maxY] = getMinMax(this.input.y);
+    let xlen = maxX + 1,
+      ylen = maxY + 1;
     spec_inputs.x = this.input.x.map((e, i) => -1 + (2 * e + 1) / xlen);
     spec_inputs.y = this.input.y.map((e, i) => -1 + (2 * e + 1) / ylen);
 
@@ -1417,13 +1492,22 @@ class DotplotGL extends BaseGL {
     };
 
     // scale size of dots
-    let max_r = getMinMax([198 / (xlen + 1), 198 / (ylen + 1)])[1] - 5;
+    const maxRadiusScaled = getMaxRadiusForDotplot(xlen, ylen);
     let tsize = this.state["size"];
     if (Array.isArray(this.state["size"])) {
-      let sMinMax = getMinMax(this.state["size"]);
-      tsize = this.state["size"].map(
-        (e) => (max_r - 5) * ((e - sMinMax[0]) / (sMinMax[1] - sMinMax[0])) + 5
+      let [minRadiusOriginal, maxRadiusOriginal] = getMinMax(
+        this.state["size"]
       );
+      tsize = this.state["size"].map((radius) =>
+        getScaledRadiusForDotplot(
+          radius,
+          maxRadiusScaled,
+          minRadiusOriginal,
+          maxRadiusOriginal
+        )
+      );
+
+      console.log(getMinMax(tsize), "tize", tsize);
     }
 
     this._generateSpecForLabels(spec);
@@ -1432,6 +1516,377 @@ class DotplotGL extends BaseGL {
     this._generateSpecForEncoding(spec, "opacity", this.state.opacity);
 
     return spec;
+  }
+
+  /**
+   * Render the plot. Optionally provide a height and width.
+   *
+   * @param {?number} width, width of the canvas to render the plot.
+   * @param {?number} height, height of the canvas to render the plot.
+   * @memberof BaseGL
+   */
+  render(width, height) {
+    super.render(width, height);
+    this.renderSizeLegend();
+  }
+
+  /**
+   * Adjusts the margins of the plot to account for the size legend.
+   * It calculates the margins based on the size of the size legend
+   * and its orientation and position.
+   */
+  updateMarginsToAccountForSizeLegend() {
+    const { height: svgHeight, width: svgWidth } = this.sizeLegendSvgNode
+      .node()
+      .getBBox();
+    const parsedMargins = parseMargins(this._spec.margins);
+
+    const marginsToAddIn = {
+      top: 0,
+      bottom: 0,
+      left: 0,
+      right: 0,
+    };
+
+    const { orientation, position } = this.sizeLegendOptions;
+
+    if (this.sizeLegendData && !this.isSizeLegendDomElementProvided) {
+      if (
+        orientation === "horizontal" ||
+        orientation === "horizontal-inverted"
+      ) {
+        if (position === "top-left" || position === "top-right") {
+          marginsToAddIn.top = svgHeight;
+        } else if (position === "bottom-left" || position === "bottom-right") {
+          marginsToAddIn.bottom = svgHeight;
+        }
+      } else if (
+        orientation === "vertical" ||
+        orientation === "vertical-inverted"
+      ) {
+        if (position === "top-left" || position === "bottom-left") {
+          marginsToAddIn.left = svgWidth;
+        } else if (position === "top-right" || position === "bottom-right") {
+          marginsToAddIn.right = svgWidth;
+        }
+      }
+    }
+
+    this._spec.margins = {
+      top: parsedMargins.top + marginsToAddIn.top + "px",
+      bottom: parsedMargins.bottom + marginsToAddIn.bottom + "px",
+      left: parsedMargins.left + marginsToAddIn.left + "px",
+      right: parsedMargins.right + marginsToAddIn.right + "px",
+    };
+  }
+
+  /**
+   * Renders the size legend based on provided data and orientation.
+   * It creates circles and text elements to represent the size legend
+   * and places them in the specified position.
+   */
+  renderSizeLegend() {
+    if (!this.sizeLegendData) return;
+    let { minSize, maxSize, steps } = this.sizeLegendData;
+    const [, maxX] = getMinMax(this.input.x);
+    const [, maxY] = getMinMax(this.input.y);
+    let xlen = maxX + 1,
+      ylen = maxY + 1;
+
+    const [minRadiusOriginal, maxRadiusOriginal] = getMinMax(
+      this.state["size"]
+    );
+    const maxRadiusScaled = getMaxRadiusForDotplot(xlen, ylen);
+    minSize = getScaledRadiusForDotplot(
+      minSize,
+      maxRadiusScaled,
+      minRadiusOriginal,
+      maxRadiusOriginal
+    );
+    maxSize = getScaledRadiusForDotplot(
+      maxSize,
+      maxRadiusScaled,
+      minRadiusOriginal,
+      maxRadiusOriginal
+    );
+    const orientation = this.sizeLegendOptions.orientation;
+
+    // Calculate step size
+    const stepSize = (maxSize - minSize) / (steps - 1);
+
+    // SVG container for the legend
+    this.sizeLegendSvgNode = d3Selection.select(this.sizeLegendDomElement).append("svg");
+    const circleGroup = this.sizeLegendSvgNode.append("g");
+    const textGroup = this.sizeLegendSvgNode.append("g");
+
+    const textCoordinates = this.constructCoordinatesForSizeLegendText(
+      orientation,
+      minSize,
+      maxSize,
+      stepSize
+    );
+
+    const isOrientationHorizontal =
+      orientation === "horizontal" || orientation === "horizontal-inverted";
+
+    textGroup
+      .selectAll("text")
+      .data(d3Array.range(steps))
+      .enter()
+      .append("text")
+      .attr("x", textCoordinates.x)
+      .attr("y", textCoordinates.y)
+      .text((d) => (minSize + d * stepSize).toFixed(1))
+      .attr("font-size", this.sizeLegendOptions.fontSize)
+      .attr("color", this.sizeLegendOptions.fontColor)
+      .attr(
+        "text-anchor",
+        isOrientationHorizontal || orientation === "vertical"
+          ? "middle"
+          : "start"
+      )
+      .attr(
+        "alignment-baseline",
+        orientation === "horizontal" ? "before-edge" : "central"
+      );
+
+    const textGroupBBox = textGroup.node().getBBox();
+
+    const circleCoordinates = this.constructCoordinatesForSizeLegendCircles(
+      orientation,
+      minSize,
+      maxSize,
+      stepSize,
+      textGroupBBox.width,
+      textGroupBBox.height
+    );
+
+    circleGroup
+      .selectAll("circle")
+      .data(d3Array.range(steps))
+      .enter()
+      .append("circle")
+      .attr("cx", circleCoordinates.x)
+      .attr("cy", circleCoordinates.y)
+      .attr("r", (d) => minSize + d * stepSize)
+      .attr("fill", this.sizeLegendOptions.circleColor);
+
+    const circleGroupBBox = circleGroup.node().getBBox();
+
+    if (isOrientationHorizontal) {
+      this.sizeLegendSvgNode.attr(
+        "width",
+        circleGroupBBox.width + this.sizeLegendOptions.svgPadding * 2
+      );
+      this.sizeLegendSvgNode.attr(
+        "height",
+        circleGroupBBox.height +
+          textGroupBBox.height +
+          this.sizeLegendOptions.circleTextGap +
+          this.sizeLegendOptions.svgPadding * 2
+      );
+    } else {
+      this.sizeLegendSvgNode
+        .attr(
+          "height",
+          circleGroupBBox.height + this.sizeLegendOptions.svgPadding * 2
+        )
+        .attr(
+          "width",
+          circleGroupBBox.width +
+            this.sizeLegendOptions.circleTextGap +
+            textGroupBBox.width +
+            this.sizeLegendOptions.svgPadding * 2
+        );
+    }
+
+    if (!this.isSizeLegendDomElementProvided) {
+      this.sizeLegendSvgNode.style("position", "absolute");
+      switch (this.sizeLegendOptions.position) {
+        case "top-left":
+          this.sizeLegendSvgNode.style("top", "0px").style("left", "0px");
+          break;
+        case "top-right":
+          this.sizeLegendSvgNode.style("top", "0px").style("right", "0px");
+          break;
+        case "bottom-left":
+          this.sizeLegendSvgNode
+            .style("bottom", this._spec.margins.bottom)
+            .style("left", "0px");
+          break;
+        case "bottom-right":
+          this.sizeLegendSvgNode
+            .style("bottom", this._spec.margins.bottom)
+            .style("right", "0px");
+          break;
+      }
+      console.log("before", this._spec.margins);
+
+      this.updateMarginsToAccountForSizeLegend();
+      this.plot.setSpecification(this._spec);
+    }
+  }
+
+  /**
+   * Constructs the coordinates for the text elements of the size legend based on the orientation.
+   *
+   * @param {string} orientation - Orientation of the legend (e.g., 'horizontal', 'horizontal-inverted', etc.).
+   * @param {number} minSize - Minimum size value for the legend.
+   * @param {number} maxSize - Maximum size value for the legend.
+   * @param {number} stepSize - Step size between each size value.
+   * @returns {Object} An object containing x and y functions for computing the text element's position.
+   */
+  constructCoordinatesForSizeLegendText(
+    orientation,
+    minSize,
+    maxSize,
+    stepSize
+  ) {
+    let nextX = this.sizeLegendOptions.svgPadding;
+    let nextY = this.sizeLegendOptions.svgPadding;
+    switch (orientation) {
+      case "horizontal":
+        return {
+          x: (d, i) => {
+            const radius = minSize + d * stepSize;
+            const x = nextX + radius + this.sizeLegendOptions.circleGap;
+            nextX = x + radius;
+            return x;
+          },
+          y: () => this.sizeLegendOptions.svgPadding,
+        };
+      case "horizontal-inverted":
+        return {
+          x: (d, i) => {
+            const radius = minSize + d * stepSize;
+            const x = nextX + radius + this.sizeLegendOptions.circleGap;
+            nextX = x + radius;
+            return x;
+          },
+          y: (d, i) =>
+            maxSize * 2 +
+            this.sizeLegendOptions.circleTextGap +
+            this.sizeLegendOptions.svgPadding,
+        };
+      case "vertical-inverted":
+        return {
+          x: () => this.sizeLegendOptions.svgPadding,
+          y: (d, i) => {
+            const radius = minSize + d * stepSize;
+            const y = nextY + radius + this.sizeLegendOptions.circleGap;
+            nextY = y + radius;
+            return y;
+          },
+        };
+      case "vertical":
+        return {
+          x: (d, i) =>
+            maxSize * 2 +
+            this.sizeLegendOptions.circleTextGap +
+            this.sizeLegendOptions.svgPadding,
+          y: (d, i) => {
+            const radius = minSize + d * stepSize;
+            const y = nextY + radius + this.sizeLegendOptions.circleGap;
+            nextY = y + radius;
+            return y;
+          },
+        };
+    }
+  }
+
+  /**
+   * Constructs the coordinates for the circle elements of the size legend based on the orientation.
+   *
+   * @param {string} orientation - Orientation of the legend (e.g., 'horizontal', 'horizontal-inverted', etc.).
+   * @param {number} minSize - Minimum size value for the legend.
+   * @param {number} maxSize - Maximum size value for the legend.
+   * @param {number} stepSize - Step size between each size value.
+   * @param {number} [xBuffer=0] - Optional buffer space in the x-axis.
+   * @param {number} [yBuffer=0] - Optional buffer space in the y-axis.
+   * @returns {Object} An object containing x and y functions for computing the circle element's position.
+   */
+  constructCoordinatesForSizeLegendCircles(
+    orientation,
+    minSize,
+    maxSize,
+    stepSize,
+    xBuffer = 0,
+    yBuffer = 0
+  ) {
+    let nextX = this.sizeLegendOptions.svgPadding;
+    let nextY = this.sizeLegendOptions.svgPadding;
+    switch (orientation) {
+      case "horizontal":
+        return {
+          x: (d, i) => {
+            const radius = minSize + d * stepSize;
+            const x = nextX + radius + this.sizeLegendOptions.circleGap;
+            nextX = x + radius;
+            return x;
+          },
+          y: () =>
+            maxSize +
+            this.sizeLegendOptions.svgPadding +
+            this.sizeLegendOptions.circleTextGap +
+            yBuffer,
+        };
+      case "horizontal-inverted":
+        return {
+          x: (d, i) => {
+            const radius = minSize + d * stepSize;
+            const x = nextX + radius + this.sizeLegendOptions.circleGap;
+            nextX = x + radius;
+            return x;
+          },
+          y: () => maxSize + this.sizeLegendOptions.svgPadding,
+        };
+      case "vertical-inverted":
+        return {
+          x: () =>
+            maxSize +
+            this.sizeLegendOptions.svgPadding +
+            this.sizeLegendOptions.circleTextGap +
+            xBuffer,
+          y: (d, i) => {
+            const radius = minSize + d * stepSize;
+            const y = nextY + radius + this.sizeLegendOptions.circleGap;
+            nextY = y + radius;
+            return y;
+          },
+        };
+      case "vertical":
+        return {
+          x: () => maxSize + this.sizeLegendOptions.svgPadding,
+          y: (d, i) => {
+            const radius = minSize + d * stepSize;
+            const y = nextY + radius + this.sizeLegendOptions.circleGap;
+            nextY = y + radius;
+            return y;
+          },
+        };
+    }
+  }
+
+  /**
+   * Sets the options for the size legend. This method configures the size legend's appearance
+   * and position, and optionally accepts a DOM element for rendering the legend.
+   *
+   * @param {Object} legendOptions - Configuration options for the size legend.
+   * @param {HTMLElement} [legendDomElement] - Optional DOM element to use for the legend.
+   */
+  setSizeLegendOptions(legendOptions, legendDomElement) {
+    this.isSizeLegendDomElementProvided = !!legendDomElement;
+
+    if (legendOptions) {
+      this.sizeLegendOptions = {
+        ...this.sizeLegendOptions,
+        ...legendOptions,
+      };
+    }
+
+    if (!legendDomElement) {
+      this.sizeLegendDomElement = this.elem.lastChild;
+    } else this.sizeLegendDomElement = legendDomElement;
   }
 }
 

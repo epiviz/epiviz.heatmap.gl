@@ -14,6 +14,13 @@ export const INTENSITY_LEGEND_SIZE_IN_PX =
 export const GROUPING_LEGEND_SIZE_IN_PX = 20;
 export const TOOLTIP_IDENTIFIER = "ehgl-tooltip";
 
+export const DEFAULT_SIZE_LEGEND_SVG_PADDING = 10;
+export const DEFAULT_SIZE_LEGEND_CIRCLE_GAP = 10;
+export const DEFAULT_SIZE_LEGEND_CIRCLE_TEXT_GAP = 10;
+
+export const DEFAULT_MIN_RADIUS_FOR_DOTPLOT = 5;
+export const DEFAULT_MARGIN_BETWEEN_DOTS = 5;
+
 export const DEFAULT_MARGINS = {
   top: "25px",
   bottom: "50px",

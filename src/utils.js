@@ -1,5 +1,8 @@
 import { select } from "d3-selection";
-import { TOOLTIP_IDENTIFIER } from "./constants";
+import {
+  DEFAULT_MIN_RADIUS_FOR_DOTPLOT,
+  TOOLTIP_IDENTIFIER,
+} from "./constants";
 
 /**
  * Check if a given variable is an object and not an array.
@@ -109,6 +112,24 @@ export const removeTooltip = (container) => {
   if (tooltip) {
     tooltip.remove();
   }
+};
+
+export const getMaxRadiusForDotplot = (xlen, ylen, padding) => {
+  return Math.min(198 / (xlen + 1), 198 / (ylen + 1)) - padding;
+};
+
+export const getScaledRadiusForDotplot = (
+  radius,
+  maxRadiusScaled,
+  minRadiusOriginal,
+  maxRadiusOriginal,
+  defaultMinRadius = DEFAULT_MIN_RADIUS_FOR_DOTPLOT
+) => {
+  return (
+    defaultMinRadius +
+    (maxRadiusScaled - defaultMinRadius) *
+      ((radius - minRadiusOriginal) / (maxRadiusOriginal - minRadiusOriginal))
+  );
 };
 
 /**
