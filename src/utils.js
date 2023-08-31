@@ -81,7 +81,10 @@ export const removeTooltip = (container) => {
 };
 
 export const getMaxRadiusForDotplot = (xlen, ylen, padding) => {
-  return Math.min(198 / (xlen + 1), 198 / (ylen + 1)) - padding;
+  return Math.max(
+    Math.min(198 / (xlen + 1), 198 / (ylen + 1)) - padding,
+    DEFAULT_MIN_RADIUS_FOR_DOTPLOT
+  );
 };
 
 export const getScaledRadiusForDotplot = (
