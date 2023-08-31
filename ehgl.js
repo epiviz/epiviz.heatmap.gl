@@ -30,8 +30,8 @@ const DEFAULT_SIZE_LEGEND_SVG_PADDING = 10;
 const DEFAULT_SIZE_LEGEND_CIRCLE_GAP = 10;
 const DEFAULT_SIZE_LEGEND_CIRCLE_TEXT_GAP = 10;
 
-const DEFAULT_MIN_RADIUS_FOR_DOTPLOT = 5;
-const DEFAULT_MARGIN_BETWEEN_DOTS = 5;
+const DEFAULT_MIN_RADIUS_FOR_DOTPLOT = 3;
+const DEFAULT_MARGIN_BETWEEN_DOTS = 2;
 
 function isObject(object) {
   return typeof object === "object" && Array.isArray(object) === false;
@@ -110,7 +110,10 @@ const removeTooltip = (container) => {
 };
 
 const getMaxRadiusForDotplot = (xlen, ylen, padding) => {
-  return Math.min(198 / (xlen + 1), 198 / (ylen + 1)) - padding;
+  return Math.max(
+    Math.min(198 / (xlen + 1), 198 / (ylen + 1)) - padding,
+    DEFAULT_MIN_RADIUS_FOR_DOTPLOT
+  );
 };
 
 const getScaledRadiusForDotplot = (
@@ -1593,7 +1596,8 @@ class DotplotGL extends BaseGL {
    */
   renderSizeLegend() {
     if (!this.sizeLegendData) return;
-    let { minSize, maxSize, steps, maxSizeInPx } = this.sizeLegendData;
+    let { minSize, maxSize, steps, maxSizeInPx, minSizeInPx } =
+      this.sizeLegendData;
     const [, maxX] = getMinMax(this.input.x);
     const [, maxY] = getMinMax(this.input.y);
     let xlen = maxX + 1,
@@ -1623,8 +1627,8 @@ class DotplotGL extends BaseGL {
     // Desired max size in pixels
     const maxPx = maxSizeInPx || maxSize;
 
-    // Calculate the desired minimum size in pixels proportionally
-    const minPx = (minSize * maxPx) / maxSize;
+    // Desired min size in pixels
+    const minPx = minSizeInPx || minSize;
 
     // Create a linear scale
     const sizeScale = d3Scale.scaleLinear()
@@ -1744,7 +1748,6 @@ class DotplotGL extends BaseGL {
             .style("right", "0px");
           break;
       }
-      console.log("before", this._spec.margins);
 
       this.updateMarginsToAccountForSizeLegend();
       this.plot.setSpecification(this._spec);
