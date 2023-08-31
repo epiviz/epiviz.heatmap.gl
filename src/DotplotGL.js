@@ -383,7 +383,6 @@ class DotplotGL extends BaseGL {
             .style("right", "0px");
           break;
       }
-      console.log("before", this._spec.margins);
 
       this.updateMarginsToAccountForSizeLegend();
       this.plot.setSpecification(this._spec);
