@@ -262,7 +262,7 @@ class DotplotGL extends BaseGL {
     // Desired max size in pixels
     const maxPx = maxSizeInPx || maxSize;
 
-    // Desired max size in pixels
+    // Desired min size in pixels
     const minPx = minSizeInPx || minSize;
 
     // Create a linear scale
