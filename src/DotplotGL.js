@@ -233,7 +233,8 @@ class DotplotGL extends BaseGL {
    */
   renderSizeLegend() {
     if (!this.sizeLegendData) return;
-    let { minSize, maxSize, steps, maxSizeInPx } = this.sizeLegendData;
+    let { minSize, maxSize, steps, maxSizeInPx, minSizeInPx } =
+      this.sizeLegendData;
     const [, maxX] = getMinMax(this.input.x);
     const [, maxY] = getMinMax(this.input.y);
     let xlen = maxX + 1,
@@ -263,8 +264,8 @@ class DotplotGL extends BaseGL {
     // Desired max size in pixels
     const maxPx = maxSizeInPx || maxSize;
 
-    // Calculate the desired minimum size in pixels proportionally
-    const minPx = (minSize * maxPx) / maxSize;
+    // Desired min size in pixels
+    const minPx = minSizeInPx || minSize;
 
     // Create a linear scale
     const sizeScale = scaleLinear()
@@ -384,7 +385,6 @@ class DotplotGL extends BaseGL {
             .style("right", "0px");
           break;
       }
-      console.log("before", this._spec.margins);
 
       this.updateMarginsToAccountForSizeLegend();
       this.plot.setSpecification(this._spec);
