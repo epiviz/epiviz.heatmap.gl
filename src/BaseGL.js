@@ -23,6 +23,7 @@ import {
   INTENSITY_LEGEND_GRADIENT_SIZE_IN_PX,
   INTENSITY_LEGEND_SIZE_IN_PX,
   GROUPING_LEGEND_SIZE_IN_PX,
+  DEFAULT_MARGINS,
 } from "./constants";
 
 /**
@@ -75,8 +76,14 @@ class BaseGL {
       ygap: 0.3,
     };
 
+    this.margins = DEFAULT_MARGINS;
+
     //Default Data for labelOptions
     this.labelOptions = {
+      rowLabelsSvgXOffset: -1.05,
+      rowLabelsSvgYOffset: -1.02,
+      columnLabelsSvgXOffset: -1.02,
+      columnLabelsSvgYOffset: 1.05,
       rowLabelMaxCharacters: DEFAULT_ROW_MAX_LABEL_LENGTH_ALLOWED,
       columnLabelMaxCharacters: DEFAULT_COLUMN_MAX_LABEL_LENGTH_ALLOWED,
       rowLabelSlintAngle: DEFAULT_ROW_LABEL_SLINT_ANGLE,
@@ -183,6 +190,10 @@ class BaseGL {
 
   _generateSpecForLabels(spec) {
     const {
+      rowLabelsSvgXOffset,
+      rowLabelsSvgYOffset,
+      columnLabelsSvgXOffset,
+      columnLabelsSvgYOffset,
       rowLabelMaxCharacters,
       columnLabelMaxCharacters,
       rowLabelSlintAngle,
@@ -212,8 +223,8 @@ class BaseGL {
 
         maxWidth = Math.max(maxWidth, truncatedLabelWidth);
         labels.push({
-          x: -1.02 + (2 * ilx + 1) / xlabels_len,
-          y: 1.05,
+          x: columnLabelsSvgXOffset + (2 * ilx + 1) / xlabels_len,
+          y: columnLabelsSvgYOffset,
           type: "row",
           index: ilx,
           text: truncatedLabel,
@@ -246,8 +257,8 @@ class BaseGL {
         );
         maxWidth = Math.max(maxWidth, truncatedLabelWidth);
         labels.push({
-          x: -1.05,
-          y: -1.02 + (2 * ily + 1) / ylabels_len,
+          x: rowLabelsSvgXOffset,
+          y: rowLabelsSvgYOffset + (2 * ily + 1) / ylabels_len,
           type: "column",
           index: ily,
           text: truncatedLabel,
@@ -269,7 +280,7 @@ class BaseGL {
       ...spec["margins"],
       top: `${topMarginToAccountForLabels}px`,
       left: `${leftMarginToAccountForLabels}px`,
-      right: "20px",
+      right: `${GROUPING_LEGEND_SIZE_IN_PX}px`,
     };
   }
 
@@ -498,6 +509,10 @@ class BaseGL {
    * @memberof BaseGL
    * @example
    * this.labelOptions = {
+   * rowLabelsSvgXOffset: 0,
+   * rowLabelsSvgYOffset: 0,
+   * columnLabelsSvgXOffset: 0,
+   * columnLabelsSvgYOffset: 0,
    * rowLabelMaxCharacters: 10,
    * columnLabelMaxCharacters: 10,
    * rowLabelSlintAngle: 0,
@@ -507,8 +522,12 @@ class BaseGL {
    * }
    * @example
    * this.setLabelOptions({
+   * rowLabelsSvgXOffset: 0,
+   * rowLabelsSvgYOffset: 0,
+   * columnLabelsSvgXOffset: 0,
+   * columnLabelsSvgYOffset: 0,
    * rowLabelMaxCharacters: 10,
-   *  columnLabelMaxCharacters: 10,
+   * columnLabelMaxCharacters: 10,
    * rowLabelSlintAngle: 0,
    * columnLabelSlintAngle: 0,
    * rowLabelFontSize: "7px",
@@ -519,6 +538,30 @@ class BaseGL {
     this.labelOptions = {
       ...this.labelOptions,
       ...labelOptions,
+    };
+  }
+
+  /**
+   * Set the margins for the visualization.
+   * all properties are optional, if not provided, the default values will be used.
+   * @param {object} margins, an object containing the margins
+   * @param {number} margins.top, top margin
+   * @param {number} margins.bottom, bottom margin
+   * @param {number} margins.left, left margin
+   * @param {number} margins.right, right margin
+   * @memberof BaseGL
+   * @example
+   * this.setMargins({
+   * top: '10px',
+   * bottom: '10px',
+   * left: '10px',
+   * right: '10px',
+   * })
+   **/
+  setMargins(margins) {
+    this.margins = {
+      ...this.margins,
+      ...margins,
     };
   }
 
@@ -1023,7 +1066,19 @@ class BaseGL {
    * @param {string} orientation - The orientation of the grouping labels
    * @returns {void}
    **/
-  renderGroupingLabels(parentElement, groupingRowData, orientation) {
+  renderGroupingLabels(parentElement, groupingData, orientation) {
+    // Filter out duplicate labels in the grouping data
+    groupingData = groupingData.reduce(
+      (acc, obj) => {
+        if (!acc.seen[obj.label]) {
+          acc.seen[obj.label] = true;
+          acc.result.push(obj);
+        }
+        return acc;
+      },
+      { seen: {}, result: [] }
+    ).result;
+
     const parent = select(parentElement);
     const svg = parent.append("svg");
 
@@ -1031,14 +1086,14 @@ class BaseGL {
     if (orientation === "horizontal") {
       svg.attr("height", 25);
     } else {
-      svg.attr("height", groupingRowData.length * 25);
+      svg.attr("height", groupingData.length * 25);
     }
 
     const labelHeight = 25;
     let xOffset = 0;
     let yOffset = 0;
 
-    groupingRowData.forEach((data) => {
+    groupingData.forEach((data) => {
       const group = svg.append("g");
 
       group

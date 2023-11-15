@@ -1,5 +1,5 @@
 import BaseGL from "./BaseGL";
-import { getMinMax } from "./utils";
+import { getMinMax, mapArrayOrTypedArray } from "./utils";
 
 /**
  * Class to create traditional heatmap plots
@@ -53,22 +53,23 @@ class RectplotGL extends BaseGL {
     };
 
     let spec_inputs = {};
-    spec_inputs.x = this.input.x.map((e, i) => String(e));
-    spec_inputs.y = this.input.y.map((e, i) => String(e));
+    spec_inputs.x = mapArrayOrTypedArray(this.input.x, (e, i) => String(e));
+    spec_inputs.y = mapArrayOrTypedArray(this.input.y, (e, i) => String(e));
 
     let default_width = 198 / (getMinMax(this.input.x)[1] + 1);
     let default_height = 198 / (getMinMax(this.input.y)[1] + 1);
 
-    spec_inputs.width = this.input.x.map((e, i) => default_width - xGaps(i));
-    spec_inputs.height = this.input.y.map((e, i) => default_height - yGaps(i));
+    spec_inputs.width = mapArrayOrTypedArray(
+      this.input.x,
+      (e, i) => default_width - xGaps(i)
+    );
+    spec_inputs.height = mapArrayOrTypedArray(
+      this.input.y,
+      (e, i) => default_height - yGaps(i)
+    );
 
     let spec = {
-      margins: {
-        top: "25px",
-        bottom: "50px",
-        left: "50px",
-        right: "10px",
-      },
+      margins: this.margins,
       defaultData: {
         x: spec_inputs.x,
         y: spec_inputs.y,

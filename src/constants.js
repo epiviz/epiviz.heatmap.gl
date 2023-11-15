@@ -20,3 +20,10 @@ export const DEFAULT_SIZE_LEGEND_CIRCLE_TEXT_GAP = 10;
 
 export const DEFAULT_MIN_RADIUS_FOR_DOTPLOT = 3;
 export const DEFAULT_MARGIN_BETWEEN_DOTS = 2;
+
+export const DEFAULT_MARGINS = {
+  top: "25px",
+  bottom: "50px",
+  left: "50px",
+  right: "10px",
+};
