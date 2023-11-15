@@ -16,7 +16,6 @@ const DEFAULT_ROW_LABEL_SLINT_ANGLE = 0;
 const DEFAULT_COLUMN_LABEL_SLINT_ANGLE = 0;
 const DEFAULT_ROW_LABEL_FONT_SIZE = "7px";
 const DEFAULT_COLUMN_LABEL_FONT_SIZE = "7px";
-const DEFAULT_VISIBLE_RANGE = [-1, 1];
 
 const LABELS_MARGIN_BUFFER_IN_PX = 20;
 const INTENSITY_LEGEND_LABEL_SIZE_IN_PX = 25;
@@ -257,6 +256,10 @@ class BaseGL {
       xlabels: null,
       ylabels: null,
     };
+
+    // Plot domain
+    this.xAxisRange = null;
+    this.yAxisRange = null;
 
     // state
     this.state = {
@@ -1084,7 +1087,7 @@ class BaseGL {
    **/
   renderRowGroupingLegend() {
     const position = this.rowGroupingLegendPosition;
-    const visibleRange = this.viewport?.yRange || DEFAULT_VISIBLE_RANGE;
+    const visibleRange = this.viewport?.yRange || this.yAxisRange;
 
     if (
       !this.rowGroupingLegendDomElement ||
@@ -1118,10 +1121,13 @@ class BaseGL {
     const yScale = d3Scale.scaleLinear()
       .domain(visibleRange) // Input range is currently visible range
       .range([svgHeight, 0]); // Output range is SVG height
+    const maxYRange = this.yAxisRange[1] - this.yAxisRange[0];
+    const minY = this.yAxisRange[0];
 
     this.groupingRowData.forEach((group, idx) => {
-      const normalizedStart = (group.startIndex * 2) / totalData - 1;
-      const normalizedEnd = ((group.endIndex + 1) * 2) / totalData - 1;
+      const normalizedStart = (group.startIndex / totalData) * maxYRange + minY;
+      const normalizedEnd =
+        ((group.endIndex + 1) / totalData) * maxYRange + minY;
 
       if (
         normalizedEnd >= visibleRange[0] &&
@@ -1164,7 +1170,7 @@ class BaseGL {
    * */
   renderColumnGroupingLegend() {
     const position = this.columnGroupingLegendPosition; // should be 'top' or 'bottom'
-    const visibleRange = this.viewport?.xRange || DEFAULT_VISIBLE_RANGE;
+    const visibleRange = this.viewport?.xRange || this.xAxisRange;
 
     // Only render the legend if we have the legend data, the dom element,
     // the position is either 'top' or 'bottom' and visibleRange exists
@@ -1204,9 +1210,13 @@ class BaseGL {
       .domain(visibleRange) // Input range is currently visible range
       .range([0, svgWidth]); // Output range is SVG width
 
-    this.groupingColumnData.forEach((group, idx) => {
-      const normalizedStart = (group.startIndex * 2) / totalData - 1;
-      const normalizedEnd = ((group.endIndex + 1) * 2) / totalData - 1;
+    const maxXRange = this.xAxisRange[1] - this.xAxisRange[0];
+    const minX = this.xAxisRange[0];
+
+    this.groupingRowData.forEach((group, idx) => {
+      const normalizedStart = (group.startIndex / totalData) * maxXRange + minX;
+      const normalizedEnd =
+        ((group.endIndex + 1) / totalData) * maxXRange + minX;
 
       if (
         normalizedEnd >= visibleRange[0] &&
@@ -1604,6 +1614,7 @@ class DotplotGL extends BaseGL {
     const [, maxY] = getMinMax(this.input.y);
     let xlen = maxX + 1,
       ylen = maxY + 1;
+
     spec_inputs.x = mapArrayOrTypedArray(
       this.input.x,
       (e, i) => -1 + (2 * e + 1) / xlen
@@ -1612,6 +1623,10 @@ class DotplotGL extends BaseGL {
       this.input.y,
       (e, i) => -1 + (2 * e + 1) / ylen
     );
+
+    // Setting X and Y Axis Domains
+    this.xAxisRange = spec_inputs.x;
+    this.yAxisRange = spec_inputs.y;
 
     let spec = {
       margins: this.margins,
@@ -1627,12 +1642,12 @@ class DotplotGL extends BaseGL {
           x: {
             attribute: "x",
             type: "quantitative",
-            domain: [-1, 1],
+            domain: this.xAxisRange,
           },
           y: {
             attribute: "y",
             type: "quantitative",
-            domain: [-1, 1],
+            domain: this.yAxisRange,
           },
           opacity: { value: this.state.opacity },
         },
@@ -2111,6 +2126,11 @@ class RectplotGL extends BaseGL {
     };
 
     let spec_inputs = {};
+
+    // Setting X and Y Axis Domains to [-1, 1]
+    this.xAxisRange = [-1, 1];
+    this.yAxisRange = [-1, 1];
+
     spec_inputs.x = mapArrayOrTypedArray(this.input.x, (e, i) => String(e));
     spec_inputs.y = mapArrayOrTypedArray(this.input.y, (e, i) => String(e));
 
@@ -2242,6 +2262,10 @@ class TickplotGL extends BaseGL {
       }
     }
 
+    // Setting X and Y Axis Domains
+    this.xAxisRange = getMinMax(this.input.x);
+    this.yAxisRange = getMinMax(this.input.y);
+
     let spec = {
       margins: this.margins,
       defaultData: {
@@ -2256,12 +2280,12 @@ class TickplotGL extends BaseGL {
           x: {
             attribute: "x",
             type: "quantitative",
-            domain: getMinMax(this.input.x),
+            domain: this.xAxisRange,
           },
           y: {
             attribute: "y",
             type: "quantitative",
-            domain: getMinMax(this.input.y),
+            domain: this.yAxisRange,
           },
           opacity: { value: this.state.opacity },
           width: { value: default_width },
