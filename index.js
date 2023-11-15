@@ -10001,24 +10001,45 @@ const DEFAULT_SIZE_LEGEND_CIRCLE_TEXT_GAP = 10;
 const DEFAULT_MIN_RADIUS_FOR_DOTPLOT = 3;
 const DEFAULT_MARGIN_BETWEEN_DOTS = 2;
 
+const DEFAULT_MARGINS = {
+  top: "25px",
+  bottom: "50px",
+  left: "50px",
+  right: "10px",
+};
+
+/**
+ * Check if a given variable is an object and not an array.
+ *
+ * @param {any} object - The variable to check.
+ * @returns {boolean} - Returns true if the variable is an object, and not an array.
+ */
 function isObject(object) {
   return typeof object === "object" && Array.isArray(object) === false;
 }
 
+/**
+ * Get the minimum and maximum values from an array.
+ *
+ * @param {Array<number>} arr - An array of numbers.
+ * @returns {Array<number>} - An array containing the minimum and maximum values, in that order.
+ */
 const getMinMax = (arr) => {
   var max = -Number.MAX_VALUE,
     min = Number.MAX_VALUE;
   arr.forEach(function (x) {
-    if (max < x) {
-      max = x;
-    }
-    if (min > x) {
-      min = x;
-    }
+    if (max < x) max = x;
+    if (min > x) min = x;
   });
   return [min, max];
 };
 
+/**
+ * Parses an object of margins and returns an object with top, bottom, left, and right margins as integers.
+ *
+ * @param {Object} margins - An object with potential margin properties.
+ * @returns {Object} - An object with top, bottom, left, and right margins as integers.
+ */
 const parseMargins = (margins) => {
   const parsedMargins = {
     top: 0,
@@ -10041,6 +10062,13 @@ const parseMargins = (margins) => {
   return parsedMargins;
 };
 
+/**
+ * Measure the width of a text string for a given font size using SVG.
+ *
+ * @param {string} text - The text to measure.
+ * @param {string} fontSize - The font size to use for the measurement, e.g., '16px'.
+ * @returns {number} - The width of the text in pixels.
+ */
 const getTextWidth = (text, fontSize = "16px") => {
   // Create a temporary SVG to measure the text width
   const svg = select("body").append("svg");
@@ -10050,6 +10078,14 @@ const getTextWidth = (text, fontSize = "16px") => {
   return width;
 };
 
+/**
+ * Create a tooltip on a specified container at the given position.
+ *
+ * @param {HTMLElement} container - The container element.
+ * @param {string} text - The text for the tooltip.
+ * @param {number} posX - The x-coordinate for the tooltip.
+ * @param {number} posY - The y-coordinate for the tooltip.
+ */
 const createTooltip = (container, text, posX, posY) => {
   let tooltip = select(container)
     .append("div")
@@ -10069,6 +10105,11 @@ const createTooltip = (container, text, posX, posY) => {
     .style("top", posY - 10 + "px");
 };
 
+/**
+ * Remove a tooltip from the specified container.
+ *
+ * @param {HTMLElement} container - The container from which to remove the tooltip.
+ */
 const removeTooltip = (container) => {
   const tooltip = select(container).select(`#${TOOLTIP_IDENTIFIER}`);
 
@@ -10096,6 +10137,52 @@ const getScaledRadiusForDotplot = (
     (maxRadiusScaled - defaultMinRadius) *
       ((radius - minRadiusOriginal) / (maxRadiusOriginal - minRadiusOriginal))
   );
+};
+
+/**
+ * A function to map over both regular JavaScript arrays and typed arrays.
+ *
+ * @param {Array|TypedArray} array - The input array or typed array.
+ * @param {Function} callback - A function that produces an element of the new array,
+ *      taking three arguments:
+ *      currentValue - The current element being processed in the array.
+ *      index - The index of the current element being processed in the array.
+ *      array - The array map was called upon.
+ * @returns {Array|TypedArray} - A new array or typed array with each element being the result
+ *      of the callback function.
+ * @throws {Error} - Throws an error if the input is neither a regular array nor a typed array.
+ */
+const mapArrayOrTypedArray = (array, callback) => {
+  // Check if the input is a regular JavaScript array.
+  if (Array.isArray(array)) {
+    return array.map(callback);
+  }
+  // Check if the input is a typed array.
+  else if (
+    array instanceof Int8Array ||
+    array instanceof Uint8Array ||
+    array instanceof Uint8ClampedArray ||
+    array instanceof Int16Array ||
+    array instanceof Uint16Array ||
+    array instanceof Int32Array ||
+    array instanceof Uint32Array ||
+    array instanceof Float32Array ||
+    array instanceof Float64Array
+  ) {
+    // Create a new typed array of the same type and size as the input.
+    let result = new array.constructor(array.length);
+
+    // Use forEach to emulate the map functionality for typed arrays.
+    array.forEach((value, index) => {
+      result[index] = callback(value, index);
+    });
+
+    return result;
+  }
+  // Handle the case where the input is neither a regular array nor a typed array.
+  else {
+    throw new Error("Input is neither a normal array nor a typed array.");
+  }
 };
 
 /**
@@ -10148,8 +10235,14 @@ class BaseGL {
       ygap: 0.3,
     };
 
+    this.margins = DEFAULT_MARGINS;
+
     //Default Data for labelOptions
     this.labelOptions = {
+      rowLabelsSvgXOffset: -1.05,
+      rowLabelsSvgYOffset: -1.02,
+      columnLabelsSvgXOffset: -1.02,
+      columnLabelsSvgYOffset: 1.05,
       rowLabelMaxCharacters: DEFAULT_ROW_MAX_LABEL_LENGTH_ALLOWED,
       columnLabelMaxCharacters: DEFAULT_COLUMN_MAX_LABEL_LENGTH_ALLOWED,
       rowLabelSlintAngle: DEFAULT_ROW_LABEL_SLINT_ANGLE,
@@ -10256,6 +10349,10 @@ class BaseGL {
 
   _generateSpecForLabels(spec) {
     const {
+      rowLabelsSvgXOffset,
+      rowLabelsSvgYOffset,
+      columnLabelsSvgXOffset,
+      columnLabelsSvgYOffset,
       rowLabelMaxCharacters,
       columnLabelMaxCharacters,
       rowLabelSlintAngle,
@@ -10285,8 +10382,8 @@ class BaseGL {
 
         maxWidth = Math.max(maxWidth, truncatedLabelWidth);
         labels.push({
-          x: -1.02 + (2 * ilx + 1) / xlabels_len,
-          y: 1.05,
+          x: columnLabelsSvgXOffset + (2 * ilx + 1) / xlabels_len,
+          y: columnLabelsSvgYOffset,
           type: "row",
           index: ilx,
           text: truncatedLabel,
@@ -10319,8 +10416,8 @@ class BaseGL {
         );
         maxWidth = Math.max(maxWidth, truncatedLabelWidth);
         labels.push({
-          x: -1.05,
-          y: -1.02 + (2 * ily + 1) / ylabels_len,
+          x: rowLabelsSvgXOffset,
+          y: rowLabelsSvgYOffset + (2 * ily + 1) / ylabels_len,
           type: "column",
           index: ily,
           text: truncatedLabel,
@@ -10342,7 +10439,7 @@ class BaseGL {
       ...spec["margins"],
       top: `${topMarginToAccountForLabels}px`,
       left: `${leftMarginToAccountForLabels}px`,
-      right: "20px",
+      right: `${GROUPING_LEGEND_SIZE_IN_PX}px`,
     };
   }
 
@@ -10571,6 +10668,10 @@ class BaseGL {
    * @memberof BaseGL
    * @example
    * this.labelOptions = {
+   * rowLabelsSvgXOffset: 0,
+   * rowLabelsSvgYOffset: 0,
+   * columnLabelsSvgXOffset: 0,
+   * columnLabelsSvgYOffset: 0,
    * rowLabelMaxCharacters: 10,
    * columnLabelMaxCharacters: 10,
    * rowLabelSlintAngle: 0,
@@ -10580,8 +10681,12 @@ class BaseGL {
    * }
    * @example
    * this.setLabelOptions({
+   * rowLabelsSvgXOffset: 0,
+   * rowLabelsSvgYOffset: 0,
+   * columnLabelsSvgXOffset: 0,
+   * columnLabelsSvgYOffset: 0,
    * rowLabelMaxCharacters: 10,
-   *  columnLabelMaxCharacters: 10,
+   * columnLabelMaxCharacters: 10,
    * rowLabelSlintAngle: 0,
    * columnLabelSlintAngle: 0,
    * rowLabelFontSize: "7px",
@@ -10592,6 +10697,30 @@ class BaseGL {
     this.labelOptions = {
       ...this.labelOptions,
       ...labelOptions,
+    };
+  }
+
+  /**
+   * Set the margins for the visualization.
+   * all properties are optional, if not provided, the default values will be used.
+   * @param {object} margins, an object containing the margins
+   * @param {number} margins.top, top margin
+   * @param {number} margins.bottom, bottom margin
+   * @param {number} margins.left, left margin
+   * @param {number} margins.right, right margin
+   * @memberof BaseGL
+   * @example
+   * this.setMargins({
+   * top: '10px',
+   * bottom: '10px',
+   * left: '10px',
+   * right: '10px',
+   * })
+   **/
+  setMargins(margins) {
+    this.margins = {
+      ...this.margins,
+      ...margins,
     };
   }
 
@@ -11096,7 +11225,19 @@ class BaseGL {
    * @param {string} orientation - The orientation of the grouping labels
    * @returns {void}
    **/
-  renderGroupingLabels(parentElement, groupingRowData, orientation) {
+  renderGroupingLabels(parentElement, groupingData, orientation) {
+    // Filter out duplicate labels in the grouping data
+    groupingData = groupingData.reduce(
+      (acc, obj) => {
+        if (!acc.seen[obj.label]) {
+          acc.seen[obj.label] = true;
+          acc.result.push(obj);
+        }
+        return acc;
+      },
+      { seen: {}, result: [] }
+    ).result;
+
     const parent = select(parentElement);
     const svg = parent.append("svg");
 
@@ -11104,14 +11245,14 @@ class BaseGL {
     if (orientation === "horizontal") {
       svg.attr("height", 25);
     } else {
-      svg.attr("height", groupingRowData.length * 25);
+      svg.attr("height", groupingData.length * 25);
     }
 
     const labelHeight = 25;
     let xOffset = 0;
     let yOffset = 0;
 
-    groupingRowData.forEach((data) => {
+    groupingData.forEach((data) => {
       const group = svg.append("g");
 
       group
@@ -11431,16 +11572,17 @@ class DotplotGL extends BaseGL {
     const [, maxY] = getMinMax(this.input.y);
     let xlen = maxX + 1,
       ylen = maxY + 1;
-    spec_inputs.x = this.input.x.map((e, i) => -1 + (2 * e + 1) / xlen);
-    spec_inputs.y = this.input.y.map((e, i) => -1 + (2 * e + 1) / ylen);
+    spec_inputs.x = mapArrayOrTypedArray(
+      this.input.x,
+      (e, i) => -1 + (2 * e + 1) / xlen
+    );
+    spec_inputs.y = mapArrayOrTypedArray(
+      this.input.y,
+      (e, i) => -1 + (2 * e + 1) / ylen
+    );
 
     let spec = {
-      margins: {
-        top: "25px",
-        bottom: "50px",
-        left: "50px",
-        right: "10px",
-      },
+      margins: this.margins,
       defaultData: {
         x: spec_inputs.x,
         y: spec_inputs.y,
@@ -11937,22 +12079,23 @@ class RectplotGL extends BaseGL {
     };
 
     let spec_inputs = {};
-    spec_inputs.x = this.input.x.map((e, i) => String(e));
-    spec_inputs.y = this.input.y.map((e, i) => String(e));
+    spec_inputs.x = mapArrayOrTypedArray(this.input.x, (e, i) => String(e));
+    spec_inputs.y = mapArrayOrTypedArray(this.input.y, (e, i) => String(e));
 
     let default_width = 198 / (getMinMax(this.input.x)[1] + 1);
     let default_height = 198 / (getMinMax(this.input.y)[1] + 1);
 
-    spec_inputs.width = this.input.x.map((e, i) => default_width - xGaps(i));
-    spec_inputs.height = this.input.y.map((e, i) => default_height - yGaps(i));
+    spec_inputs.width = mapArrayOrTypedArray(
+      this.input.x,
+      (e, i) => default_width - xGaps(i)
+    );
+    spec_inputs.height = mapArrayOrTypedArray(
+      this.input.y,
+      (e, i) => default_height - yGaps(i)
+    );
 
     let spec = {
-      margins: {
-        top: "25px",
-        bottom: "50px",
-        left: "50px",
-        right: "10px",
-      },
+      margins: this.margins,
       defaultData: {
         x: spec_inputs.x,
         y: spec_inputs.y,
@@ -12068,12 +12211,7 @@ class TickplotGL extends BaseGL {
     }
 
     let spec = {
-      margins: {
-        top: "25px",
-        bottom: "50px",
-        left: "50px",
-        right: "10px",
-      },
+      margins: this.margins,
       defaultData: {
         x: this.input.x,
         y: this.input.y,
