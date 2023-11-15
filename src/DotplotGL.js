@@ -13,6 +13,7 @@ import {
   getMinMax,
   getScaledRadiusForDotplot,
   parseMargins,
+  mapArrayOrTypedArray,
 } from "./utils";
 
 /**
@@ -103,16 +104,17 @@ class DotplotGL extends BaseGL {
     this.xAxisRange = [-1, 1];
     this.yAxisRange = [-1, 1];
 
-    spec_inputs.x = this.input.x.map((e, i) => -1 + (2 * e + 1) / xlen);
-    spec_inputs.y = this.input.y.map((e, i) => -1 + (2 * e + 1) / ylen);
+    spec_inputs.x = mapArrayOrTypedArray(
+      this.input.x,
+      (e, i) => -1 + (2 * e + 1) / xlen
+    );
+    spec_inputs.y = mapArrayOrTypedArray(
+      this.input.y,
+      (e, i) => -1 + (2 * e + 1) / ylen
+    );
 
     let spec = {
-      margins: {
-        top: "25px",
-        bottom: "50px",
-        left: "50px",
-        right: "10px",
-      },
+      margins: this.margins,
       defaultData: {
         x: spec_inputs.x,
         y: spec_inputs.y,

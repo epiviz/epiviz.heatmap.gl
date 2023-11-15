@@ -81,12 +81,7 @@ class TickplotGL extends BaseGL {
     this.yAxisRange = getMinMax(this.input.y);
 
     let spec = {
-      margins: {
-        top: "25px",
-        bottom: "50px",
-        left: "50px",
-        right: "10px",
-      },
+      margins: this.margins,
       defaultData: {
         x: this.input.x,
         y: this.input.y,
