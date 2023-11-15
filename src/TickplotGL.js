@@ -76,6 +76,10 @@ class TickplotGL extends BaseGL {
       }
     }
 
+    // Setting X and Y Axis Domains
+    this.xAxisRange = getMinMax(this.input.x);
+    this.yAxisRange = getMinMax(this.input.y);
+
     let spec = {
       margins: {
         top: "25px",
@@ -95,12 +99,12 @@ class TickplotGL extends BaseGL {
           x: {
             attribute: "x",
             type: "quantitative",
-            domain: getMinMax(this.input.x),
+            domain: this.xAxisRange,
           },
           y: {
             attribute: "y",
             type: "quantitative",
-            domain: getMinMax(this.input.y),
+            domain: this.yAxisRange,
           },
           opacity: { value: this.state.opacity },
           width: { value: default_width },

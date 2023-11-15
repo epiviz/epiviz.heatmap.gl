@@ -53,6 +53,11 @@ class RectplotGL extends BaseGL {
     };
 
     let spec_inputs = {};
+
+    // Setting X and Y Axis Domains to [-1, 1]
+    this.xAxisRange = [-1, 1];
+    this.yAxisRange = [-1, 1];
+
     spec_inputs.x = this.input.x.map((e, i) => String(e));
     spec_inputs.y = this.input.y.map((e, i) => String(e));
 

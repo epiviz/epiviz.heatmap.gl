@@ -4,7 +4,6 @@ export const DEFAULT_ROW_LABEL_SLINT_ANGLE = 0;
 export const DEFAULT_COLUMN_LABEL_SLINT_ANGLE = 0;
 export const DEFAULT_ROW_LABEL_FONT_SIZE = "7px";
 export const DEFAULT_COLUMN_LABEL_FONT_SIZE = "7px";
-export const DEFAULT_VISIBLE_RANGE = [-1, 1];
 
 export const LABELS_MARGIN_BUFFER_IN_PX = 20;
 export const INTENSITY_LEGEND_LABEL_SIZE_IN_PX = 25;
