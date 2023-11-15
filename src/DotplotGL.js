@@ -100,10 +100,6 @@ class DotplotGL extends BaseGL {
     let xlen = maxX + 1,
       ylen = maxY + 1;
 
-    // Setting X and Y Axis Domains to [-1, 1]
-    this.xAxisRange = [-1, 1];
-    this.yAxisRange = [-1, 1];
-
     spec_inputs.x = mapArrayOrTypedArray(
       this.input.x,
       (e, i) => -1 + (2 * e + 1) / xlen
@@ -112,6 +108,10 @@ class DotplotGL extends BaseGL {
       this.input.y,
       (e, i) => -1 + (2 * e + 1) / ylen
     );
+
+    // Setting X and Y Axis Domains
+    this.xAxisRange = spec_inputs.x;
+    this.yAxisRange = spec_inputs.y;
 
     let spec = {
       margins: this.margins,
