@@ -99,6 +99,7 @@ class DotplotGL extends BaseGL {
     const [, maxY] = getMinMax(this.input.y);
     let xlen = maxX + 1,
       ylen = maxY + 1;
+
     spec_inputs.x = mapArrayOrTypedArray(
       this.input.x,
       (e, i) => -1 + (2 * e + 1) / xlen
@@ -107,6 +108,10 @@ class DotplotGL extends BaseGL {
       this.input.y,
       (e, i) => -1 + (2 * e + 1) / ylen
     );
+
+    // Setting X and Y Axis Domains
+    this.xAxisRange = spec_inputs.x;
+    this.yAxisRange = spec_inputs.y;
 
     let spec = {
       margins: this.margins,
@@ -122,12 +127,12 @@ class DotplotGL extends BaseGL {
           x: {
             attribute: "x",
             type: "quantitative",
-            domain: [-1, 1],
+            domain: this.xAxisRange,
           },
           y: {
             attribute: "y",
             type: "quantitative",
-            domain: [-1, 1],
+            domain: this.yAxisRange,
           },
           opacity: { value: this.state.opacity },
         },

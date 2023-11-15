@@ -17,7 +17,6 @@ import {
   DEFAULT_ROW_LABEL_FONT_SIZE,
   DEFAULT_ROW_LABEL_SLINT_ANGLE,
   DEFAULT_ROW_MAX_LABEL_LENGTH_ALLOWED,
-  DEFAULT_VISIBLE_RANGE,
   LABELS_MARGIN_BUFFER_IN_PX,
   INTENSITY_LEGEND_LABEL_SIZE_IN_PX,
   INTENSITY_LEGEND_GRADIENT_SIZE_IN_PX,
@@ -66,6 +65,10 @@ class BaseGL {
       xlabels: null,
       ylabels: null,
     };
+
+    // Plot domain
+    this.xAxisRange = null;
+    this.yAxisRange = null;
 
     // state
     this.state = {
@@ -893,7 +896,7 @@ class BaseGL {
    **/
   renderRowGroupingLegend() {
     const position = this.rowGroupingLegendPosition;
-    const visibleRange = this.viewport?.yRange || DEFAULT_VISIBLE_RANGE;
+    const visibleRange = this.viewport?.yRange || this.yAxisRange;
 
     if (
       !this.rowGroupingLegendDomElement ||
@@ -927,10 +930,13 @@ class BaseGL {
     const yScale = scaleLinear()
       .domain(visibleRange) // Input range is currently visible range
       .range([svgHeight, 0]); // Output range is SVG height
+    const maxYRange = this.yAxisRange[1] - this.yAxisRange[0];
+    const minY = this.yAxisRange[0];
 
     this.groupingRowData.forEach((group, idx) => {
-      const normalizedStart = (group.startIndex * 2) / totalData - 1;
-      const normalizedEnd = ((group.endIndex + 1) * 2) / totalData - 1;
+      const normalizedStart = (group.startIndex / totalData) * maxYRange + minY;
+      const normalizedEnd =
+        ((group.endIndex + 1) / totalData) * maxYRange + minY;
 
       if (
         normalizedEnd >= visibleRange[0] &&
@@ -973,7 +979,7 @@ class BaseGL {
    * */
   renderColumnGroupingLegend() {
     const position = this.columnGroupingLegendPosition; // should be 'top' or 'bottom'
-    const visibleRange = this.viewport?.xRange || DEFAULT_VISIBLE_RANGE;
+    const visibleRange = this.viewport?.xRange || this.xAxisRange;
 
     // Only render the legend if we have the legend data, the dom element,
     // the position is either 'top' or 'bottom' and visibleRange exists
@@ -1013,9 +1019,13 @@ class BaseGL {
       .domain(visibleRange) // Input range is currently visible range
       .range([0, svgWidth]); // Output range is SVG width
 
-    this.groupingColumnData.forEach((group, idx) => {
-      const normalizedStart = (group.startIndex * 2) / totalData - 1;
-      const normalizedEnd = ((group.endIndex + 1) * 2) / totalData - 1;
+    const maxXRange = this.xAxisRange[1] - this.xAxisRange[0];
+    const minX = this.xAxisRange[0];
+
+    this.groupingRowData.forEach((group, idx) => {
+      const normalizedStart = (group.startIndex / totalData) * maxXRange + minX;
+      const normalizedEnd =
+        ((group.endIndex + 1) / totalData) * maxXRange + minX;
 
       if (
         normalizedEnd >= visibleRange[0] &&
