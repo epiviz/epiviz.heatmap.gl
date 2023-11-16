@@ -110,8 +110,8 @@ class DotplotGL extends BaseGL {
     );
 
     // Setting X and Y Axis Domains
-    this.xAxisRange = spec_inputs.x;
-    this.yAxisRange = spec_inputs.y;
+    this.xAxisRange = [-1, 1];
+    this.yAxisRange = [-1, 1];
 
     let spec = {
       margins: this.margins,
