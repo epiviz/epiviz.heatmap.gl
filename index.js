@@ -11181,7 +11181,7 @@ class BaseGL {
     const maxXRange = this.xAxisRange[1] - this.xAxisRange[0];
     const minX = this.xAxisRange[0];
 
-    this.groupingRowData.forEach((group, idx) => {
+    this.columnGroupingData.forEach((group, idx) => {
       const normalizedStart = (group.startIndex / totalData) * maxXRange + minX;
       const normalizedEnd =
         ((group.endIndex + 1) / totalData) * maxXRange + minX;
