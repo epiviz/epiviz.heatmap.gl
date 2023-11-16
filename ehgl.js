@@ -1213,7 +1213,7 @@ class BaseGL {
     const maxXRange = this.xAxisRange[1] - this.xAxisRange[0];
     const minX = this.xAxisRange[0];
 
-    this.columnGroupingData.forEach((group, idx) => {
+    this.groupingColumnData.forEach((group, idx) => {
       const normalizedStart = (group.startIndex / totalData) * maxXRange + minX;
       const normalizedEnd =
         ((group.endIndex + 1) / totalData) * maxXRange + minX;
@@ -1625,8 +1625,8 @@ class DotplotGL extends BaseGL {
     );
 
     // Setting X and Y Axis Domains
-    this.xAxisRange = spec_inputs.x;
-    this.yAxisRange = spec_inputs.y;
+    this.xAxisRange = [-1, 1];
+    this.yAxisRange = [-1, 1];
 
     let spec = {
       margins: this.margins,
