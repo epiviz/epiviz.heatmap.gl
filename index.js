@@ -5244,7 +5244,8 @@ class MouseReader {
       "mousemove",
       (event) => {
         this.handler.getClosestPoint(
-          this._calculateViewportSpot(...getLayerXandYFromEvent(event))
+          this._calculateViewportSpot(...getLayerXandYFromEvent(event)),
+          cloneMouseEvent(event)
         );
         if (!mouseDown) {
           return;
@@ -5360,7 +5361,8 @@ class MouseReader {
       "dblclick",
       (event) => {
         this.handler.getClickPoint(
-          this._calculateViewportSpot(...getLayerXandYFromEvent(event))
+          this._calculateViewportSpot(...getLayerXandYFromEvent(event)),
+          cloneMouseEvent(event)
         );
       },
       false
@@ -9577,7 +9579,7 @@ class WebGLVis {
     };
 
     this.dataWorkerStream = [];
-    this.dataWorker = new Worker(new URL("data-processor-worker-a4482939-6147ac31.js", import.meta.url),
+    this.dataWorker = new Worker(new URL("data-processor-worker-449c685d-e4e8a06d.js", import.meta.url),
       { type: "module" }
     );
     this.dataWorker.onmessage = (message) => {
@@ -9719,11 +9721,13 @@ class WebGLVis {
    * Does not return, posts result to this.dataWorkerStream.
    *
    * @param {Array} point to get closest point to
+   * @param {Object=} event refers to mouse event has triggered this function. Optional Parameter
    */
-  getClosestPoint(point) {
+  getClosestPoint(point, event) {
     this.dataWorker.postMessage({
       type: "getClosestPoint",
       point,
+      event,
     });
   }
 
@@ -9732,11 +9736,13 @@ class WebGLVis {
    * Does not return, posts result to this.dataWorkerStream.
    *
    * @param {Array} point to get closest point to
+   * @param {Object=} event refers to mouse event that triggered this function. Optional parameter
    */
-  getClickPoint(point) {
+  getClickPoint(point, event) {
     this.dataWorker.postMessage({
       type: "getClickPoint",
       point,
+      event,
     });
   }
 
@@ -10907,6 +10913,9 @@ class BaseGL {
     const position = this.legendPosition;
     // Only render the legend if we have the legend data and the legend dom element
     if (!this.legendDomElement || !this.intensityLegendData) return;
+
+    //Clear the legend dom element
+    select(this.legendDomElement).select("svg").remove();
 
     const parsedMargins = parseMargins(this._spec.margins);
     const containerWidth =

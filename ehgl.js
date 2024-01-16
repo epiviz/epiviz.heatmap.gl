@@ -940,6 +940,9 @@ class BaseGL {
     // Only render the legend if we have the legend data and the legend dom element
     if (!this.legendDomElement || !this.intensityLegendData) return;
 
+    //Clear the legend dom element
+    d3Selection.select(this.legendDomElement).select("svg").remove();
+
     const parsedMargins = parseMargins(this._spec.margins);
     const containerWidth =
       this.legendWidth ||
