@@ -1,6 +1,6 @@
 {
   "name": "epiviz.heatmap.gl",
-  "version": "0.0.23",
+  "version": "0.0.24",
   "repository": "https://github.com/jkanche/epiviz.heatmap.gl",
   "homepage": "https://github.com/jkanche/epiviz.heatmap.gl",
   "author": {
@@ -20,10 +20,11 @@
   "main": "dist/ehgl.js",
   "module": "dist/index.js",
   "dependencies": {
-    "epiviz.gl": "^1.0.16",
     "d3-axis": "^3.0.0",
     "d3-scale": "^4.0.2",
-    "d3-selection": "^3.0.0"
+    "d3-selection": "^3.0.0",
+    "epiviz.gl": "^1.0.16",
+    "tippy.js": "6.0.0"
   },
   "peerDependencies": {
     "react": "^18.2.0"
@@ -33,11 +34,12 @@
     "@rollup/plugin-commonjs": "^11.0.1",
     "@rollup/plugin-json": "^4.1.0",
     "@rollup/plugin-node-resolve": "^7.0.0",
+    "@rollup/plugin-replace": "^5.0.5",
     "@surma/rollup-plugin-off-main-thread": "^2.2.3",
     "gh-pages": "^3.2.3",
+    "postcss": "^8.4.33",
     "rollup": "^1.29.0",
-    "docdash": "^1.2.0",
-    "jsdoc": "^3.6.10"
+    "rollup-plugin-postcss": "^4.0.2"
   },
   "scripts": {
     "build": "rollup -c",

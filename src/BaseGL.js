@@ -2,14 +2,7 @@ import WebGLVis from "epiviz.gl";
 import { select } from "d3-selection";
 import { scaleLinear } from "d3-scale";
 import { axisBottom, axisLeft, axisRight, axisTop } from "d3-axis";
-import {
-  isObject,
-  getMinMax,
-  parseMargins,
-  getTextWidth,
-  createTooltip,
-  removeTooltip,
-} from "./utils";
+import { isObject, getMinMax, parseMargins, getTextWidth } from "./utils";
 import {
   DEFAULT_COLUMN_LABEL_FONT_SIZE,
   DEFAULT_COLUMN_LABEL_SLINT_ANGLE,
@@ -23,7 +16,9 @@ import {
   INTENSITY_LEGEND_SIZE_IN_PX,
   GROUPING_LEGEND_SIZE_IN_PX,
   DEFAULT_MARGINS,
+  INTENSITY_LEGEND_IDENTIFIER,
 } from "./constants";
+import Tooltip from "./Tooltip";
 
 /**
  * Base class for all matrix like layout plots.
@@ -146,6 +141,8 @@ class BaseGL {
 
     this.highlightedIndices = [];
     this.indexStates = {};
+
+    this.tooltipInstance = new Tooltip();
   }
 
   /**
@@ -722,20 +719,20 @@ class BaseGL {
       const labelType = e.detail.labelObject.type;
       e.preventDefault();
 
-      createTooltip(
-        document.body,
+      this.tooltipInstance.updateTooltip(
         labelType === "row"
           ? this.input.xlabels[hoveredIndex]
           : this.input.ylabels[hoveredIndex],
-        e.detail.event.pageX,
-        e.detail.event.pageY
+        e.detail.event.clientX,
+        e.detail.event.clientY
       );
+
       this.labelHoveredCallback(e.detail);
     });
 
     this.plot.addEventListener("labelUnhovered", (e) => {
       e.preventDefault();
-      removeTooltip(document.body);
+      this.tooltipInstance.hideTooltip();
       this.labelUnhoveredCallback(e.detail);
     });
   }
@@ -750,7 +747,9 @@ class BaseGL {
     if (!this.legendDomElement || !this.intensityLegendData) return;
 
     //Clear the legend dom element
-    select(this.legendDomElement).select("svg").remove();
+    select(this.legendDomElement)
+      .select(`#${INTENSITY_LEGEND_IDENTIFIER}`)
+      .remove();
 
     const parsedMargins = parseMargins(this._spec.margins);
     const containerWidth =
@@ -760,7 +759,7 @@ class BaseGL {
       this.legendHeight ||
       this.elem.clientHeight - parsedMargins.top - parsedMargins.bottom;
 
-    const averageCharWidth = 6; // rough estimation of the width of a single character
+    const averageCharWidth = 8; // rough estimation of the width of a single character
     const legendWidth = containerWidth - 2 * averageCharWidth;
     const legendHeight = containerHeight - 2 * averageCharWidth;
 
@@ -778,9 +777,10 @@ class BaseGL {
 
     const svgContainer = select(this.legendDomElement)
       .append("svg")
+      .attr("id", INTENSITY_LEGEND_IDENTIFIER)
       .attr("width", svgWidth)
       .attr("height", svgHeight)
-      .attr("overflow", "visible");
+      .style("overflow", "visible");
 
     const defs = svgContainer.append("defs");
 
@@ -952,7 +952,6 @@ class BaseGL {
         const rectHeight = Math.abs(
           yScale(rectEndInView) - yScale(rectStartInView)
         );
-
         svgContainer
           .append("rect")
           .attr("x", 0)
@@ -960,12 +959,12 @@ class BaseGL {
           .attr("width", legendWidth)
           .attr("height", rectHeight)
           .style("fill", group.color)
-          .on("mouseover", (e) => {
+          .on("mousemove", (e) => {
             const text = group.label;
-            createTooltip(document.body, text, e.pageX, e.pageY);
+            this.tooltipInstance.updateTooltip(text, e.clientX, e.clientY);
           })
           .on("mouseout", (e) => {
-            removeTooltip(document.body);
+            this.tooltipInstance.hideTooltip();
           });
       }
     });
@@ -1049,12 +1048,13 @@ class BaseGL {
           .attr("width", rectWidth)
           .attr("height", legendHeight)
           .style("fill", group.color)
-          .on("mouseover", (e) => {
+          .on("mousemove", (e) => {
             const text = group.label;
-            createTooltip(document.body, text, e.pageX, e.pageY);
+
+            this.tooltipInstance.updateTooltip(text, e.clientX, e.clientY);
           })
           .on("mouseout", (e) => {
-            removeTooltip(document.body);
+            this.tooltipInstance.hideTooltip();
           });
       }
     });

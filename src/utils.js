@@ -1,8 +1,5 @@
 import { select } from "d3-selection";
-import {
-  DEFAULT_MIN_RADIUS_FOR_DOTPLOT,
-  TOOLTIP_IDENTIFIER,
-} from "./constants";
+import { DEFAULT_MIN_RADIUS_FOR_DOTPLOT } from "./constants";
 
 /**
  * Check if a given variable is an object and not an array.
@@ -72,46 +69,6 @@ export const getTextWidth = (text, fontSize = "16px") => {
   const width = textNode.node().getBBox().width;
   svg.remove();
   return width;
-};
-
-/**
- * Create a tooltip on a specified container at the given position.
- *
- * @param {HTMLElement} container - The container element.
- * @param {string} text - The text for the tooltip.
- * @param {number} posX - The x-coordinate for the tooltip.
- * @param {number} posY - The y-coordinate for the tooltip.
- */
-export const createTooltip = (container, text, posX, posY) => {
-  let tooltip = select(container)
-    .append("div")
-    .attr("id", TOOLTIP_IDENTIFIER)
-    .style("position", "absolute")
-    .style("background", "#f9f9f9")
-    .style("padding", "8px")
-    .style("border", "1px solid #ccc")
-    .style("border-radius", "6px")
-    .style("z-index", "1000")
-    .style("visibility", "hidden");
-
-  tooltip
-    .style("visibility", "visible")
-    .text(text)
-    .style("left", posX + 10 + "px")
-    .style("top", posY - 10 + "px");
-};
-
-/**
- * Remove a tooltip from the specified container.
- *
- * @param {HTMLElement} container - The container from which to remove the tooltip.
- */
-export const removeTooltip = (container) => {
-  const tooltip = select(container).select(`#${TOOLTIP_IDENTIFIER}`);
-
-  if (tooltip) {
-    tooltip.remove();
-  }
 };
 
 export const getMaxRadiusForDotplot = (xlen, ylen, padding) => {

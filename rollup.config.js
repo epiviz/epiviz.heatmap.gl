@@ -3,6 +3,8 @@ import commonjs from "@rollup/plugin-commonjs";
 import pkg from "./package.json";
 import OMT from "@surma/rollup-plugin-off-main-thread";
 import json from "@rollup/plugin-json";
+import replace from "@rollup/plugin-replace";
+import postcss from "rollup-plugin-postcss";
 
 // import { babel } from "@rollup/plugin-babel";
 
@@ -16,7 +18,20 @@ export default [
       dir: "dist",
       format: "esm",
     },
-    plugins: [resolve(), commonjs(), OMT(), json()],
+    plugins: [
+      resolve(),
+      commonjs(),
+      OMT(),
+      json(),
+      replace({
+        "process.env.NODE_ENV": JSON.stringify("production"),
+        preventAssignment: true,
+      }),
+      postcss({
+        extract: "ehgl.css",
+        minimize: true,
+      }),
+    ],
   },
 
   // CommonJS (for Node) and ES module (for bundlers) build.
@@ -31,6 +46,16 @@ export default [
     output: [
       { file: pkg.main, format: "cjs" },
       //   { file: pkg.module, format: "es" },
+    ],
+    plugins: [
+      replace({
+        "process.env.NODE_ENV": JSON.stringify("production"),
+        preventAssignment: true,
+      }),
+      postcss({
+        extract: "ehgl.css",
+        minimize: true,
+      }),
     ],
   },
 ];
