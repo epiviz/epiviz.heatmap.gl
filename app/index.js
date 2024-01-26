@@ -1,4 +1,1309 @@
-import { g as getDimAndMarginStyleForSpecification, D as DEFAULT_WIDTH, a as DEFAULT_HEIGHT, t as throttleWithRAF, b as getViewportForSpecification, c as cloneMouseEvent, d as getPointsBySelectMode, e as calculateZoomLevel, s as scale, f as getScaleForSpecification, h as formatSpecifier$1, i as exponent$1, p as precisionRound$1, j as formatPrefix$1, k as format$1, l as constant$3, m as color$1, r as rgb$2 } from './rgb-b646728b-0756143b.js';
+import { g as getDimAndMarginStyleForSpecification, D as DEFAULT_WIDTH, a as DEFAULT_HEIGHT, t as throttleWithRAF, b as getViewportForSpecification, c as cloneMouseEvent, d as getPointsBySelectMode, e as calculateZoomLevel, s as scale, f as getScaleForSpecification, h as formatSpecifier$1, i as exponent$1, p as precisionRound$1, j as formatPrefix$1, k as format$1, l as constant$3, m as color$1, r as rgb$2 } from './rgb-b646728b-2f709b61.js';
+
+function ascending(a, b) {
+  return a == null || b == null ? NaN : a < b ? -1 : a > b ? 1 : a >= b ? 0 : NaN;
+}
+
+function descending(a, b) {
+  return a == null || b == null ? NaN
+    : b < a ? -1
+    : b > a ? 1
+    : b >= a ? 0
+    : NaN;
+}
+
+function bisector(f) {
+  let compare1, compare2, delta;
+
+  // If an accessor is specified, promote it to a comparator. In this case we
+  // can test whether the search value is (self-) comparable. We can’t do this
+  // for a comparator (except for specific, known comparators) because we can’t
+  // tell if the comparator is symmetric, and an asymmetric comparator can’t be
+  // used to test whether a single value is comparable.
+  if (f.length !== 2) {
+    compare1 = ascending;
+    compare2 = (d, x) => ascending(f(d), x);
+    delta = (d, x) => f(d) - x;
+  } else {
+    compare1 = f === ascending || f === descending ? f : zero;
+    compare2 = f;
+    delta = f;
+  }
+
+  function left(a, x, lo = 0, hi = a.length) {
+    if (lo < hi) {
+      if (compare1(x, x) !== 0) return hi;
+      do {
+        const mid = (lo + hi) >>> 1;
+        if (compare2(a[mid], x) < 0) lo = mid + 1;
+        else hi = mid;
+      } while (lo < hi);
+    }
+    return lo;
+  }
+
+  function right(a, x, lo = 0, hi = a.length) {
+    if (lo < hi) {
+      if (compare1(x, x) !== 0) return hi;
+      do {
+        const mid = (lo + hi) >>> 1;
+        if (compare2(a[mid], x) <= 0) lo = mid + 1;
+        else hi = mid;
+      } while (lo < hi);
+    }
+    return lo;
+  }
+
+  function center(a, x, lo = 0, hi = a.length) {
+    const i = left(a, x, lo, hi - 1);
+    return i > lo && delta(a[i - 1], x) > -delta(a[i], x) ? i - 1 : i;
+  }
+
+  return {left, center, right};
+}
+
+function zero() {
+  return 0;
+}
+
+function number(x) {
+  return x === null ? NaN : +x;
+}
+
+const ascendingBisect = bisector(ascending);
+const bisectRight = ascendingBisect.right;
+const bisectCenter = bisector(number).center;
+
+const e10 = Math.sqrt(50),
+    e5 = Math.sqrt(10),
+    e2 = Math.sqrt(2);
+
+function tickSpec(start, stop, count) {
+  const step = (stop - start) / Math.max(0, count),
+      power = Math.floor(Math.log10(step)),
+      error = step / Math.pow(10, power),
+      factor = error >= e10 ? 10 : error >= e5 ? 5 : error >= e2 ? 2 : 1;
+  let i1, i2, inc;
+  if (power < 0) {
+    inc = Math.pow(10, -power) / factor;
+    i1 = Math.round(start * inc);
+    i2 = Math.round(stop * inc);
+    if (i1 / inc < start) ++i1;
+    if (i2 / inc > stop) --i2;
+    inc = -inc;
+  } else {
+    inc = Math.pow(10, power) * factor;
+    i1 = Math.round(start / inc);
+    i2 = Math.round(stop / inc);
+    if (i1 * inc < start) ++i1;
+    if (i2 * inc > stop) --i2;
+  }
+  if (i2 < i1 && 0.5 <= count && count < 2) return tickSpec(start, stop, count * 2);
+  return [i1, i2, inc];
+}
+
+function ticks(start, stop, count) {
+  stop = +stop, start = +start, count = +count;
+  if (!(count > 0)) return [];
+  if (start === stop) return [start];
+  const reverse = stop < start, [i1, i2, inc] = reverse ? tickSpec(stop, start, count) : tickSpec(start, stop, count);
+  if (!(i2 >= i1)) return [];
+  const n = i2 - i1 + 1, ticks = new Array(n);
+  if (reverse) {
+    if (inc < 0) for (let i = 0; i < n; ++i) ticks[i] = (i2 - i) / -inc;
+    else for (let i = 0; i < n; ++i) ticks[i] = (i2 - i) * inc;
+  } else {
+    if (inc < 0) for (let i = 0; i < n; ++i) ticks[i] = (i1 + i) / -inc;
+    else for (let i = 0; i < n; ++i) ticks[i] = (i1 + i) * inc;
+  }
+  return ticks;
+}
+
+function tickIncrement(start, stop, count) {
+  stop = +stop, start = +start, count = +count;
+  return tickSpec(start, stop, count)[2];
+}
+
+function tickStep(start, stop, count) {
+  stop = +stop, start = +start, count = +count;
+  const reverse = stop < start, inc = reverse ? tickIncrement(stop, start, count) : tickIncrement(start, stop, count);
+  return (reverse ? -1 : 1) * (inc < 0 ? 1 / -inc : inc);
+}
+
+function range(start, stop, step) {
+  start = +start, stop = +stop, step = (n = arguments.length) < 2 ? (stop = start, start = 0, 1) : n < 3 ? 1 : +step;
+
+  var i = -1,
+      n = Math.max(0, Math.ceil((stop - start) / step)) | 0,
+      range = new Array(n);
+
+  while (++i < n) {
+    range[i] = start + i * step;
+  }
+
+  return range;
+}
+
+function initRange(domain, range) {
+  switch (arguments.length) {
+    case 0: break;
+    case 1: this.range(domain); break;
+    default: this.range(range).domain(domain); break;
+  }
+  return this;
+}
+
+function define(constructor, factory, prototype) {
+  constructor.prototype = factory.prototype = prototype;
+  prototype.constructor = constructor;
+}
+
+function extend(parent, definition) {
+  var prototype = Object.create(parent.prototype);
+  for (var key in definition) prototype[key] = definition[key];
+  return prototype;
+}
+
+function Color() {}
+
+var darker = 0.7;
+var brighter = 1 / darker;
+
+var reI = "\\s*([+-]?\\d+)\\s*",
+    reN = "\\s*([+-]?(?:\\d*\\.)?\\d+(?:[eE][+-]?\\d+)?)\\s*",
+    reP = "\\s*([+-]?(?:\\d*\\.)?\\d+(?:[eE][+-]?\\d+)?)%\\s*",
+    reHex = /^#([0-9a-f]{3,8})$/,
+    reRgbInteger = new RegExp(`^rgb\\(${reI},${reI},${reI}\\)$`),
+    reRgbPercent = new RegExp(`^rgb\\(${reP},${reP},${reP}\\)$`),
+    reRgbaInteger = new RegExp(`^rgba\\(${reI},${reI},${reI},${reN}\\)$`),
+    reRgbaPercent = new RegExp(`^rgba\\(${reP},${reP},${reP},${reN}\\)$`),
+    reHslPercent = new RegExp(`^hsl\\(${reN},${reP},${reP}\\)$`),
+    reHslaPercent = new RegExp(`^hsla\\(${reN},${reP},${reP},${reN}\\)$`);
+
+var named = {
+  aliceblue: 0xf0f8ff,
+  antiquewhite: 0xfaebd7,
+  aqua: 0x00ffff,
+  aquamarine: 0x7fffd4,
+  azure: 0xf0ffff,
+  beige: 0xf5f5dc,
+  bisque: 0xffe4c4,
+  black: 0x000000,
+  blanchedalmond: 0xffebcd,
+  blue: 0x0000ff,
+  blueviolet: 0x8a2be2,
+  brown: 0xa52a2a,
+  burlywood: 0xdeb887,
+  cadetblue: 0x5f9ea0,
+  chartreuse: 0x7fff00,
+  chocolate: 0xd2691e,
+  coral: 0xff7f50,
+  cornflowerblue: 0x6495ed,
+  cornsilk: 0xfff8dc,
+  crimson: 0xdc143c,
+  cyan: 0x00ffff,
+  darkblue: 0x00008b,
+  darkcyan: 0x008b8b,
+  darkgoldenrod: 0xb8860b,
+  darkgray: 0xa9a9a9,
+  darkgreen: 0x006400,
+  darkgrey: 0xa9a9a9,
+  darkkhaki: 0xbdb76b,
+  darkmagenta: 0x8b008b,
+  darkolivegreen: 0x556b2f,
+  darkorange: 0xff8c00,
+  darkorchid: 0x9932cc,
+  darkred: 0x8b0000,
+  darksalmon: 0xe9967a,
+  darkseagreen: 0x8fbc8f,
+  darkslateblue: 0x483d8b,
+  darkslategray: 0x2f4f4f,
+  darkslategrey: 0x2f4f4f,
+  darkturquoise: 0x00ced1,
+  darkviolet: 0x9400d3,
+  deeppink: 0xff1493,
+  deepskyblue: 0x00bfff,
+  dimgray: 0x696969,
+  dimgrey: 0x696969,
+  dodgerblue: 0x1e90ff,
+  firebrick: 0xb22222,
+  floralwhite: 0xfffaf0,
+  forestgreen: 0x228b22,
+  fuchsia: 0xff00ff,
+  gainsboro: 0xdcdcdc,
+  ghostwhite: 0xf8f8ff,
+  gold: 0xffd700,
+  goldenrod: 0xdaa520,
+  gray: 0x808080,
+  green: 0x008000,
+  greenyellow: 0xadff2f,
+  grey: 0x808080,
+  honeydew: 0xf0fff0,
+  hotpink: 0xff69b4,
+  indianred: 0xcd5c5c,
+  indigo: 0x4b0082,
+  ivory: 0xfffff0,
+  khaki: 0xf0e68c,
+  lavender: 0xe6e6fa,
+  lavenderblush: 0xfff0f5,
+  lawngreen: 0x7cfc00,
+  lemonchiffon: 0xfffacd,
+  lightblue: 0xadd8e6,
+  lightcoral: 0xf08080,
+  lightcyan: 0xe0ffff,
+  lightgoldenrodyellow: 0xfafad2,
+  lightgray: 0xd3d3d3,
+  lightgreen: 0x90ee90,
+  lightgrey: 0xd3d3d3,
+  lightpink: 0xffb6c1,
+  lightsalmon: 0xffa07a,
+  lightseagreen: 0x20b2aa,
+  lightskyblue: 0x87cefa,
+  lightslategray: 0x778899,
+  lightslategrey: 0x778899,
+  lightsteelblue: 0xb0c4de,
+  lightyellow: 0xffffe0,
+  lime: 0x00ff00,
+  limegreen: 0x32cd32,
+  linen: 0xfaf0e6,
+  magenta: 0xff00ff,
+  maroon: 0x800000,
+  mediumaquamarine: 0x66cdaa,
+  mediumblue: 0x0000cd,
+  mediumorchid: 0xba55d3,
+  mediumpurple: 0x9370db,
+  mediumseagreen: 0x3cb371,
+  mediumslateblue: 0x7b68ee,
+  mediumspringgreen: 0x00fa9a,
+  mediumturquoise: 0x48d1cc,
+  mediumvioletred: 0xc71585,
+  midnightblue: 0x191970,
+  mintcream: 0xf5fffa,
+  mistyrose: 0xffe4e1,
+  moccasin: 0xffe4b5,
+  navajowhite: 0xffdead,
+  navy: 0x000080,
+  oldlace: 0xfdf5e6,
+  olive: 0x808000,
+  olivedrab: 0x6b8e23,
+  orange: 0xffa500,
+  orangered: 0xff4500,
+  orchid: 0xda70d6,
+  palegoldenrod: 0xeee8aa,
+  palegreen: 0x98fb98,
+  paleturquoise: 0xafeeee,
+  palevioletred: 0xdb7093,
+  papayawhip: 0xffefd5,
+  peachpuff: 0xffdab9,
+  peru: 0xcd853f,
+  pink: 0xffc0cb,
+  plum: 0xdda0dd,
+  powderblue: 0xb0e0e6,
+  purple: 0x800080,
+  rebeccapurple: 0x663399,
+  red: 0xff0000,
+  rosybrown: 0xbc8f8f,
+  royalblue: 0x4169e1,
+  saddlebrown: 0x8b4513,
+  salmon: 0xfa8072,
+  sandybrown: 0xf4a460,
+  seagreen: 0x2e8b57,
+  seashell: 0xfff5ee,
+  sienna: 0xa0522d,
+  silver: 0xc0c0c0,
+  skyblue: 0x87ceeb,
+  slateblue: 0x6a5acd,
+  slategray: 0x708090,
+  slategrey: 0x708090,
+  snow: 0xfffafa,
+  springgreen: 0x00ff7f,
+  steelblue: 0x4682b4,
+  tan: 0xd2b48c,
+  teal: 0x008080,
+  thistle: 0xd8bfd8,
+  tomato: 0xff6347,
+  turquoise: 0x40e0d0,
+  violet: 0xee82ee,
+  wheat: 0xf5deb3,
+  white: 0xffffff,
+  whitesmoke: 0xf5f5f5,
+  yellow: 0xffff00,
+  yellowgreen: 0x9acd32
+};
+
+define(Color, color, {
+  copy(channels) {
+    return Object.assign(new this.constructor, this, channels);
+  },
+  displayable() {
+    return this.rgb().displayable();
+  },
+  hex: color_formatHex, // Deprecated! Use color.formatHex.
+  formatHex: color_formatHex,
+  formatHex8: color_formatHex8,
+  formatHsl: color_formatHsl,
+  formatRgb: color_formatRgb,
+  toString: color_formatRgb
+});
+
+function color_formatHex() {
+  return this.rgb().formatHex();
+}
+
+function color_formatHex8() {
+  return this.rgb().formatHex8();
+}
+
+function color_formatHsl() {
+  return hslConvert(this).formatHsl();
+}
+
+function color_formatRgb() {
+  return this.rgb().formatRgb();
+}
+
+function color(format) {
+  var m, l;
+  format = (format + "").trim().toLowerCase();
+  return (m = reHex.exec(format)) ? (l = m[1].length, m = parseInt(m[1], 16), l === 6 ? rgbn(m) // #ff0000
+      : l === 3 ? new Rgb((m >> 8 & 0xf) | (m >> 4 & 0xf0), (m >> 4 & 0xf) | (m & 0xf0), ((m & 0xf) << 4) | (m & 0xf), 1) // #f00
+      : l === 8 ? rgba(m >> 24 & 0xff, m >> 16 & 0xff, m >> 8 & 0xff, (m & 0xff) / 0xff) // #ff000000
+      : l === 4 ? rgba((m >> 12 & 0xf) | (m >> 8 & 0xf0), (m >> 8 & 0xf) | (m >> 4 & 0xf0), (m >> 4 & 0xf) | (m & 0xf0), (((m & 0xf) << 4) | (m & 0xf)) / 0xff) // #f000
+      : null) // invalid hex
+      : (m = reRgbInteger.exec(format)) ? new Rgb(m[1], m[2], m[3], 1) // rgb(255, 0, 0)
+      : (m = reRgbPercent.exec(format)) ? new Rgb(m[1] * 255 / 100, m[2] * 255 / 100, m[3] * 255 / 100, 1) // rgb(100%, 0%, 0%)
+      : (m = reRgbaInteger.exec(format)) ? rgba(m[1], m[2], m[3], m[4]) // rgba(255, 0, 0, 1)
+      : (m = reRgbaPercent.exec(format)) ? rgba(m[1] * 255 / 100, m[2] * 255 / 100, m[3] * 255 / 100, m[4]) // rgb(100%, 0%, 0%, 1)
+      : (m = reHslPercent.exec(format)) ? hsla(m[1], m[2] / 100, m[3] / 100, 1) // hsl(120, 50%, 50%)
+      : (m = reHslaPercent.exec(format)) ? hsla(m[1], m[2] / 100, m[3] / 100, m[4]) // hsla(120, 50%, 50%, 1)
+      : named.hasOwnProperty(format) ? rgbn(named[format]) // eslint-disable-line no-prototype-builtins
+      : format === "transparent" ? new Rgb(NaN, NaN, NaN, 0)
+      : null;
+}
+
+function rgbn(n) {
+  return new Rgb(n >> 16 & 0xff, n >> 8 & 0xff, n & 0xff, 1);
+}
+
+function rgba(r, g, b, a) {
+  if (a <= 0) r = g = b = NaN;
+  return new Rgb(r, g, b, a);
+}
+
+function rgbConvert(o) {
+  if (!(o instanceof Color)) o = color(o);
+  if (!o) return new Rgb;
+  o = o.rgb();
+  return new Rgb(o.r, o.g, o.b, o.opacity);
+}
+
+function rgb(r, g, b, opacity) {
+  return arguments.length === 1 ? rgbConvert(r) : new Rgb(r, g, b, opacity == null ? 1 : opacity);
+}
+
+function Rgb(r, g, b, opacity) {
+  this.r = +r;
+  this.g = +g;
+  this.b = +b;
+  this.opacity = +opacity;
+}
+
+define(Rgb, rgb, extend(Color, {
+  brighter(k) {
+    k = k == null ? brighter : Math.pow(brighter, k);
+    return new Rgb(this.r * k, this.g * k, this.b * k, this.opacity);
+  },
+  darker(k) {
+    k = k == null ? darker : Math.pow(darker, k);
+    return new Rgb(this.r * k, this.g * k, this.b * k, this.opacity);
+  },
+  rgb() {
+    return this;
+  },
+  clamp() {
+    return new Rgb(clampi(this.r), clampi(this.g), clampi(this.b), clampa(this.opacity));
+  },
+  displayable() {
+    return (-0.5 <= this.r && this.r < 255.5)
+        && (-0.5 <= this.g && this.g < 255.5)
+        && (-0.5 <= this.b && this.b < 255.5)
+        && (0 <= this.opacity && this.opacity <= 1);
+  },
+  hex: rgb_formatHex, // Deprecated! Use color.formatHex.
+  formatHex: rgb_formatHex,
+  formatHex8: rgb_formatHex8,
+  formatRgb: rgb_formatRgb,
+  toString: rgb_formatRgb
+}));
+
+function rgb_formatHex() {
+  return `#${hex(this.r)}${hex(this.g)}${hex(this.b)}`;
+}
+
+function rgb_formatHex8() {
+  return `#${hex(this.r)}${hex(this.g)}${hex(this.b)}${hex((isNaN(this.opacity) ? 1 : this.opacity) * 255)}`;
+}
+
+function rgb_formatRgb() {
+  const a = clampa(this.opacity);
+  return `${a === 1 ? "rgb(" : "rgba("}${clampi(this.r)}, ${clampi(this.g)}, ${clampi(this.b)}${a === 1 ? ")" : `, ${a})`}`;
+}
+
+function clampa(opacity) {
+  return isNaN(opacity) ? 1 : Math.max(0, Math.min(1, opacity));
+}
+
+function clampi(value) {
+  return Math.max(0, Math.min(255, Math.round(value) || 0));
+}
+
+function hex(value) {
+  value = clampi(value);
+  return (value < 16 ? "0" : "") + value.toString(16);
+}
+
+function hsla(h, s, l, a) {
+  if (a <= 0) h = s = l = NaN;
+  else if (l <= 0 || l >= 1) h = s = NaN;
+  else if (s <= 0) h = NaN;
+  return new Hsl(h, s, l, a);
+}
+
+function hslConvert(o) {
+  if (o instanceof Hsl) return new Hsl(o.h, o.s, o.l, o.opacity);
+  if (!(o instanceof Color)) o = color(o);
+  if (!o) return new Hsl;
+  if (o instanceof Hsl) return o;
+  o = o.rgb();
+  var r = o.r / 255,
+      g = o.g / 255,
+      b = o.b / 255,
+      min = Math.min(r, g, b),
+      max = Math.max(r, g, b),
+      h = NaN,
+      s = max - min,
+      l = (max + min) / 2;
+  if (s) {
+    if (r === max) h = (g - b) / s + (g < b) * 6;
+    else if (g === max) h = (b - r) / s + 2;
+    else h = (r - g) / s + 4;
+    s /= l < 0.5 ? max + min : 2 - max - min;
+    h *= 60;
+  } else {
+    s = l > 0 && l < 1 ? 0 : h;
+  }
+  return new Hsl(h, s, l, o.opacity);
+}
+
+function hsl(h, s, l, opacity) {
+  return arguments.length === 1 ? hslConvert(h) : new Hsl(h, s, l, opacity == null ? 1 : opacity);
+}
+
+function Hsl(h, s, l, opacity) {
+  this.h = +h;
+  this.s = +s;
+  this.l = +l;
+  this.opacity = +opacity;
+}
+
+define(Hsl, hsl, extend(Color, {
+  brighter(k) {
+    k = k == null ? brighter : Math.pow(brighter, k);
+    return new Hsl(this.h, this.s, this.l * k, this.opacity);
+  },
+  darker(k) {
+    k = k == null ? darker : Math.pow(darker, k);
+    return new Hsl(this.h, this.s, this.l * k, this.opacity);
+  },
+  rgb() {
+    var h = this.h % 360 + (this.h < 0) * 360,
+        s = isNaN(h) || isNaN(this.s) ? 0 : this.s,
+        l = this.l,
+        m2 = l + (l < 0.5 ? l : 1 - l) * s,
+        m1 = 2 * l - m2;
+    return new Rgb(
+      hsl2rgb(h >= 240 ? h - 240 : h + 120, m1, m2),
+      hsl2rgb(h, m1, m2),
+      hsl2rgb(h < 120 ? h + 240 : h - 120, m1, m2),
+      this.opacity
+    );
+  },
+  clamp() {
+    return new Hsl(clamph(this.h), clampt(this.s), clampt(this.l), clampa(this.opacity));
+  },
+  displayable() {
+    return (0 <= this.s && this.s <= 1 || isNaN(this.s))
+        && (0 <= this.l && this.l <= 1)
+        && (0 <= this.opacity && this.opacity <= 1);
+  },
+  formatHsl() {
+    const a = clampa(this.opacity);
+    return `${a === 1 ? "hsl(" : "hsla("}${clamph(this.h)}, ${clampt(this.s) * 100}%, ${clampt(this.l) * 100}%${a === 1 ? ")" : `, ${a})`}`;
+  }
+}));
+
+function clamph(value) {
+  value = (value || 0) % 360;
+  return value < 0 ? value + 360 : value;
+}
+
+function clampt(value) {
+  return Math.max(0, Math.min(1, value || 0));
+}
+
+/* From FvD 13.37, CSS Color Module Level 3 */
+function hsl2rgb(h, m1, m2) {
+  return (h < 60 ? m1 + (m2 - m1) * h / 60
+      : h < 180 ? m2
+      : h < 240 ? m1 + (m2 - m1) * (240 - h) / 60
+      : m1) * 255;
+}
+
+var constant = x => () => x;
+
+function linear(a, d) {
+  return function(t) {
+    return a + t * d;
+  };
+}
+
+function exponential(a, b, y) {
+  return a = Math.pow(a, y), b = Math.pow(b, y) - a, y = 1 / y, function(t) {
+    return Math.pow(a + t * b, y);
+  };
+}
+
+function gamma(y) {
+  return (y = +y) === 1 ? nogamma : function(a, b) {
+    return b - a ? exponential(a, b, y) : constant(isNaN(a) ? b : a);
+  };
+}
+
+function nogamma(a, b) {
+  var d = b - a;
+  return d ? linear(a, d) : constant(isNaN(a) ? b : a);
+}
+
+var rgb$1 = (function rgbGamma(y) {
+  var color = gamma(y);
+
+  function rgb$1(start, end) {
+    var r = color((start = rgb(start)).r, (end = rgb(end)).r),
+        g = color(start.g, end.g),
+        b = color(start.b, end.b),
+        opacity = nogamma(start.opacity, end.opacity);
+    return function(t) {
+      start.r = r(t);
+      start.g = g(t);
+      start.b = b(t);
+      start.opacity = opacity(t);
+      return start + "";
+    };
+  }
+
+  rgb$1.gamma = rgbGamma;
+
+  return rgb$1;
+})(1);
+
+function numberArray(a, b) {
+  if (!b) b = [];
+  var n = a ? Math.min(b.length, a.length) : 0,
+      c = b.slice(),
+      i;
+  return function(t) {
+    for (i = 0; i < n; ++i) c[i] = a[i] * (1 - t) + b[i] * t;
+    return c;
+  };
+}
+
+function isNumberArray(x) {
+  return ArrayBuffer.isView(x) && !(x instanceof DataView);
+}
+
+function genericArray(a, b) {
+  var nb = b ? b.length : 0,
+      na = a ? Math.min(nb, a.length) : 0,
+      x = new Array(na),
+      c = new Array(nb),
+      i;
+
+  for (i = 0; i < na; ++i) x[i] = interpolate(a[i], b[i]);
+  for (; i < nb; ++i) c[i] = b[i];
+
+  return function(t) {
+    for (i = 0; i < na; ++i) c[i] = x[i](t);
+    return c;
+  };
+}
+
+function date(a, b) {
+  var d = new Date;
+  return a = +a, b = +b, function(t) {
+    return d.setTime(a * (1 - t) + b * t), d;
+  };
+}
+
+function interpolateNumber(a, b) {
+  return a = +a, b = +b, function(t) {
+    return a * (1 - t) + b * t;
+  };
+}
+
+function object(a, b) {
+  var i = {},
+      c = {},
+      k;
+
+  if (a === null || typeof a !== "object") a = {};
+  if (b === null || typeof b !== "object") b = {};
+
+  for (k in b) {
+    if (k in a) {
+      i[k] = interpolate(a[k], b[k]);
+    } else {
+      c[k] = b[k];
+    }
+  }
+
+  return function(t) {
+    for (k in i) c[k] = i[k](t);
+    return c;
+  };
+}
+
+var reA = /[-+]?(?:\d+\.?\d*|\.?\d+)(?:[eE][-+]?\d+)?/g,
+    reB = new RegExp(reA.source, "g");
+
+function zero$1(b) {
+  return function() {
+    return b;
+  };
+}
+
+function one(b) {
+  return function(t) {
+    return b(t) + "";
+  };
+}
+
+function string(a, b) {
+  var bi = reA.lastIndex = reB.lastIndex = 0, // scan index for next number in b
+      am, // current match in a
+      bm, // current match in b
+      bs, // string preceding current number in b, if any
+      i = -1, // index in s
+      s = [], // string constants and placeholders
+      q = []; // number interpolators
+
+  // Coerce inputs to strings.
+  a = a + "", b = b + "";
+
+  // Interpolate pairs of numbers in a & b.
+  while ((am = reA.exec(a))
+      && (bm = reB.exec(b))) {
+    if ((bs = bm.index) > bi) { // a string precedes the next number in b
+      bs = b.slice(bi, bs);
+      if (s[i]) s[i] += bs; // coalesce with previous string
+      else s[++i] = bs;
+    }
+    if ((am = am[0]) === (bm = bm[0])) { // numbers in a & b match
+      if (s[i]) s[i] += bm; // coalesce with previous string
+      else s[++i] = bm;
+    } else { // interpolate non-matching numbers
+      s[++i] = null;
+      q.push({i: i, x: interpolateNumber(am, bm)});
+    }
+    bi = reB.lastIndex;
+  }
+
+  // Add remains of b.
+  if (bi < b.length) {
+    bs = b.slice(bi);
+    if (s[i]) s[i] += bs; // coalesce with previous string
+    else s[++i] = bs;
+  }
+
+  // Special optimization for only a single match.
+  // Otherwise, interpolate each of the numbers and rejoin the string.
+  return s.length < 2 ? (q[0]
+      ? one(q[0].x)
+      : zero$1(b))
+      : (b = q.length, function(t) {
+          for (var i = 0, o; i < b; ++i) s[(o = q[i]).i] = o.x(t);
+          return s.join("");
+        });
+}
+
+function interpolate(a, b) {
+  var t = typeof b, c;
+  return b == null || t === "boolean" ? constant(b)
+      : (t === "number" ? interpolateNumber
+      : t === "string" ? ((c = color(b)) ? (b = c, rgb$1) : string)
+      : b instanceof color ? rgb$1
+      : b instanceof Date ? date
+      : isNumberArray(b) ? numberArray
+      : Array.isArray(b) ? genericArray
+      : typeof b.valueOf !== "function" && typeof b.toString !== "function" || isNaN(b) ? object
+      : interpolateNumber)(a, b);
+}
+
+function interpolateRound(a, b) {
+  return a = +a, b = +b, function(t) {
+    return Math.round(a * (1 - t) + b * t);
+  };
+}
+
+function constants(x) {
+  return function() {
+    return x;
+  };
+}
+
+function number$1(x) {
+  return +x;
+}
+
+var unit = [0, 1];
+
+function identity(x) {
+  return x;
+}
+
+function normalize(a, b) {
+  return (b -= (a = +a))
+      ? function(x) { return (x - a) / b; }
+      : constants(isNaN(b) ? NaN : 0.5);
+}
+
+function clamper(a, b) {
+  var t;
+  if (a > b) t = a, a = b, b = t;
+  return function(x) { return Math.max(a, Math.min(b, x)); };
+}
+
+// normalize(a, b)(x) takes a domain value x in [a,b] and returns the corresponding parameter t in [0,1].
+// interpolate(a, b)(t) takes a parameter t in [0,1] and returns the corresponding range value x in [a,b].
+function bimap(domain, range, interpolate) {
+  var d0 = domain[0], d1 = domain[1], r0 = range[0], r1 = range[1];
+  if (d1 < d0) d0 = normalize(d1, d0), r0 = interpolate(r1, r0);
+  else d0 = normalize(d0, d1), r0 = interpolate(r0, r1);
+  return function(x) { return r0(d0(x)); };
+}
+
+function polymap(domain, range, interpolate) {
+  var j = Math.min(domain.length, range.length) - 1,
+      d = new Array(j),
+      r = new Array(j),
+      i = -1;
+
+  // Reverse descending domains.
+  if (domain[j] < domain[0]) {
+    domain = domain.slice().reverse();
+    range = range.slice().reverse();
+  }
+
+  while (++i < j) {
+    d[i] = normalize(domain[i], domain[i + 1]);
+    r[i] = interpolate(range[i], range[i + 1]);
+  }
+
+  return function(x) {
+    var i = bisectRight(domain, x, 1, j) - 1;
+    return r[i](d[i](x));
+  };
+}
+
+function copy(source, target) {
+  return target
+      .domain(source.domain())
+      .range(source.range())
+      .interpolate(source.interpolate())
+      .clamp(source.clamp())
+      .unknown(source.unknown());
+}
+
+function transformer() {
+  var domain = unit,
+      range = unit,
+      interpolate$1 = interpolate,
+      transform,
+      untransform,
+      unknown,
+      clamp = identity,
+      piecewise,
+      output,
+      input;
+
+  function rescale() {
+    var n = Math.min(domain.length, range.length);
+    if (clamp !== identity) clamp = clamper(domain[0], domain[n - 1]);
+    piecewise = n > 2 ? polymap : bimap;
+    output = input = null;
+    return scale;
+  }
+
+  function scale(x) {
+    return x == null || isNaN(x = +x) ? unknown : (output || (output = piecewise(domain.map(transform), range, interpolate$1)))(transform(clamp(x)));
+  }
+
+  scale.invert = function(y) {
+    return clamp(untransform((input || (input = piecewise(range, domain.map(transform), interpolateNumber)))(y)));
+  };
+
+  scale.domain = function(_) {
+    return arguments.length ? (domain = Array.from(_, number$1), rescale()) : domain.slice();
+  };
+
+  scale.range = function(_) {
+    return arguments.length ? (range = Array.from(_), rescale()) : range.slice();
+  };
+
+  scale.rangeRound = function(_) {
+    return range = Array.from(_), interpolate$1 = interpolateRound, rescale();
+  };
+
+  scale.clamp = function(_) {
+    return arguments.length ? (clamp = _ ? true : identity, rescale()) : clamp !== identity;
+  };
+
+  scale.interpolate = function(_) {
+    return arguments.length ? (interpolate$1 = _, rescale()) : interpolate$1;
+  };
+
+  scale.unknown = function(_) {
+    return arguments.length ? (unknown = _, scale) : unknown;
+  };
+
+  return function(t, u) {
+    transform = t, untransform = u;
+    return rescale();
+  };
+}
+
+function continuous() {
+  return transformer()(identity, identity);
+}
+
+function formatDecimal(x) {
+  return Math.abs(x = Math.round(x)) >= 1e21
+      ? x.toLocaleString("en").replace(/,/g, "")
+      : x.toString(10);
+}
+
+// Computes the decimal coefficient and exponent of the specified number x with
+// significant digits p, where x is positive and p is in [1, 21] or undefined.
+// For example, formatDecimalParts(1.23) returns ["123", 0].
+function formatDecimalParts(x, p) {
+  if ((i = (x = p ? x.toExponential(p - 1) : x.toExponential()).indexOf("e")) < 0) return null; // NaN, ±Infinity
+  var i, coefficient = x.slice(0, i);
+
+  // The string returned by toExponential either has the form \d\.\d+e[-+]\d+
+  // (e.g., 1.2e+3) or the form \de[-+]\d+ (e.g., 1e+3).
+  return [
+    coefficient.length > 1 ? coefficient[0] + coefficient.slice(2) : coefficient,
+    +x.slice(i + 1)
+  ];
+}
+
+function exponent(x) {
+  return x = formatDecimalParts(Math.abs(x)), x ? x[1] : NaN;
+}
+
+function formatGroup(grouping, thousands) {
+  return function(value, width) {
+    var i = value.length,
+        t = [],
+        j = 0,
+        g = grouping[0],
+        length = 0;
+
+    while (i > 0 && g > 0) {
+      if (length + g + 1 > width) g = Math.max(1, width - length);
+      t.push(value.substring(i -= g, i + g));
+      if ((length += g + 1) > width) break;
+      g = grouping[j = (j + 1) % grouping.length];
+    }
+
+    return t.reverse().join(thousands);
+  };
+}
+
+function formatNumerals(numerals) {
+  return function(value) {
+    return value.replace(/[0-9]/g, function(i) {
+      return numerals[+i];
+    });
+  };
+}
+
+// [[fill]align][sign][symbol][0][width][,][.precision][~][type]
+var re = /^(?:(.)?([<>=^]))?([+\-( ])?([$#])?(0)?(\d+)?(,)?(\.\d+)?(~)?([a-z%])?$/i;
+
+function formatSpecifier(specifier) {
+  if (!(match = re.exec(specifier))) throw new Error("invalid format: " + specifier);
+  var match;
+  return new FormatSpecifier({
+    fill: match[1],
+    align: match[2],
+    sign: match[3],
+    symbol: match[4],
+    zero: match[5],
+    width: match[6],
+    comma: match[7],
+    precision: match[8] && match[8].slice(1),
+    trim: match[9],
+    type: match[10]
+  });
+}
+
+formatSpecifier.prototype = FormatSpecifier.prototype; // instanceof
+
+function FormatSpecifier(specifier) {
+  this.fill = specifier.fill === undefined ? " " : specifier.fill + "";
+  this.align = specifier.align === undefined ? ">" : specifier.align + "";
+  this.sign = specifier.sign === undefined ? "-" : specifier.sign + "";
+  this.symbol = specifier.symbol === undefined ? "" : specifier.symbol + "";
+  this.zero = !!specifier.zero;
+  this.width = specifier.width === undefined ? undefined : +specifier.width;
+  this.comma = !!specifier.comma;
+  this.precision = specifier.precision === undefined ? undefined : +specifier.precision;
+  this.trim = !!specifier.trim;
+  this.type = specifier.type === undefined ? "" : specifier.type + "";
+}
+
+FormatSpecifier.prototype.toString = function() {
+  return this.fill
+      + this.align
+      + this.sign
+      + this.symbol
+      + (this.zero ? "0" : "")
+      + (this.width === undefined ? "" : Math.max(1, this.width | 0))
+      + (this.comma ? "," : "")
+      + (this.precision === undefined ? "" : "." + Math.max(0, this.precision | 0))
+      + (this.trim ? "~" : "")
+      + this.type;
+};
+
+// Trims insignificant zeros, e.g., replaces 1.2000k with 1.2k.
+function formatTrim(s) {
+  out: for (var n = s.length, i = 1, i0 = -1, i1; i < n; ++i) {
+    switch (s[i]) {
+      case ".": i0 = i1 = i; break;
+      case "0": if (i0 === 0) i0 = i; i1 = i; break;
+      default: if (!+s[i]) break out; if (i0 > 0) i0 = 0; break;
+    }
+  }
+  return i0 > 0 ? s.slice(0, i0) + s.slice(i1 + 1) : s;
+}
+
+var prefixExponent;
+
+function formatPrefixAuto(x, p) {
+  var d = formatDecimalParts(x, p);
+  if (!d) return x + "";
+  var coefficient = d[0],
+      exponent = d[1],
+      i = exponent - (prefixExponent = Math.max(-8, Math.min(8, Math.floor(exponent / 3))) * 3) + 1,
+      n = coefficient.length;
+  return i === n ? coefficient
+      : i > n ? coefficient + new Array(i - n + 1).join("0")
+      : i > 0 ? coefficient.slice(0, i) + "." + coefficient.slice(i)
+      : "0." + new Array(1 - i).join("0") + formatDecimalParts(x, Math.max(0, p + i - 1))[0]; // less than 1y!
+}
+
+function formatRounded(x, p) {
+  var d = formatDecimalParts(x, p);
+  if (!d) return x + "";
+  var coefficient = d[0],
+      exponent = d[1];
+  return exponent < 0 ? "0." + new Array(-exponent).join("0") + coefficient
+      : coefficient.length > exponent + 1 ? coefficient.slice(0, exponent + 1) + "." + coefficient.slice(exponent + 1)
+      : coefficient + new Array(exponent - coefficient.length + 2).join("0");
+}
+
+var formatTypes = {
+  "%": (x, p) => (x * 100).toFixed(p),
+  "b": (x) => Math.round(x).toString(2),
+  "c": (x) => x + "",
+  "d": formatDecimal,
+  "e": (x, p) => x.toExponential(p),
+  "f": (x, p) => x.toFixed(p),
+  "g": (x, p) => x.toPrecision(p),
+  "o": (x) => Math.round(x).toString(8),
+  "p": (x, p) => formatRounded(x * 100, p),
+  "r": formatRounded,
+  "s": formatPrefixAuto,
+  "X": (x) => Math.round(x).toString(16).toUpperCase(),
+  "x": (x) => Math.round(x).toString(16)
+};
+
+function identity$1(x) {
+  return x;
+}
+
+var map = Array.prototype.map,
+    prefixes = ["y","z","a","f","p","n","µ","m","","k","M","G","T","P","E","Z","Y"];
+
+function formatLocale(locale) {
+  var group = locale.grouping === undefined || locale.thousands === undefined ? identity$1 : formatGroup(map.call(locale.grouping, Number), locale.thousands + ""),
+      currencyPrefix = locale.currency === undefined ? "" : locale.currency[0] + "",
+      currencySuffix = locale.currency === undefined ? "" : locale.currency[1] + "",
+      decimal = locale.decimal === undefined ? "." : locale.decimal + "",
+      numerals = locale.numerals === undefined ? identity$1 : formatNumerals(map.call(locale.numerals, String)),
+      percent = locale.percent === undefined ? "%" : locale.percent + "",
+      minus = locale.minus === undefined ? "−" : locale.minus + "",
+      nan = locale.nan === undefined ? "NaN" : locale.nan + "";
+
+  function newFormat(specifier) {
+    specifier = formatSpecifier(specifier);
+
+    var fill = specifier.fill,
+        align = specifier.align,
+        sign = specifier.sign,
+        symbol = specifier.symbol,
+        zero = specifier.zero,
+        width = specifier.width,
+        comma = specifier.comma,
+        precision = specifier.precision,
+        trim = specifier.trim,
+        type = specifier.type;
+
+    // The "n" type is an alias for ",g".
+    if (type === "n") comma = true, type = "g";
+
+    // The "" type, and any invalid type, is an alias for ".12~g".
+    else if (!formatTypes[type]) precision === undefined && (precision = 12), trim = true, type = "g";
+
+    // If zero fill is specified, padding goes after sign and before digits.
+    if (zero || (fill === "0" && align === "=")) zero = true, fill = "0", align = "=";
+
+    // Compute the prefix and suffix.
+    // For SI-prefix, the suffix is lazily computed.
+    var prefix = symbol === "$" ? currencyPrefix : symbol === "#" && /[boxX]/.test(type) ? "0" + type.toLowerCase() : "",
+        suffix = symbol === "$" ? currencySuffix : /[%p]/.test(type) ? percent : "";
+
+    // What format function should we use?
+    // Is this an integer type?
+    // Can this type generate exponential notation?
+    var formatType = formatTypes[type],
+        maybeSuffix = /[defgprs%]/.test(type);
+
+    // Set the default precision if not specified,
+    // or clamp the specified precision to the supported range.
+    // For significant precision, it must be in [1, 21].
+    // For fixed precision, it must be in [0, 20].
+    precision = precision === undefined ? 6
+        : /[gprs]/.test(type) ? Math.max(1, Math.min(21, precision))
+        : Math.max(0, Math.min(20, precision));
+
+    function format(value) {
+      var valuePrefix = prefix,
+          valueSuffix = suffix,
+          i, n, c;
+
+      if (type === "c") {
+        valueSuffix = formatType(value) + valueSuffix;
+        value = "";
+      } else {
+        value = +value;
+
+        // Determine the sign. -0 is not less than 0, but 1 / -0 is!
+        var valueNegative = value < 0 || 1 / value < 0;
+
+        // Perform the initial formatting.
+        value = isNaN(value) ? nan : formatType(Math.abs(value), precision);
+
+        // Trim insignificant zeros.
+        if (trim) value = formatTrim(value);
+
+        // If a negative value rounds to zero after formatting, and no explicit positive sign is requested, hide the sign.
+        if (valueNegative && +value === 0 && sign !== "+") valueNegative = false;
+
+        // Compute the prefix and suffix.
+        valuePrefix = (valueNegative ? (sign === "(" ? sign : minus) : sign === "-" || sign === "(" ? "" : sign) + valuePrefix;
+        valueSuffix = (type === "s" ? prefixes[8 + prefixExponent / 3] : "") + valueSuffix + (valueNegative && sign === "(" ? ")" : "");
+
+        // Break the formatted value into the integer “value” part that can be
+        // grouped, and fractional or exponential “suffix” part that is not.
+        if (maybeSuffix) {
+          i = -1, n = value.length;
+          while (++i < n) {
+            if (c = value.charCodeAt(i), 48 > c || c > 57) {
+              valueSuffix = (c === 46 ? decimal + value.slice(i + 1) : value.slice(i)) + valueSuffix;
+              value = value.slice(0, i);
+              break;
+            }
+          }
+        }
+      }
+
+      // If the fill character is not "0", grouping is applied before padding.
+      if (comma && !zero) value = group(value, Infinity);
+
+      // Compute the padding.
+      var length = valuePrefix.length + value.length + valueSuffix.length,
+          padding = length < width ? new Array(width - length + 1).join(fill) : "";
+
+      // If the fill character is "0", grouping is applied after padding.
+      if (comma && zero) value = group(padding + value, padding.length ? width - valueSuffix.length : Infinity), padding = "";
+
+      // Reconstruct the final output based on the desired alignment.
+      switch (align) {
+        case "<": value = valuePrefix + value + valueSuffix + padding; break;
+        case "=": value = valuePrefix + padding + value + valueSuffix; break;
+        case "^": value = padding.slice(0, length = padding.length >> 1) + valuePrefix + value + valueSuffix + padding.slice(length); break;
+        default: value = padding + valuePrefix + value + valueSuffix; break;
+      }
+
+      return numerals(value);
+    }
+
+    format.toString = function() {
+      return specifier + "";
+    };
+
+    return format;
+  }
+
+  function formatPrefix(specifier, value) {
+    var f = newFormat((specifier = formatSpecifier(specifier), specifier.type = "f", specifier)),
+        e = Math.max(-8, Math.min(8, Math.floor(exponent(value) / 3))) * 3,
+        k = Math.pow(10, -e),
+        prefix = prefixes[8 + e / 3];
+    return function(value) {
+      return f(k * value) + prefix;
+    };
+  }
+
+  return {
+    format: newFormat,
+    formatPrefix: formatPrefix
+  };
+}
+
+var locale;
+var format;
+var formatPrefix;
+
+defaultLocale({
+  thousands: ",",
+  grouping: [3],
+  currency: ["$", ""]
+});
+
+function defaultLocale(definition) {
+  locale = formatLocale(definition);
+  format = locale.format;
+  formatPrefix = locale.formatPrefix;
+  return locale;
+}
+
+function precisionFixed(step) {
+  return Math.max(0, -exponent(Math.abs(step)));
+}
+
+function precisionPrefix(step, value) {
+  return Math.max(0, Math.max(-8, Math.min(8, Math.floor(exponent(value) / 3))) * 3 - exponent(Math.abs(step)));
+}
+
+function precisionRound(step, max) {
+  step = Math.abs(step), max = Math.abs(max) - step;
+  return Math.max(0, exponent(max) - exponent(step)) + 1;
+}
+
+function tickFormat(start, stop, count, specifier) {
+  var step = tickStep(start, stop, count),
+      precision;
+  specifier = formatSpecifier(specifier == null ? ",f" : specifier);
+  switch (specifier.type) {
+    case "s": {
+      var value = Math.max(Math.abs(start), Math.abs(stop));
+      if (specifier.precision == null && !isNaN(precision = precisionPrefix(step, value))) specifier.precision = precision;
+      return formatPrefix(specifier, value);
+    }
+    case "":
+    case "e":
+    case "g":
+    case "p":
+    case "r": {
+      if (specifier.precision == null && !isNaN(precision = precisionRound(step, Math.max(Math.abs(start), Math.abs(stop))))) specifier.precision = precision - (specifier.type === "e");
+      break;
+    }
+    case "f":
+    case "%": {
+      if (specifier.precision == null && !isNaN(precision = precisionFixed(step))) specifier.precision = precision - (specifier.type === "%") * 2;
+      break;
+    }
+  }
+  return format(specifier);
+}
+
+function linearish(scale) {
+  var domain = scale.domain;
+
+  scale.ticks = function(count) {
+    var d = domain();
+    return ticks(d[0], d[d.length - 1], count == null ? 10 : count);
+  };
+
+  scale.tickFormat = function(count, specifier) {
+    var d = domain();
+    return tickFormat(d[0], d[d.length - 1], count == null ? 10 : count, specifier);
+  };
+
+  scale.nice = function(count) {
+    if (count == null) count = 10;
+
+    var d = domain();
+    var i0 = 0;
+    var i1 = d.length - 1;
+    var start = d[i0];
+    var stop = d[i1];
+    var prestep;
+    var step;
+    var maxIter = 10;
+
+    if (stop < start) {
+      step = start, start = stop, stop = step;
+      step = i0, i0 = i1, i1 = step;
+    }
+    
+    while (maxIter-- > 0) {
+      step = tickIncrement(start, stop, count);
+      if (step === prestep) {
+        d[i0] = start;
+        d[i1] = stop;
+        return domain(d);
+      } else if (step > 0) {
+        start = Math.floor(start / step) * step;
+        stop = Math.ceil(stop / step) * step;
+      } else if (step < 0) {
+        start = Math.ceil(start * step) / step;
+        stop = Math.floor(stop * step) / step;
+      } else {
+        break;
+      }
+      prestep = step;
+    }
+
+    return scale;
+  };
+
+  return scale;
+}
+
+function linear$1() {
+  var scale = continuous();
+
+  scale.copy = function() {
+    return copy(scale, linear$1());
+  };
+
+  initRange.apply(scale, arguments);
+
+  return linearish(scale);
+}
 
 var xhtml = "http://www.w3.org/1999/xhtml";
 
@@ -188,7 +1493,7 @@ EnterNode.prototype = {
   querySelectorAll: function(selector) { return this._parent.querySelectorAll(selector); }
 };
 
-function constant(x) {
+function constant$1(x) {
   return function() {
     return x;
   };
@@ -275,7 +1580,7 @@ function selection_data(value, key) {
       parents = this._parents,
       groups = this._groups;
 
-  if (typeof value !== "function") value = constant(value);
+  if (typeof value !== "function") value = constant$1(value);
 
   for (var m = groups.length, update = new Array(m), enter = new Array(m), exit = new Array(m), j = 0; j < m; ++j) {
     var parent = parents[j],
@@ -372,7 +1677,7 @@ function selection_order() {
 }
 
 function selection_sort(compare) {
-  if (!compare) compare = ascending;
+  if (!compare) compare = ascending$1;
 
   function compareNode(a, b) {
     return a && b ? compare(a.__data__, b.__data__) : !a - !b;
@@ -390,7 +1695,7 @@ function selection_sort(compare) {
   return new Selection(sortgroups, this._parents).order();
 }
 
-function ascending(a, b) {
+function ascending$1(a, b) {
   return a < b ? -1 : a > b ? 1 : a >= b ? 0 : NaN;
 }
 
@@ -922,150 +2227,6 @@ function select(selector) {
   return typeof selector === "string"
       ? new Selection([[document.querySelector(selector)]], [document.documentElement])
       : new Selection([[selector]], root);
-}
-
-function ascending$1(a, b) {
-  return a == null || b == null ? NaN : a < b ? -1 : a > b ? 1 : a >= b ? 0 : NaN;
-}
-
-function descending(a, b) {
-  return a == null || b == null ? NaN
-    : b < a ? -1
-    : b > a ? 1
-    : b >= a ? 0
-    : NaN;
-}
-
-function bisector(f) {
-  let compare1, compare2, delta;
-
-  // If an accessor is specified, promote it to a comparator. In this case we
-  // can test whether the search value is (self-) comparable. We can’t do this
-  // for a comparator (except for specific, known comparators) because we can’t
-  // tell if the comparator is symmetric, and an asymmetric comparator can’t be
-  // used to test whether a single value is comparable.
-  if (f.length !== 2) {
-    compare1 = ascending$1;
-    compare2 = (d, x) => ascending$1(f(d), x);
-    delta = (d, x) => f(d) - x;
-  } else {
-    compare1 = f === ascending$1 || f === descending ? f : zero;
-    compare2 = f;
-    delta = f;
-  }
-
-  function left(a, x, lo = 0, hi = a.length) {
-    if (lo < hi) {
-      if (compare1(x, x) !== 0) return hi;
-      do {
-        const mid = (lo + hi) >>> 1;
-        if (compare2(a[mid], x) < 0) lo = mid + 1;
-        else hi = mid;
-      } while (lo < hi);
-    }
-    return lo;
-  }
-
-  function right(a, x, lo = 0, hi = a.length) {
-    if (lo < hi) {
-      if (compare1(x, x) !== 0) return hi;
-      do {
-        const mid = (lo + hi) >>> 1;
-        if (compare2(a[mid], x) <= 0) lo = mid + 1;
-        else hi = mid;
-      } while (lo < hi);
-    }
-    return lo;
-  }
-
-  function center(a, x, lo = 0, hi = a.length) {
-    const i = left(a, x, lo, hi - 1);
-    return i > lo && delta(a[i - 1], x) > -delta(a[i], x) ? i - 1 : i;
-  }
-
-  return {left, center, right};
-}
-
-function zero() {
-  return 0;
-}
-
-function number(x) {
-  return x === null ? NaN : +x;
-}
-
-const ascendingBisect = bisector(ascending$1);
-const bisectRight = ascendingBisect.right;
-const bisectCenter = bisector(number).center;
-
-const e10 = Math.sqrt(50),
-    e5 = Math.sqrt(10),
-    e2 = Math.sqrt(2);
-
-function tickSpec(start, stop, count) {
-  const step = (stop - start) / Math.max(0, count),
-      power = Math.floor(Math.log10(step)),
-      error = step / Math.pow(10, power),
-      factor = error >= e10 ? 10 : error >= e5 ? 5 : error >= e2 ? 2 : 1;
-  let i1, i2, inc;
-  if (power < 0) {
-    inc = Math.pow(10, -power) / factor;
-    i1 = Math.round(start * inc);
-    i2 = Math.round(stop * inc);
-    if (i1 / inc < start) ++i1;
-    if (i2 / inc > stop) --i2;
-    inc = -inc;
-  } else {
-    inc = Math.pow(10, power) * factor;
-    i1 = Math.round(start / inc);
-    i2 = Math.round(stop / inc);
-    if (i1 * inc < start) ++i1;
-    if (i2 * inc > stop) --i2;
-  }
-  if (i2 < i1 && 0.5 <= count && count < 2) return tickSpec(start, stop, count * 2);
-  return [i1, i2, inc];
-}
-
-function ticks(start, stop, count) {
-  stop = +stop, start = +start, count = +count;
-  if (!(count > 0)) return [];
-  if (start === stop) return [start];
-  const reverse = stop < start, [i1, i2, inc] = reverse ? tickSpec(stop, start, count) : tickSpec(start, stop, count);
-  if (!(i2 >= i1)) return [];
-  const n = i2 - i1 + 1, ticks = new Array(n);
-  if (reverse) {
-    if (inc < 0) for (let i = 0; i < n; ++i) ticks[i] = (i2 - i) / -inc;
-    else for (let i = 0; i < n; ++i) ticks[i] = (i2 - i) * inc;
-  } else {
-    if (inc < 0) for (let i = 0; i < n; ++i) ticks[i] = (i1 + i) / -inc;
-    else for (let i = 0; i < n; ++i) ticks[i] = (i1 + i) * inc;
-  }
-  return ticks;
-}
-
-function tickIncrement(start, stop, count) {
-  stop = +stop, start = +start, count = +count;
-  return tickSpec(start, stop, count)[2];
-}
-
-function tickStep(start, stop, count) {
-  stop = +stop, start = +start, count = +count;
-  const reverse = stop < start, inc = reverse ? tickIncrement(stop, start, count) : tickIncrement(start, stop, count);
-  return (reverse ? -1 : 1) * (inc < 0 ? 1 / -inc : inc);
-}
-
-function range(start, stop, step) {
-  start = +start, stop = +stop, step = (n = arguments.length) < 2 ? (stop = start, start = 0, 1) : n < 3 ? 1 : +step;
-
-  var i = -1,
-      n = Math.max(0, Math.ceil((stop - start) / step)) | 0,
-      range = new Array(n);
-
-  while (++i < n) {
-    range[i] = start + i * step;
-  }
-
-  return range;
 }
 
 /*!
@@ -1949,15 +3110,15 @@ function range(start, stop, step) {
 	});
 }(window, FPSMeter));
 
-function precisionFixed(step) {
+function precisionFixed$1(step) {
   return Math.max(0, -exponent$1(Math.abs(step)));
 }
 
-function precisionPrefix(step, value) {
+function precisionPrefix$1(step, value) {
   return Math.max(0, Math.max(-8, Math.min(8, Math.floor(exponent$1(value) / 3))) * 3 - exponent$1(Math.abs(step)));
 }
 
-function identity$1(x) {
+function identity$1$1(x) {
   return x;
 }
 
@@ -2003,7 +3164,7 @@ function axis(orient, scale) {
 
   function axis(context) {
     var values = tickValues == null ? (scale.ticks ? scale.ticks.apply(scale, tickArguments) : scale.domain()) : tickValues,
-        format = tickFormat == null ? (scale.tickFormat ? scale.tickFormat.apply(scale, tickArguments) : identity$1) : tickFormat,
+        format = tickFormat == null ? (scale.tickFormat ? scale.tickFormat.apply(scale, tickArguments) : identity$1$1) : tickFormat,
         spacing = Math.max(tickSizeInner, 0) + tickPadding,
         range = scale.range(),
         range0 = +range[0] + offset,
@@ -2181,13 +3342,13 @@ function bisector$1(f) {
   return {left, center, right};
 }
 
-function number$1(x) {
+function number$1$1(x) {
   return x === null ? NaN : +x;
 }
 
 const ascendingBisect$1 = bisector$1(ascending$1$1);
 const bisectRight$1 = ascendingBisect$1.right;
-bisector$1(number$1).center;
+bisector$1(number$1$1).center;
 var bisect = bisectRight$1;
 
 var e10$1 = Math.sqrt(50),
@@ -2245,7 +3406,7 @@ function tickStep$1(start, stop, count) {
   return stop < start ? -step1 : step1;
 }
 
-function initRange(domain, range) {
+function initRange$1(domain, range) {
   switch (arguments.length) {
     case 0: break;
     case 1: this.range(domain); break;
@@ -2254,7 +3415,7 @@ function initRange(domain, range) {
   return this;
 }
 
-function numberArray(a, b) {
+function numberArray$1(a, b) {
   if (!b) b = [];
   var n = a ? Math.min(b.length, a.length) : 0,
       c = b.slice(),
@@ -2265,18 +3426,18 @@ function numberArray(a, b) {
   };
 }
 
-function isNumberArray(x) {
+function isNumberArray$1(x) {
   return ArrayBuffer.isView(x) && !(x instanceof DataView);
 }
 
-function genericArray(a, b) {
+function genericArray$1(a, b) {
   var nb = b ? b.length : 0,
       na = a ? Math.min(nb, a.length) : 0,
       x = new Array(na),
       c = new Array(nb),
       i;
 
-  for (i = 0; i < na; ++i) x[i] = interpolate(a[i], b[i]);
+  for (i = 0; i < na; ++i) x[i] = interpolate$1(a[i], b[i]);
   for (; i < nb; ++i) c[i] = b[i];
 
   return function(t) {
@@ -2285,20 +3446,20 @@ function genericArray(a, b) {
   };
 }
 
-function date(a, b) {
+function date$1(a, b) {
   var d = new Date;
   return a = +a, b = +b, function(t) {
     return d.setTime(a * (1 - t) + b * t), d;
   };
 }
 
-function interpolateNumber(a, b) {
+function interpolateNumber$1(a, b) {
   return a = +a, b = +b, function(t) {
     return a * (1 - t) + b * t;
   };
 }
 
-function object(a, b) {
+function object$1(a, b) {
   var i = {},
       c = {},
       k;
@@ -2308,7 +3469,7 @@ function object(a, b) {
 
   for (k in b) {
     if (k in a) {
-      i[k] = interpolate(a[k], b[k]);
+      i[k] = interpolate$1(a[k], b[k]);
     } else {
       c[k] = b[k];
     }
@@ -2320,23 +3481,23 @@ function object(a, b) {
   };
 }
 
-var reA = /[-+]?(?:\d+\.?\d*|\.?\d+)(?:[eE][-+]?\d+)?/g,
-    reB = new RegExp(reA.source, "g");
+var reA$1 = /[-+]?(?:\d+\.?\d*|\.?\d+)(?:[eE][-+]?\d+)?/g,
+    reB$1 = new RegExp(reA$1.source, "g");
 
-function zero$1(b) {
+function zero$2(b) {
   return function() {
     return b;
   };
 }
 
-function one(b) {
+function one$1(b) {
   return function(t) {
     return b(t) + "";
   };
 }
 
-function string(a, b) {
-  var bi = reA.lastIndex = reB.lastIndex = 0, // scan index for next number in b
+function string$1(a, b) {
+  var bi = reA$1.lastIndex = reB$1.lastIndex = 0, // scan index for next number in b
       am, // current match in a
       bm, // current match in b
       bs, // string preceding current number in b, if any
@@ -2348,8 +3509,8 @@ function string(a, b) {
   a = a + "", b = b + "";
 
   // Interpolate pairs of numbers in a & b.
-  while ((am = reA.exec(a))
-      && (bm = reB.exec(b))) {
+  while ((am = reA$1.exec(a))
+      && (bm = reB$1.exec(b))) {
     if ((bs = bm.index) > bi) { // a string precedes the next number in b
       bs = b.slice(bi, bs);
       if (s[i]) s[i] += bs; // coalesce with previous string
@@ -2360,9 +3521,9 @@ function string(a, b) {
       else s[++i] = bm;
     } else { // interpolate non-matching numbers
       s[++i] = null;
-      q.push({i: i, x: interpolateNumber(am, bm)});
+      q.push({i: i, x: interpolateNumber$1(am, bm)});
     }
-    bi = reB.lastIndex;
+    bi = reB$1.lastIndex;
   }
 
   // Add remains of b.
@@ -2375,34 +3536,34 @@ function string(a, b) {
   // Special optimization for only a single match.
   // Otherwise, interpolate each of the numbers and rejoin the string.
   return s.length < 2 ? (q[0]
-      ? one(q[0].x)
-      : zero$1(b))
+      ? one$1(q[0].x)
+      : zero$2(b))
       : (b = q.length, function(t) {
           for (var i = 0, o; i < b; ++i) s[(o = q[i]).i] = o.x(t);
           return s.join("");
         });
 }
 
-function interpolate(a, b) {
+function interpolate$1(a, b) {
   var t = typeof b, c;
   return b == null || t === "boolean" ? constant$3(b)
-      : (t === "number" ? interpolateNumber
-      : t === "string" ? ((c = color$1(b)) ? (b = c, rgb$2) : string)
+      : (t === "number" ? interpolateNumber$1
+      : t === "string" ? ((c = color$1(b)) ? (b = c, rgb$2) : string$1)
       : b instanceof color$1 ? rgb$2
-      : b instanceof Date ? date
-      : isNumberArray(b) ? numberArray
-      : Array.isArray(b) ? genericArray
-      : typeof b.valueOf !== "function" && typeof b.toString !== "function" || isNaN(b) ? object
-      : interpolateNumber)(a, b);
+      : b instanceof Date ? date$1
+      : isNumberArray$1(b) ? numberArray$1
+      : Array.isArray(b) ? genericArray$1
+      : typeof b.valueOf !== "function" && typeof b.toString !== "function" || isNaN(b) ? object$1
+      : interpolateNumber$1)(a, b);
 }
 
-function interpolateRound(a, b) {
+function interpolateRound$1(a, b) {
   return a = +a, b = +b, function(t) {
     return Math.round(a * (1 - t) + b * t);
   };
 }
 
-function constants(x) {
+function constants$1(x) {
   return function() {
     return x;
   };
@@ -2412,19 +3573,19 @@ function number$3(x) {
   return +x;
 }
 
-var unit = [0, 1];
+var unit$1 = [0, 1];
 
-function identity(x) {
+function identity$2(x) {
   return x;
 }
 
-function normalize(a, b) {
+function normalize$1(a, b) {
   return (b -= (a = +a))
       ? function(x) { return (x - a) / b; }
-      : constants(isNaN(b) ? NaN : 0.5);
+      : constants$1(isNaN(b) ? NaN : 0.5);
 }
 
-function clamper(a, b) {
+function clamper$1(a, b) {
   var t;
   if (a > b) t = a, a = b, b = t;
   return function(x) { return Math.max(a, Math.min(b, x)); };
@@ -2432,14 +3593,14 @@ function clamper(a, b) {
 
 // normalize(a, b)(x) takes a domain value x in [a,b] and returns the corresponding parameter t in [0,1].
 // interpolate(a, b)(t) takes a parameter t in [0,1] and returns the corresponding range value x in [a,b].
-function bimap(domain, range, interpolate) {
+function bimap$1(domain, range, interpolate) {
   var d0 = domain[0], d1 = domain[1], r0 = range[0], r1 = range[1];
-  if (d1 < d0) d0 = normalize(d1, d0), r0 = interpolate(r1, r0);
-  else d0 = normalize(d0, d1), r0 = interpolate(r0, r1);
+  if (d1 < d0) d0 = normalize$1(d1, d0), r0 = interpolate(r1, r0);
+  else d0 = normalize$1(d0, d1), r0 = interpolate(r0, r1);
   return function(x) { return r0(d0(x)); };
 }
 
-function polymap(domain, range, interpolate) {
+function polymap$1(domain, range, interpolate) {
   var j = Math.min(domain.length, range.length) - 1,
       d = new Array(j),
       r = new Array(j),
@@ -2452,7 +3613,7 @@ function polymap(domain, range, interpolate) {
   }
 
   while (++i < j) {
-    d[i] = normalize(domain[i], domain[i + 1]);
+    d[i] = normalize$1(domain[i], domain[i + 1]);
     r[i] = interpolate(range[i], range[i + 1]);
   }
 
@@ -2462,7 +3623,7 @@ function polymap(domain, range, interpolate) {
   };
 }
 
-function copy(source, target) {
+function copy$1(source, target) {
   return target
       .domain(source.domain())
       .range(source.range())
@@ -2471,32 +3632,32 @@ function copy(source, target) {
       .unknown(source.unknown());
 }
 
-function transformer() {
-  var domain = unit,
-      range = unit,
-      interpolate$1 = interpolate,
+function transformer$1() {
+  var domain = unit$1,
+      range = unit$1,
+      interpolate$1$1 = interpolate$1,
       transform,
       untransform,
       unknown,
-      clamp = identity,
+      clamp = identity$2,
       piecewise,
       output,
       input;
 
   function rescale() {
     var n = Math.min(domain.length, range.length);
-    if (clamp !== identity) clamp = clamper(domain[0], domain[n - 1]);
-    piecewise = n > 2 ? polymap : bimap;
+    if (clamp !== identity$2) clamp = clamper$1(domain[0], domain[n - 1]);
+    piecewise = n > 2 ? polymap$1 : bimap$1;
     output = input = null;
     return scale;
   }
 
   function scale(x) {
-    return x == null || isNaN(x = +x) ? unknown : (output || (output = piecewise(domain.map(transform), range, interpolate$1)))(transform(clamp(x)));
+    return x == null || isNaN(x = +x) ? unknown : (output || (output = piecewise(domain.map(transform), range, interpolate$1$1)))(transform(clamp(x)));
   }
 
   scale.invert = function(y) {
-    return clamp(untransform((input || (input = piecewise(range, domain.map(transform), interpolateNumber)))(y)));
+    return clamp(untransform((input || (input = piecewise(range, domain.map(transform), interpolateNumber$1)))(y)));
   };
 
   scale.domain = function(_) {
@@ -2508,15 +3669,15 @@ function transformer() {
   };
 
   scale.rangeRound = function(_) {
-    return range = Array.from(_), interpolate$1 = interpolateRound, rescale();
+    return range = Array.from(_), interpolate$1$1 = interpolateRound$1, rescale();
   };
 
   scale.clamp = function(_) {
-    return arguments.length ? (clamp = _ ? true : identity, rescale()) : clamp !== identity;
+    return arguments.length ? (clamp = _ ? true : identity$2, rescale()) : clamp !== identity$2;
   };
 
   scale.interpolate = function(_) {
-    return arguments.length ? (interpolate$1 = _, rescale()) : interpolate$1;
+    return arguments.length ? (interpolate$1$1 = _, rescale()) : interpolate$1$1;
   };
 
   scale.unknown = function(_) {
@@ -2529,18 +3690,18 @@ function transformer() {
   };
 }
 
-function continuous() {
-  return transformer()(identity, identity);
+function continuous$1() {
+  return transformer$1()(identity$2, identity$2);
 }
 
-function tickFormat(start, stop, count, specifier) {
+function tickFormat$1(start, stop, count, specifier) {
   var step = tickStep$1(start, stop, count),
       precision;
   specifier = formatSpecifier$1(specifier == null ? ",f" : specifier);
   switch (specifier.type) {
     case "s": {
       var value = Math.max(Math.abs(start), Math.abs(stop));
-      if (specifier.precision == null && !isNaN(precision = precisionPrefix(step, value))) specifier.precision = precision;
+      if (specifier.precision == null && !isNaN(precision = precisionPrefix$1(step, value))) specifier.precision = precision;
       return formatPrefix$1(specifier, value);
     }
     case "":
@@ -2553,14 +3714,14 @@ function tickFormat(start, stop, count, specifier) {
     }
     case "f":
     case "%": {
-      if (specifier.precision == null && !isNaN(precision = precisionFixed(step))) specifier.precision = precision - (specifier.type === "%") * 2;
+      if (specifier.precision == null && !isNaN(precision = precisionFixed$1(step))) specifier.precision = precision - (specifier.type === "%") * 2;
       break;
     }
   }
   return format$1(specifier);
 }
 
-function linearish(scale) {
+function linearish$1(scale) {
   var domain = scale.domain;
 
   scale.ticks = function(count) {
@@ -2570,7 +3731,7 @@ function linearish(scale) {
 
   scale.tickFormat = function(count, specifier) {
     var d = domain();
-    return tickFormat(d[0], d[d.length - 1], count == null ? 10 : count, specifier);
+    return tickFormat$1(d[0], d[d.length - 1], count == null ? 10 : count, specifier);
   };
 
   scale.nice = function(count) {
@@ -2614,16 +3775,16 @@ function linearish(scale) {
   return scale;
 }
 
-function linear() {
-  var scale = continuous();
+function linear$2() {
+  var scale = continuous$1();
 
   scale.copy = function() {
-    return copy(scale, linear());
+    return copy$1(scale, linear$2());
   };
 
-  initRange.apply(scale, arguments);
+  initRange$1.apply(scale, arguments);
 
-  return linearish(scale);
+  return linearish$1(scale);
 }
 
 var xhtml$1 = "http://www.w3.org/1999/xhtml";
@@ -2814,7 +3975,7 @@ EnterNode$1.prototype = {
   querySelectorAll: function(selector) { return this._parent.querySelectorAll(selector); }
 };
 
-function constant$1(x) {
+function constant$2(x) {
   return function() {
     return x;
   };
@@ -2901,7 +4062,7 @@ function selection_data$1(value, key) {
       parents = this._parents,
       groups = this._groups;
 
-  if (typeof value !== "function") value = constant$1(value);
+  if (typeof value !== "function") value = constant$2(value);
 
   for (var m = groups.length, update = new Array(m), enter = new Array(m), exit = new Array(m), j = 0; j < m; ++j) {
     var parent = parents[j],
@@ -3809,7 +4970,7 @@ class SVGInteractor {
           anchor.attr("transform", `translate(0, ${this.height / 2})`);
           break;
         case "zero":
-          const yScale = linear()
+          const yScale = linear$2()
             .domain(this.currentYRange)
             .range([this.height, 0]);
 
@@ -3840,7 +5001,7 @@ class SVGInteractor {
           anchor.attr("transform", `translate(${this.width}, 0)`);
           break;
         case "zero":
-          const xScale = linear()
+          const xScale = linear$2()
             .domain(this.currentXRange)
             .range([0, this.width]);
 
@@ -3863,7 +5024,7 @@ class SVGInteractor {
     }
 
     if (!genomic) {
-      return axis.scale(linear().domain(domain).range(range));
+      return axis.scale(linear$2().domain(domain).range(range));
     }
 
     let tickInfo;
@@ -3874,7 +5035,7 @@ class SVGInteractor {
     }
 
     return axis
-      .scale(linear().domain(domain).range(range))
+      .scale(linear$2().domain(domain).range(range))
       .tickValues(tickInfo.tickCoords)
       .tickFormat((_, index) => tickInfo.tickLabels[index]);
   }
@@ -4392,7 +5553,10 @@ class MouseReader {
    * @param {MouseEvent} event from the event it is called from
    */
   _onSelect(event) {
-    if (this.tool === "box" && this.isUniDirectionalSelectionAllowed) {
+    if (
+      (this.tool === "box" || this.tool === "boxh" || this.tool === "boxv") &&
+      this.isUniDirectionalSelectionAllowed
+    ) {
       this.handler.selectPoints(
         getPointsBySelectMode(
           this.tool,
@@ -8389,7 +9553,7 @@ class WebGLVis {
 
     const offscreenCanvas = this.canvas.transferControlToOffscreen();
 
-    this.webglWorker = new Worker(new URL("offscreen-webgl-worker-368f04c5-12a46a85.js", import.meta.url),
+    this.webglWorker = new Worker(new URL("offscreen-webgl-worker-368f04c5-f6300088.js", import.meta.url),
       { type: "module" }
     );
     this.webglWorker.postMessage(
@@ -8413,7 +9577,7 @@ class WebGLVis {
     };
 
     this.dataWorkerStream = [];
-    this.dataWorker = new Worker(new URL("data-processor-worker-a4482939-6147ac31.js", import.meta.url),
+    this.dataWorker = new Worker(new URL("data-processor-worker-a4482939-b12f104a.js", import.meta.url),
       { type: "module" }
     );
     this.dataWorker.onmessage = (message) => {
@@ -8637,1168 +9801,7 @@ class WebGLVis {
   }
 }
 
-function initRange$1(domain, range) {
-  switch (arguments.length) {
-    case 0: break;
-    case 1: this.range(domain); break;
-    default: this.range(range).domain(domain); break;
-  }
-  return this;
-}
-
-function define(constructor, factory, prototype) {
-  constructor.prototype = factory.prototype = prototype;
-  prototype.constructor = constructor;
-}
-
-function extend(parent, definition) {
-  var prototype = Object.create(parent.prototype);
-  for (var key in definition) prototype[key] = definition[key];
-  return prototype;
-}
-
-function Color() {}
-
-var darker = 0.7;
-var brighter = 1 / darker;
-
-var reI = "\\s*([+-]?\\d+)\\s*",
-    reN = "\\s*([+-]?(?:\\d*\\.)?\\d+(?:[eE][+-]?\\d+)?)\\s*",
-    reP = "\\s*([+-]?(?:\\d*\\.)?\\d+(?:[eE][+-]?\\d+)?)%\\s*",
-    reHex = /^#([0-9a-f]{3,8})$/,
-    reRgbInteger = new RegExp(`^rgb\\(${reI},${reI},${reI}\\)$`),
-    reRgbPercent = new RegExp(`^rgb\\(${reP},${reP},${reP}\\)$`),
-    reRgbaInteger = new RegExp(`^rgba\\(${reI},${reI},${reI},${reN}\\)$`),
-    reRgbaPercent = new RegExp(`^rgba\\(${reP},${reP},${reP},${reN}\\)$`),
-    reHslPercent = new RegExp(`^hsl\\(${reN},${reP},${reP}\\)$`),
-    reHslaPercent = new RegExp(`^hsla\\(${reN},${reP},${reP},${reN}\\)$`);
-
-var named = {
-  aliceblue: 0xf0f8ff,
-  antiquewhite: 0xfaebd7,
-  aqua: 0x00ffff,
-  aquamarine: 0x7fffd4,
-  azure: 0xf0ffff,
-  beige: 0xf5f5dc,
-  bisque: 0xffe4c4,
-  black: 0x000000,
-  blanchedalmond: 0xffebcd,
-  blue: 0x0000ff,
-  blueviolet: 0x8a2be2,
-  brown: 0xa52a2a,
-  burlywood: 0xdeb887,
-  cadetblue: 0x5f9ea0,
-  chartreuse: 0x7fff00,
-  chocolate: 0xd2691e,
-  coral: 0xff7f50,
-  cornflowerblue: 0x6495ed,
-  cornsilk: 0xfff8dc,
-  crimson: 0xdc143c,
-  cyan: 0x00ffff,
-  darkblue: 0x00008b,
-  darkcyan: 0x008b8b,
-  darkgoldenrod: 0xb8860b,
-  darkgray: 0xa9a9a9,
-  darkgreen: 0x006400,
-  darkgrey: 0xa9a9a9,
-  darkkhaki: 0xbdb76b,
-  darkmagenta: 0x8b008b,
-  darkolivegreen: 0x556b2f,
-  darkorange: 0xff8c00,
-  darkorchid: 0x9932cc,
-  darkred: 0x8b0000,
-  darksalmon: 0xe9967a,
-  darkseagreen: 0x8fbc8f,
-  darkslateblue: 0x483d8b,
-  darkslategray: 0x2f4f4f,
-  darkslategrey: 0x2f4f4f,
-  darkturquoise: 0x00ced1,
-  darkviolet: 0x9400d3,
-  deeppink: 0xff1493,
-  deepskyblue: 0x00bfff,
-  dimgray: 0x696969,
-  dimgrey: 0x696969,
-  dodgerblue: 0x1e90ff,
-  firebrick: 0xb22222,
-  floralwhite: 0xfffaf0,
-  forestgreen: 0x228b22,
-  fuchsia: 0xff00ff,
-  gainsboro: 0xdcdcdc,
-  ghostwhite: 0xf8f8ff,
-  gold: 0xffd700,
-  goldenrod: 0xdaa520,
-  gray: 0x808080,
-  green: 0x008000,
-  greenyellow: 0xadff2f,
-  grey: 0x808080,
-  honeydew: 0xf0fff0,
-  hotpink: 0xff69b4,
-  indianred: 0xcd5c5c,
-  indigo: 0x4b0082,
-  ivory: 0xfffff0,
-  khaki: 0xf0e68c,
-  lavender: 0xe6e6fa,
-  lavenderblush: 0xfff0f5,
-  lawngreen: 0x7cfc00,
-  lemonchiffon: 0xfffacd,
-  lightblue: 0xadd8e6,
-  lightcoral: 0xf08080,
-  lightcyan: 0xe0ffff,
-  lightgoldenrodyellow: 0xfafad2,
-  lightgray: 0xd3d3d3,
-  lightgreen: 0x90ee90,
-  lightgrey: 0xd3d3d3,
-  lightpink: 0xffb6c1,
-  lightsalmon: 0xffa07a,
-  lightseagreen: 0x20b2aa,
-  lightskyblue: 0x87cefa,
-  lightslategray: 0x778899,
-  lightslategrey: 0x778899,
-  lightsteelblue: 0xb0c4de,
-  lightyellow: 0xffffe0,
-  lime: 0x00ff00,
-  limegreen: 0x32cd32,
-  linen: 0xfaf0e6,
-  magenta: 0xff00ff,
-  maroon: 0x800000,
-  mediumaquamarine: 0x66cdaa,
-  mediumblue: 0x0000cd,
-  mediumorchid: 0xba55d3,
-  mediumpurple: 0x9370db,
-  mediumseagreen: 0x3cb371,
-  mediumslateblue: 0x7b68ee,
-  mediumspringgreen: 0x00fa9a,
-  mediumturquoise: 0x48d1cc,
-  mediumvioletred: 0xc71585,
-  midnightblue: 0x191970,
-  mintcream: 0xf5fffa,
-  mistyrose: 0xffe4e1,
-  moccasin: 0xffe4b5,
-  navajowhite: 0xffdead,
-  navy: 0x000080,
-  oldlace: 0xfdf5e6,
-  olive: 0x808000,
-  olivedrab: 0x6b8e23,
-  orange: 0xffa500,
-  orangered: 0xff4500,
-  orchid: 0xda70d6,
-  palegoldenrod: 0xeee8aa,
-  palegreen: 0x98fb98,
-  paleturquoise: 0xafeeee,
-  palevioletred: 0xdb7093,
-  papayawhip: 0xffefd5,
-  peachpuff: 0xffdab9,
-  peru: 0xcd853f,
-  pink: 0xffc0cb,
-  plum: 0xdda0dd,
-  powderblue: 0xb0e0e6,
-  purple: 0x800080,
-  rebeccapurple: 0x663399,
-  red: 0xff0000,
-  rosybrown: 0xbc8f8f,
-  royalblue: 0x4169e1,
-  saddlebrown: 0x8b4513,
-  salmon: 0xfa8072,
-  sandybrown: 0xf4a460,
-  seagreen: 0x2e8b57,
-  seashell: 0xfff5ee,
-  sienna: 0xa0522d,
-  silver: 0xc0c0c0,
-  skyblue: 0x87ceeb,
-  slateblue: 0x6a5acd,
-  slategray: 0x708090,
-  slategrey: 0x708090,
-  snow: 0xfffafa,
-  springgreen: 0x00ff7f,
-  steelblue: 0x4682b4,
-  tan: 0xd2b48c,
-  teal: 0x008080,
-  thistle: 0xd8bfd8,
-  tomato: 0xff6347,
-  turquoise: 0x40e0d0,
-  violet: 0xee82ee,
-  wheat: 0xf5deb3,
-  white: 0xffffff,
-  whitesmoke: 0xf5f5f5,
-  yellow: 0xffff00,
-  yellowgreen: 0x9acd32
-};
-
-define(Color, color, {
-  copy(channels) {
-    return Object.assign(new this.constructor, this, channels);
-  },
-  displayable() {
-    return this.rgb().displayable();
-  },
-  hex: color_formatHex, // Deprecated! Use color.formatHex.
-  formatHex: color_formatHex,
-  formatHex8: color_formatHex8,
-  formatHsl: color_formatHsl,
-  formatRgb: color_formatRgb,
-  toString: color_formatRgb
-});
-
-function color_formatHex() {
-  return this.rgb().formatHex();
-}
-
-function color_formatHex8() {
-  return this.rgb().formatHex8();
-}
-
-function color_formatHsl() {
-  return hslConvert(this).formatHsl();
-}
-
-function color_formatRgb() {
-  return this.rgb().formatRgb();
-}
-
-function color(format) {
-  var m, l;
-  format = (format + "").trim().toLowerCase();
-  return (m = reHex.exec(format)) ? (l = m[1].length, m = parseInt(m[1], 16), l === 6 ? rgbn(m) // #ff0000
-      : l === 3 ? new Rgb((m >> 8 & 0xf) | (m >> 4 & 0xf0), (m >> 4 & 0xf) | (m & 0xf0), ((m & 0xf) << 4) | (m & 0xf), 1) // #f00
-      : l === 8 ? rgba(m >> 24 & 0xff, m >> 16 & 0xff, m >> 8 & 0xff, (m & 0xff) / 0xff) // #ff000000
-      : l === 4 ? rgba((m >> 12 & 0xf) | (m >> 8 & 0xf0), (m >> 8 & 0xf) | (m >> 4 & 0xf0), (m >> 4 & 0xf) | (m & 0xf0), (((m & 0xf) << 4) | (m & 0xf)) / 0xff) // #f000
-      : null) // invalid hex
-      : (m = reRgbInteger.exec(format)) ? new Rgb(m[1], m[2], m[3], 1) // rgb(255, 0, 0)
-      : (m = reRgbPercent.exec(format)) ? new Rgb(m[1] * 255 / 100, m[2] * 255 / 100, m[3] * 255 / 100, 1) // rgb(100%, 0%, 0%)
-      : (m = reRgbaInteger.exec(format)) ? rgba(m[1], m[2], m[3], m[4]) // rgba(255, 0, 0, 1)
-      : (m = reRgbaPercent.exec(format)) ? rgba(m[1] * 255 / 100, m[2] * 255 / 100, m[3] * 255 / 100, m[4]) // rgb(100%, 0%, 0%, 1)
-      : (m = reHslPercent.exec(format)) ? hsla(m[1], m[2] / 100, m[3] / 100, 1) // hsl(120, 50%, 50%)
-      : (m = reHslaPercent.exec(format)) ? hsla(m[1], m[2] / 100, m[3] / 100, m[4]) // hsla(120, 50%, 50%, 1)
-      : named.hasOwnProperty(format) ? rgbn(named[format]) // eslint-disable-line no-prototype-builtins
-      : format === "transparent" ? new Rgb(NaN, NaN, NaN, 0)
-      : null;
-}
-
-function rgbn(n) {
-  return new Rgb(n >> 16 & 0xff, n >> 8 & 0xff, n & 0xff, 1);
-}
-
-function rgba(r, g, b, a) {
-  if (a <= 0) r = g = b = NaN;
-  return new Rgb(r, g, b, a);
-}
-
-function rgbConvert(o) {
-  if (!(o instanceof Color)) o = color(o);
-  if (!o) return new Rgb;
-  o = o.rgb();
-  return new Rgb(o.r, o.g, o.b, o.opacity);
-}
-
-function rgb(r, g, b, opacity) {
-  return arguments.length === 1 ? rgbConvert(r) : new Rgb(r, g, b, opacity == null ? 1 : opacity);
-}
-
-function Rgb(r, g, b, opacity) {
-  this.r = +r;
-  this.g = +g;
-  this.b = +b;
-  this.opacity = +opacity;
-}
-
-define(Rgb, rgb, extend(Color, {
-  brighter(k) {
-    k = k == null ? brighter : Math.pow(brighter, k);
-    return new Rgb(this.r * k, this.g * k, this.b * k, this.opacity);
-  },
-  darker(k) {
-    k = k == null ? darker : Math.pow(darker, k);
-    return new Rgb(this.r * k, this.g * k, this.b * k, this.opacity);
-  },
-  rgb() {
-    return this;
-  },
-  clamp() {
-    return new Rgb(clampi(this.r), clampi(this.g), clampi(this.b), clampa(this.opacity));
-  },
-  displayable() {
-    return (-0.5 <= this.r && this.r < 255.5)
-        && (-0.5 <= this.g && this.g < 255.5)
-        && (-0.5 <= this.b && this.b < 255.5)
-        && (0 <= this.opacity && this.opacity <= 1);
-  },
-  hex: rgb_formatHex, // Deprecated! Use color.formatHex.
-  formatHex: rgb_formatHex,
-  formatHex8: rgb_formatHex8,
-  formatRgb: rgb_formatRgb,
-  toString: rgb_formatRgb
-}));
-
-function rgb_formatHex() {
-  return `#${hex(this.r)}${hex(this.g)}${hex(this.b)}`;
-}
-
-function rgb_formatHex8() {
-  return `#${hex(this.r)}${hex(this.g)}${hex(this.b)}${hex((isNaN(this.opacity) ? 1 : this.opacity) * 255)}`;
-}
-
-function rgb_formatRgb() {
-  const a = clampa(this.opacity);
-  return `${a === 1 ? "rgb(" : "rgba("}${clampi(this.r)}, ${clampi(this.g)}, ${clampi(this.b)}${a === 1 ? ")" : `, ${a})`}`;
-}
-
-function clampa(opacity) {
-  return isNaN(opacity) ? 1 : Math.max(0, Math.min(1, opacity));
-}
-
-function clampi(value) {
-  return Math.max(0, Math.min(255, Math.round(value) || 0));
-}
-
-function hex(value) {
-  value = clampi(value);
-  return (value < 16 ? "0" : "") + value.toString(16);
-}
-
-function hsla(h, s, l, a) {
-  if (a <= 0) h = s = l = NaN;
-  else if (l <= 0 || l >= 1) h = s = NaN;
-  else if (s <= 0) h = NaN;
-  return new Hsl(h, s, l, a);
-}
-
-function hslConvert(o) {
-  if (o instanceof Hsl) return new Hsl(o.h, o.s, o.l, o.opacity);
-  if (!(o instanceof Color)) o = color(o);
-  if (!o) return new Hsl;
-  if (o instanceof Hsl) return o;
-  o = o.rgb();
-  var r = o.r / 255,
-      g = o.g / 255,
-      b = o.b / 255,
-      min = Math.min(r, g, b),
-      max = Math.max(r, g, b),
-      h = NaN,
-      s = max - min,
-      l = (max + min) / 2;
-  if (s) {
-    if (r === max) h = (g - b) / s + (g < b) * 6;
-    else if (g === max) h = (b - r) / s + 2;
-    else h = (r - g) / s + 4;
-    s /= l < 0.5 ? max + min : 2 - max - min;
-    h *= 60;
-  } else {
-    s = l > 0 && l < 1 ? 0 : h;
-  }
-  return new Hsl(h, s, l, o.opacity);
-}
-
-function hsl(h, s, l, opacity) {
-  return arguments.length === 1 ? hslConvert(h) : new Hsl(h, s, l, opacity == null ? 1 : opacity);
-}
-
-function Hsl(h, s, l, opacity) {
-  this.h = +h;
-  this.s = +s;
-  this.l = +l;
-  this.opacity = +opacity;
-}
-
-define(Hsl, hsl, extend(Color, {
-  brighter(k) {
-    k = k == null ? brighter : Math.pow(brighter, k);
-    return new Hsl(this.h, this.s, this.l * k, this.opacity);
-  },
-  darker(k) {
-    k = k == null ? darker : Math.pow(darker, k);
-    return new Hsl(this.h, this.s, this.l * k, this.opacity);
-  },
-  rgb() {
-    var h = this.h % 360 + (this.h < 0) * 360,
-        s = isNaN(h) || isNaN(this.s) ? 0 : this.s,
-        l = this.l,
-        m2 = l + (l < 0.5 ? l : 1 - l) * s,
-        m1 = 2 * l - m2;
-    return new Rgb(
-      hsl2rgb(h >= 240 ? h - 240 : h + 120, m1, m2),
-      hsl2rgb(h, m1, m2),
-      hsl2rgb(h < 120 ? h + 240 : h - 120, m1, m2),
-      this.opacity
-    );
-  },
-  clamp() {
-    return new Hsl(clamph(this.h), clampt(this.s), clampt(this.l), clampa(this.opacity));
-  },
-  displayable() {
-    return (0 <= this.s && this.s <= 1 || isNaN(this.s))
-        && (0 <= this.l && this.l <= 1)
-        && (0 <= this.opacity && this.opacity <= 1);
-  },
-  formatHsl() {
-    const a = clampa(this.opacity);
-    return `${a === 1 ? "hsl(" : "hsla("}${clamph(this.h)}, ${clampt(this.s) * 100}%, ${clampt(this.l) * 100}%${a === 1 ? ")" : `, ${a})`}`;
-  }
-}));
-
-function clamph(value) {
-  value = (value || 0) % 360;
-  return value < 0 ? value + 360 : value;
-}
-
-function clampt(value) {
-  return Math.max(0, Math.min(1, value || 0));
-}
-
-/* From FvD 13.37, CSS Color Module Level 3 */
-function hsl2rgb(h, m1, m2) {
-  return (h < 60 ? m1 + (m2 - m1) * h / 60
-      : h < 180 ? m2
-      : h < 240 ? m1 + (m2 - m1) * (240 - h) / 60
-      : m1) * 255;
-}
-
-var constant$2 = x => () => x;
-
-function linear$1(a, d) {
-  return function(t) {
-    return a + t * d;
-  };
-}
-
-function exponential(a, b, y) {
-  return a = Math.pow(a, y), b = Math.pow(b, y) - a, y = 1 / y, function(t) {
-    return Math.pow(a + t * b, y);
-  };
-}
-
-function gamma(y) {
-  return (y = +y) === 1 ? nogamma : function(a, b) {
-    return b - a ? exponential(a, b, y) : constant$2(isNaN(a) ? b : a);
-  };
-}
-
-function nogamma(a, b) {
-  var d = b - a;
-  return d ? linear$1(a, d) : constant$2(isNaN(a) ? b : a);
-}
-
-var rgb$1 = (function rgbGamma(y) {
-  var color = gamma(y);
-
-  function rgb$1(start, end) {
-    var r = color((start = rgb(start)).r, (end = rgb(end)).r),
-        g = color(start.g, end.g),
-        b = color(start.b, end.b),
-        opacity = nogamma(start.opacity, end.opacity);
-    return function(t) {
-      start.r = r(t);
-      start.g = g(t);
-      start.b = b(t);
-      start.opacity = opacity(t);
-      return start + "";
-    };
-  }
-
-  rgb$1.gamma = rgbGamma;
-
-  return rgb$1;
-})(1);
-
-function numberArray$1(a, b) {
-  if (!b) b = [];
-  var n = a ? Math.min(b.length, a.length) : 0,
-      c = b.slice(),
-      i;
-  return function(t) {
-    for (i = 0; i < n; ++i) c[i] = a[i] * (1 - t) + b[i] * t;
-    return c;
-  };
-}
-
-function isNumberArray$1(x) {
-  return ArrayBuffer.isView(x) && !(x instanceof DataView);
-}
-
-function genericArray$1(a, b) {
-  var nb = b ? b.length : 0,
-      na = a ? Math.min(nb, a.length) : 0,
-      x = new Array(na),
-      c = new Array(nb),
-      i;
-
-  for (i = 0; i < na; ++i) x[i] = interpolate$1(a[i], b[i]);
-  for (; i < nb; ++i) c[i] = b[i];
-
-  return function(t) {
-    for (i = 0; i < na; ++i) c[i] = x[i](t);
-    return c;
-  };
-}
-
-function date$1(a, b) {
-  var d = new Date;
-  return a = +a, b = +b, function(t) {
-    return d.setTime(a * (1 - t) + b * t), d;
-  };
-}
-
-function interpolateNumber$1(a, b) {
-  return a = +a, b = +b, function(t) {
-    return a * (1 - t) + b * t;
-  };
-}
-
-function object$1(a, b) {
-  var i = {},
-      c = {},
-      k;
-
-  if (a === null || typeof a !== "object") a = {};
-  if (b === null || typeof b !== "object") b = {};
-
-  for (k in b) {
-    if (k in a) {
-      i[k] = interpolate$1(a[k], b[k]);
-    } else {
-      c[k] = b[k];
-    }
-  }
-
-  return function(t) {
-    for (k in i) c[k] = i[k](t);
-    return c;
-  };
-}
-
-var reA$1 = /[-+]?(?:\d+\.?\d*|\.?\d+)(?:[eE][-+]?\d+)?/g,
-    reB$1 = new RegExp(reA$1.source, "g");
-
-function zero$2(b) {
-  return function() {
-    return b;
-  };
-}
-
-function one$1(b) {
-  return function(t) {
-    return b(t) + "";
-  };
-}
-
-function string$1(a, b) {
-  var bi = reA$1.lastIndex = reB$1.lastIndex = 0, // scan index for next number in b
-      am, // current match in a
-      bm, // current match in b
-      bs, // string preceding current number in b, if any
-      i = -1, // index in s
-      s = [], // string constants and placeholders
-      q = []; // number interpolators
-
-  // Coerce inputs to strings.
-  a = a + "", b = b + "";
-
-  // Interpolate pairs of numbers in a & b.
-  while ((am = reA$1.exec(a))
-      && (bm = reB$1.exec(b))) {
-    if ((bs = bm.index) > bi) { // a string precedes the next number in b
-      bs = b.slice(bi, bs);
-      if (s[i]) s[i] += bs; // coalesce with previous string
-      else s[++i] = bs;
-    }
-    if ((am = am[0]) === (bm = bm[0])) { // numbers in a & b match
-      if (s[i]) s[i] += bm; // coalesce with previous string
-      else s[++i] = bm;
-    } else { // interpolate non-matching numbers
-      s[++i] = null;
-      q.push({i: i, x: interpolateNumber$1(am, bm)});
-    }
-    bi = reB$1.lastIndex;
-  }
-
-  // Add remains of b.
-  if (bi < b.length) {
-    bs = b.slice(bi);
-    if (s[i]) s[i] += bs; // coalesce with previous string
-    else s[++i] = bs;
-  }
-
-  // Special optimization for only a single match.
-  // Otherwise, interpolate each of the numbers and rejoin the string.
-  return s.length < 2 ? (q[0]
-      ? one$1(q[0].x)
-      : zero$2(b))
-      : (b = q.length, function(t) {
-          for (var i = 0, o; i < b; ++i) s[(o = q[i]).i] = o.x(t);
-          return s.join("");
-        });
-}
-
-function interpolate$1(a, b) {
-  var t = typeof b, c;
-  return b == null || t === "boolean" ? constant$2(b)
-      : (t === "number" ? interpolateNumber$1
-      : t === "string" ? ((c = color(b)) ? (b = c, rgb$1) : string$1)
-      : b instanceof color ? rgb$1
-      : b instanceof Date ? date$1
-      : isNumberArray$1(b) ? numberArray$1
-      : Array.isArray(b) ? genericArray$1
-      : typeof b.valueOf !== "function" && typeof b.toString !== "function" || isNaN(b) ? object$1
-      : interpolateNumber$1)(a, b);
-}
-
-function interpolateRound$1(a, b) {
-  return a = +a, b = +b, function(t) {
-    return Math.round(a * (1 - t) + b * t);
-  };
-}
-
-function constants$1(x) {
-  return function() {
-    return x;
-  };
-}
-
-function number$4(x) {
-  return +x;
-}
-
-var unit$1 = [0, 1];
-
-function identity$2(x) {
-  return x;
-}
-
-function normalize$1(a, b) {
-  return (b -= (a = +a))
-      ? function(x) { return (x - a) / b; }
-      : constants$1(isNaN(b) ? NaN : 0.5);
-}
-
-function clamper$1(a, b) {
-  var t;
-  if (a > b) t = a, a = b, b = t;
-  return function(x) { return Math.max(a, Math.min(b, x)); };
-}
-
-// normalize(a, b)(x) takes a domain value x in [a,b] and returns the corresponding parameter t in [0,1].
-// interpolate(a, b)(t) takes a parameter t in [0,1] and returns the corresponding range value x in [a,b].
-function bimap$1(domain, range, interpolate) {
-  var d0 = domain[0], d1 = domain[1], r0 = range[0], r1 = range[1];
-  if (d1 < d0) d0 = normalize$1(d1, d0), r0 = interpolate(r1, r0);
-  else d0 = normalize$1(d0, d1), r0 = interpolate(r0, r1);
-  return function(x) { return r0(d0(x)); };
-}
-
-function polymap$1(domain, range, interpolate) {
-  var j = Math.min(domain.length, range.length) - 1,
-      d = new Array(j),
-      r = new Array(j),
-      i = -1;
-
-  // Reverse descending domains.
-  if (domain[j] < domain[0]) {
-    domain = domain.slice().reverse();
-    range = range.slice().reverse();
-  }
-
-  while (++i < j) {
-    d[i] = normalize$1(domain[i], domain[i + 1]);
-    r[i] = interpolate(range[i], range[i + 1]);
-  }
-
-  return function(x) {
-    var i = bisectRight(domain, x, 1, j) - 1;
-    return r[i](d[i](x));
-  };
-}
-
-function copy$1(source, target) {
-  return target
-      .domain(source.domain())
-      .range(source.range())
-      .interpolate(source.interpolate())
-      .clamp(source.clamp())
-      .unknown(source.unknown());
-}
-
-function transformer$1() {
-  var domain = unit$1,
-      range = unit$1,
-      interpolate = interpolate$1,
-      transform,
-      untransform,
-      unknown,
-      clamp = identity$2,
-      piecewise,
-      output,
-      input;
-
-  function rescale() {
-    var n = Math.min(domain.length, range.length);
-    if (clamp !== identity$2) clamp = clamper$1(domain[0], domain[n - 1]);
-    piecewise = n > 2 ? polymap$1 : bimap$1;
-    output = input = null;
-    return scale;
-  }
-
-  function scale(x) {
-    return x == null || isNaN(x = +x) ? unknown : (output || (output = piecewise(domain.map(transform), range, interpolate)))(transform(clamp(x)));
-  }
-
-  scale.invert = function(y) {
-    return clamp(untransform((input || (input = piecewise(range, domain.map(transform), interpolateNumber$1)))(y)));
-  };
-
-  scale.domain = function(_) {
-    return arguments.length ? (domain = Array.from(_, number$4), rescale()) : domain.slice();
-  };
-
-  scale.range = function(_) {
-    return arguments.length ? (range = Array.from(_), rescale()) : range.slice();
-  };
-
-  scale.rangeRound = function(_) {
-    return range = Array.from(_), interpolate = interpolateRound$1, rescale();
-  };
-
-  scale.clamp = function(_) {
-    return arguments.length ? (clamp = _ ? true : identity$2, rescale()) : clamp !== identity$2;
-  };
-
-  scale.interpolate = function(_) {
-    return arguments.length ? (interpolate = _, rescale()) : interpolate;
-  };
-
-  scale.unknown = function(_) {
-    return arguments.length ? (unknown = _, scale) : unknown;
-  };
-
-  return function(t, u) {
-    transform = t, untransform = u;
-    return rescale();
-  };
-}
-
-function continuous$1() {
-  return transformer$1()(identity$2, identity$2);
-}
-
-function formatDecimal(x) {
-  return Math.abs(x = Math.round(x)) >= 1e21
-      ? x.toLocaleString("en").replace(/,/g, "")
-      : x.toString(10);
-}
-
-// Computes the decimal coefficient and exponent of the specified number x with
-// significant digits p, where x is positive and p is in [1, 21] or undefined.
-// For example, formatDecimalParts(1.23) returns ["123", 0].
-function formatDecimalParts(x, p) {
-  if ((i = (x = p ? x.toExponential(p - 1) : x.toExponential()).indexOf("e")) < 0) return null; // NaN, ±Infinity
-  var i, coefficient = x.slice(0, i);
-
-  // The string returned by toExponential either has the form \d\.\d+e[-+]\d+
-  // (e.g., 1.2e+3) or the form \de[-+]\d+ (e.g., 1e+3).
-  return [
-    coefficient.length > 1 ? coefficient[0] + coefficient.slice(2) : coefficient,
-    +x.slice(i + 1)
-  ];
-}
-
-function exponent(x) {
-  return x = formatDecimalParts(Math.abs(x)), x ? x[1] : NaN;
-}
-
-function formatGroup(grouping, thousands) {
-  return function(value, width) {
-    var i = value.length,
-        t = [],
-        j = 0,
-        g = grouping[0],
-        length = 0;
-
-    while (i > 0 && g > 0) {
-      if (length + g + 1 > width) g = Math.max(1, width - length);
-      t.push(value.substring(i -= g, i + g));
-      if ((length += g + 1) > width) break;
-      g = grouping[j = (j + 1) % grouping.length];
-    }
-
-    return t.reverse().join(thousands);
-  };
-}
-
-function formatNumerals(numerals) {
-  return function(value) {
-    return value.replace(/[0-9]/g, function(i) {
-      return numerals[+i];
-    });
-  };
-}
-
-// [[fill]align][sign][symbol][0][width][,][.precision][~][type]
-var re = /^(?:(.)?([<>=^]))?([+\-( ])?([$#])?(0)?(\d+)?(,)?(\.\d+)?(~)?([a-z%])?$/i;
-
-function formatSpecifier(specifier) {
-  if (!(match = re.exec(specifier))) throw new Error("invalid format: " + specifier);
-  var match;
-  return new FormatSpecifier({
-    fill: match[1],
-    align: match[2],
-    sign: match[3],
-    symbol: match[4],
-    zero: match[5],
-    width: match[6],
-    comma: match[7],
-    precision: match[8] && match[8].slice(1),
-    trim: match[9],
-    type: match[10]
-  });
-}
-
-formatSpecifier.prototype = FormatSpecifier.prototype; // instanceof
-
-function FormatSpecifier(specifier) {
-  this.fill = specifier.fill === undefined ? " " : specifier.fill + "";
-  this.align = specifier.align === undefined ? ">" : specifier.align + "";
-  this.sign = specifier.sign === undefined ? "-" : specifier.sign + "";
-  this.symbol = specifier.symbol === undefined ? "" : specifier.symbol + "";
-  this.zero = !!specifier.zero;
-  this.width = specifier.width === undefined ? undefined : +specifier.width;
-  this.comma = !!specifier.comma;
-  this.precision = specifier.precision === undefined ? undefined : +specifier.precision;
-  this.trim = !!specifier.trim;
-  this.type = specifier.type === undefined ? "" : specifier.type + "";
-}
-
-FormatSpecifier.prototype.toString = function() {
-  return this.fill
-      + this.align
-      + this.sign
-      + this.symbol
-      + (this.zero ? "0" : "")
-      + (this.width === undefined ? "" : Math.max(1, this.width | 0))
-      + (this.comma ? "," : "")
-      + (this.precision === undefined ? "" : "." + Math.max(0, this.precision | 0))
-      + (this.trim ? "~" : "")
-      + this.type;
-};
-
-// Trims insignificant zeros, e.g., replaces 1.2000k with 1.2k.
-function formatTrim(s) {
-  out: for (var n = s.length, i = 1, i0 = -1, i1; i < n; ++i) {
-    switch (s[i]) {
-      case ".": i0 = i1 = i; break;
-      case "0": if (i0 === 0) i0 = i; i1 = i; break;
-      default: if (!+s[i]) break out; if (i0 > 0) i0 = 0; break;
-    }
-  }
-  return i0 > 0 ? s.slice(0, i0) + s.slice(i1 + 1) : s;
-}
-
-var prefixExponent;
-
-function formatPrefixAuto(x, p) {
-  var d = formatDecimalParts(x, p);
-  if (!d) return x + "";
-  var coefficient = d[0],
-      exponent = d[1],
-      i = exponent - (prefixExponent = Math.max(-8, Math.min(8, Math.floor(exponent / 3))) * 3) + 1,
-      n = coefficient.length;
-  return i === n ? coefficient
-      : i > n ? coefficient + new Array(i - n + 1).join("0")
-      : i > 0 ? coefficient.slice(0, i) + "." + coefficient.slice(i)
-      : "0." + new Array(1 - i).join("0") + formatDecimalParts(x, Math.max(0, p + i - 1))[0]; // less than 1y!
-}
-
-function formatRounded(x, p) {
-  var d = formatDecimalParts(x, p);
-  if (!d) return x + "";
-  var coefficient = d[0],
-      exponent = d[1];
-  return exponent < 0 ? "0." + new Array(-exponent).join("0") + coefficient
-      : coefficient.length > exponent + 1 ? coefficient.slice(0, exponent + 1) + "." + coefficient.slice(exponent + 1)
-      : coefficient + new Array(exponent - coefficient.length + 2).join("0");
-}
-
-var formatTypes = {
-  "%": (x, p) => (x * 100).toFixed(p),
-  "b": (x) => Math.round(x).toString(2),
-  "c": (x) => x + "",
-  "d": formatDecimal,
-  "e": (x, p) => x.toExponential(p),
-  "f": (x, p) => x.toFixed(p),
-  "g": (x, p) => x.toPrecision(p),
-  "o": (x) => Math.round(x).toString(8),
-  "p": (x, p) => formatRounded(x * 100, p),
-  "r": formatRounded,
-  "s": formatPrefixAuto,
-  "X": (x) => Math.round(x).toString(16).toUpperCase(),
-  "x": (x) => Math.round(x).toString(16)
-};
-
 function identity$3(x) {
-  return x;
-}
-
-var map = Array.prototype.map,
-    prefixes = ["y","z","a","f","p","n","µ","m","","k","M","G","T","P","E","Z","Y"];
-
-function formatLocale(locale) {
-  var group = locale.grouping === undefined || locale.thousands === undefined ? identity$3 : formatGroup(map.call(locale.grouping, Number), locale.thousands + ""),
-      currencyPrefix = locale.currency === undefined ? "" : locale.currency[0] + "",
-      currencySuffix = locale.currency === undefined ? "" : locale.currency[1] + "",
-      decimal = locale.decimal === undefined ? "." : locale.decimal + "",
-      numerals = locale.numerals === undefined ? identity$3 : formatNumerals(map.call(locale.numerals, String)),
-      percent = locale.percent === undefined ? "%" : locale.percent + "",
-      minus = locale.minus === undefined ? "−" : locale.minus + "",
-      nan = locale.nan === undefined ? "NaN" : locale.nan + "";
-
-  function newFormat(specifier) {
-    specifier = formatSpecifier(specifier);
-
-    var fill = specifier.fill,
-        align = specifier.align,
-        sign = specifier.sign,
-        symbol = specifier.symbol,
-        zero = specifier.zero,
-        width = specifier.width,
-        comma = specifier.comma,
-        precision = specifier.precision,
-        trim = specifier.trim,
-        type = specifier.type;
-
-    // The "n" type is an alias for ",g".
-    if (type === "n") comma = true, type = "g";
-
-    // The "" type, and any invalid type, is an alias for ".12~g".
-    else if (!formatTypes[type]) precision === undefined && (precision = 12), trim = true, type = "g";
-
-    // If zero fill is specified, padding goes after sign and before digits.
-    if (zero || (fill === "0" && align === "=")) zero = true, fill = "0", align = "=";
-
-    // Compute the prefix and suffix.
-    // For SI-prefix, the suffix is lazily computed.
-    var prefix = symbol === "$" ? currencyPrefix : symbol === "#" && /[boxX]/.test(type) ? "0" + type.toLowerCase() : "",
-        suffix = symbol === "$" ? currencySuffix : /[%p]/.test(type) ? percent : "";
-
-    // What format function should we use?
-    // Is this an integer type?
-    // Can this type generate exponential notation?
-    var formatType = formatTypes[type],
-        maybeSuffix = /[defgprs%]/.test(type);
-
-    // Set the default precision if not specified,
-    // or clamp the specified precision to the supported range.
-    // For significant precision, it must be in [1, 21].
-    // For fixed precision, it must be in [0, 20].
-    precision = precision === undefined ? 6
-        : /[gprs]/.test(type) ? Math.max(1, Math.min(21, precision))
-        : Math.max(0, Math.min(20, precision));
-
-    function format(value) {
-      var valuePrefix = prefix,
-          valueSuffix = suffix,
-          i, n, c;
-
-      if (type === "c") {
-        valueSuffix = formatType(value) + valueSuffix;
-        value = "";
-      } else {
-        value = +value;
-
-        // Determine the sign. -0 is not less than 0, but 1 / -0 is!
-        var valueNegative = value < 0 || 1 / value < 0;
-
-        // Perform the initial formatting.
-        value = isNaN(value) ? nan : formatType(Math.abs(value), precision);
-
-        // Trim insignificant zeros.
-        if (trim) value = formatTrim(value);
-
-        // If a negative value rounds to zero after formatting, and no explicit positive sign is requested, hide the sign.
-        if (valueNegative && +value === 0 && sign !== "+") valueNegative = false;
-
-        // Compute the prefix and suffix.
-        valuePrefix = (valueNegative ? (sign === "(" ? sign : minus) : sign === "-" || sign === "(" ? "" : sign) + valuePrefix;
-        valueSuffix = (type === "s" ? prefixes[8 + prefixExponent / 3] : "") + valueSuffix + (valueNegative && sign === "(" ? ")" : "");
-
-        // Break the formatted value into the integer “value” part that can be
-        // grouped, and fractional or exponential “suffix” part that is not.
-        if (maybeSuffix) {
-          i = -1, n = value.length;
-          while (++i < n) {
-            if (c = value.charCodeAt(i), 48 > c || c > 57) {
-              valueSuffix = (c === 46 ? decimal + value.slice(i + 1) : value.slice(i)) + valueSuffix;
-              value = value.slice(0, i);
-              break;
-            }
-          }
-        }
-      }
-
-      // If the fill character is not "0", grouping is applied before padding.
-      if (comma && !zero) value = group(value, Infinity);
-
-      // Compute the padding.
-      var length = valuePrefix.length + value.length + valueSuffix.length,
-          padding = length < width ? new Array(width - length + 1).join(fill) : "";
-
-      // If the fill character is "0", grouping is applied after padding.
-      if (comma && zero) value = group(padding + value, padding.length ? width - valueSuffix.length : Infinity), padding = "";
-
-      // Reconstruct the final output based on the desired alignment.
-      switch (align) {
-        case "<": value = valuePrefix + value + valueSuffix + padding; break;
-        case "=": value = valuePrefix + padding + value + valueSuffix; break;
-        case "^": value = padding.slice(0, length = padding.length >> 1) + valuePrefix + value + valueSuffix + padding.slice(length); break;
-        default: value = padding + valuePrefix + value + valueSuffix; break;
-      }
-
-      return numerals(value);
-    }
-
-    format.toString = function() {
-      return specifier + "";
-    };
-
-    return format;
-  }
-
-  function formatPrefix(specifier, value) {
-    var f = newFormat((specifier = formatSpecifier(specifier), specifier.type = "f", specifier)),
-        e = Math.max(-8, Math.min(8, Math.floor(exponent(value) / 3))) * 3,
-        k = Math.pow(10, -e),
-        prefix = prefixes[8 + e / 3];
-    return function(value) {
-      return f(k * value) + prefix;
-    };
-  }
-
-  return {
-    format: newFormat,
-    formatPrefix: formatPrefix
-  };
-}
-
-var locale;
-var format;
-var formatPrefix;
-
-defaultLocale({
-  thousands: ",",
-  grouping: [3],
-  currency: ["$", ""]
-});
-
-function defaultLocale(definition) {
-  locale = formatLocale(definition);
-  format = locale.format;
-  formatPrefix = locale.formatPrefix;
-  return locale;
-}
-
-function precisionFixed$1(step) {
-  return Math.max(0, -exponent(Math.abs(step)));
-}
-
-function precisionPrefix$1(step, value) {
-  return Math.max(0, Math.max(-8, Math.min(8, Math.floor(exponent(value) / 3))) * 3 - exponent(Math.abs(step)));
-}
-
-function precisionRound(step, max) {
-  step = Math.abs(step), max = Math.abs(max) - step;
-  return Math.max(0, exponent(max) - exponent(step)) + 1;
-}
-
-function tickFormat$1(start, stop, count, specifier) {
-  var step = tickStep(start, stop, count),
-      precision;
-  specifier = formatSpecifier(specifier == null ? ",f" : specifier);
-  switch (specifier.type) {
-    case "s": {
-      var value = Math.max(Math.abs(start), Math.abs(stop));
-      if (specifier.precision == null && !isNaN(precision = precisionPrefix$1(step, value))) specifier.precision = precision;
-      return formatPrefix(specifier, value);
-    }
-    case "":
-    case "e":
-    case "g":
-    case "p":
-    case "r": {
-      if (specifier.precision == null && !isNaN(precision = precisionRound(step, Math.max(Math.abs(start), Math.abs(stop))))) specifier.precision = precision - (specifier.type === "e");
-      break;
-    }
-    case "f":
-    case "%": {
-      if (specifier.precision == null && !isNaN(precision = precisionFixed$1(step))) specifier.precision = precision - (specifier.type === "%") * 2;
-      break;
-    }
-  }
-  return format(specifier);
-}
-
-function linearish$1(scale) {
-  var domain = scale.domain;
-
-  scale.ticks = function(count) {
-    var d = domain();
-    return ticks(d[0], d[d.length - 1], count == null ? 10 : count);
-  };
-
-  scale.tickFormat = function(count, specifier) {
-    var d = domain();
-    return tickFormat$1(d[0], d[d.length - 1], count == null ? 10 : count, specifier);
-  };
-
-  scale.nice = function(count) {
-    if (count == null) count = 10;
-
-    var d = domain();
-    var i0 = 0;
-    var i1 = d.length - 1;
-    var start = d[i0];
-    var stop = d[i1];
-    var prestep;
-    var step;
-    var maxIter = 10;
-
-    if (stop < start) {
-      step = start, start = stop, stop = step;
-      step = i0, i0 = i1, i1 = step;
-    }
-    
-    while (maxIter-- > 0) {
-      step = tickIncrement(start, stop, count);
-      if (step === prestep) {
-        d[i0] = start;
-        d[i1] = stop;
-        return domain(d);
-      } else if (step > 0) {
-        start = Math.floor(start / step) * step;
-        stop = Math.ceil(stop / step) * step;
-      } else if (step < 0) {
-        start = Math.ceil(start * step) / step;
-        stop = Math.floor(stop * step) / step;
-      } else {
-        break;
-      }
-      prestep = step;
-    }
-
-    return scale;
-  };
-
-  return scale;
-}
-
-function linear$2() {
-  var scale = continuous$1();
-
-  scale.copy = function() {
-    return copy$1(scale, linear$2());
-  };
-
-  initRange$1.apply(scale, arguments);
-
-  return linearish$1(scale);
-}
-
-function identity$4(x) {
   return x;
 }
 
@@ -9816,7 +9819,7 @@ function translateY$1(y) {
   return "translate(0," + y + ")";
 }
 
-function number$5(scale) {
+function number$4(scale) {
   return d => +scale(d);
 }
 
@@ -9844,12 +9847,12 @@ function axis$1(orient, scale) {
 
   function axis(context) {
     var values = tickValues == null ? (scale.ticks ? scale.ticks.apply(scale, tickArguments) : scale.domain()) : tickValues,
-        format = tickFormat == null ? (scale.tickFormat ? scale.tickFormat.apply(scale, tickArguments) : identity$4) : tickFormat,
+        format = tickFormat == null ? (scale.tickFormat ? scale.tickFormat.apply(scale, tickArguments) : identity$3) : tickFormat,
         spacing = Math.max(tickSizeInner, 0) + tickPadding,
         range = scale.range(),
         range0 = +range[0] + offset,
         range1 = +range[range.length - 1] + offset,
-        position = (scale.bandwidth ? center$1 : number$5)(scale.copy(), offset),
+        position = (scale.bandwidth ? center$1 : number$4)(scale.copy(), offset),
         selection = context.selection ? context.selection() : context,
         path = selection.selectAll(".domain").data([null]),
         tick = selection.selectAll(".tick").data(values, scale).order(),
@@ -9981,7 +9984,6 @@ const DEFAULT_ROW_LABEL_SLINT_ANGLE = 0;
 const DEFAULT_COLUMN_LABEL_SLINT_ANGLE = 0;
 const DEFAULT_ROW_LABEL_FONT_SIZE = "7px";
 const DEFAULT_COLUMN_LABEL_FONT_SIZE = "7px";
-const DEFAULT_VISIBLE_RANGE = [-1, 1];
 
 const LABELS_MARGIN_BUFFER_IN_PX = 20;
 const INTENSITY_LEGEND_LABEL_SIZE_IN_PX = 25;
@@ -9989,30 +9991,54 @@ const INTENSITY_LEGEND_GRADIENT_SIZE_IN_PX = 20;
 const INTENSITY_LEGEND_SIZE_IN_PX =
   INTENSITY_LEGEND_GRADIENT_SIZE_IN_PX + INTENSITY_LEGEND_LABEL_SIZE_IN_PX;
 const GROUPING_LEGEND_SIZE_IN_PX = 20;
-const TOOLTIP_IDENTIFIER = "ehgl-tooltip";
+const INTENSITY_LEGEND_IDENTIFIER = "ehgl-intensity-legend";
 
 const DEFAULT_SIZE_LEGEND_SVG_PADDING = 10;
 const DEFAULT_SIZE_LEGEND_CIRCLE_GAP = 10;
 const DEFAULT_SIZE_LEGEND_CIRCLE_TEXT_GAP = 10;
 
+const DEFAULT_MIN_RADIUS_FOR_DOTPLOT = 3;
+const DEFAULT_MARGIN_BETWEEN_DOTS = 2;
+
+const DEFAULT_MARGINS = {
+  top: "25px",
+  bottom: "50px",
+  left: "50px",
+  right: "10px",
+};
+
+/**
+ * Check if a given variable is an object and not an array.
+ *
+ * @param {any} object - The variable to check.
+ * @returns {boolean} - Returns true if the variable is an object, and not an array.
+ */
 function isObject(object) {
   return typeof object === "object" && Array.isArray(object) === false;
 }
 
+/**
+ * Get the minimum and maximum values from an array.
+ *
+ * @param {Array<number>} arr - An array of numbers.
+ * @returns {Array<number>} - An array containing the minimum and maximum values, in that order.
+ */
 const getMinMax = (arr) => {
   var max = -Number.MAX_VALUE,
     min = Number.MAX_VALUE;
   arr.forEach(function (x) {
-    if (max < x) {
-      max = x;
-    }
-    if (min > x) {
-      min = x;
-    }
+    if (max < x) max = x;
+    if (min > x) min = x;
   });
   return [min, max];
 };
 
+/**
+ * Parses an object of margins and returns an object with top, bottom, left, and right margins as integers.
+ *
+ * @param {Object} margins - An object with potential margin properties.
+ * @returns {Object} - An object with top, bottom, left, and right margins as integers.
+ */
 const parseMargins = (margins) => {
   const parsedMargins = {
     top: 0,
@@ -10035,6 +10061,13 @@ const parseMargins = (margins) => {
   return parsedMargins;
 };
 
+/**
+ * Measure the width of a text string for a given font size using SVG.
+ *
+ * @param {string} text - The text to measure.
+ * @param {string} fontSize - The font size to use for the measurement, e.g., '16px'.
+ * @returns {number} - The width of the text in pixels.
+ */
 const getTextWidth = (text, fontSize = "16px") => {
   // Create a temporary SVG to measure the text width
   const svg = select("body").append("svg");
@@ -10044,49 +10077,3276 @@ const getTextWidth = (text, fontSize = "16px") => {
   return width;
 };
 
-const createTooltip = (container, text, posX, posY) => {
-  let tooltip = select(container)
-    .append("div")
-    .attr("id", TOOLTIP_IDENTIFIER)
-    .style("position", "absolute")
-    .style("background", "#f9f9f9")
-    .style("padding", "8px")
-    .style("border", "1px solid #ccc")
-    .style("border-radius", "6px")
-    .style("z-index", "1000")
-    .style("visibility", "hidden");
-
-  tooltip
-    .style("visibility", "visible")
-    .text(text)
-    .style("left", posX + 10 + "px")
-    .style("top", posY - 10 + "px");
-};
-
-const removeTooltip = (container) => {
-  const tooltip = select(container).select(`#${TOOLTIP_IDENTIFIER}`);
-
-  if (tooltip) {
-    tooltip.remove();
-  }
-};
-
-const getMaxRadiusForDotplot = (xlen, ylen) => {
-  return getMinMax([198 / (xlen + 1), 198 / (ylen + 1)])[1] - 5;
+const getMaxRadiusForDotplot = (xlen, ylen, padding) => {
+  return Math.max(
+    Math.min(198 / (xlen + 1), 198 / (ylen + 1)) - padding,
+    DEFAULT_MIN_RADIUS_FOR_DOTPLOT
+  );
 };
 
 const getScaledRadiusForDotplot = (
   radius,
   maxRadiusScaled,
   minRadiusOriginal,
-  maxRadiusOriginal
+  maxRadiusOriginal,
+  defaultMinRadius = DEFAULT_MIN_RADIUS_FOR_DOTPLOT
 ) => {
   return (
-    (maxRadiusScaled - 5) *
-      ((radius - minRadiusOriginal) / (maxRadiusOriginal - minRadiusOriginal)) +
-    5
+    defaultMinRadius +
+    (maxRadiusScaled - defaultMinRadius) *
+      ((radius - minRadiusOriginal) / (maxRadiusOriginal - minRadiusOriginal))
   );
 };
+
+/**
+ * A function to map over both regular JavaScript arrays and typed arrays.
+ *
+ * @param {Array|TypedArray} array - The input array or typed array.
+ * @param {Function} callback - A function that produces an element of the new array,
+ *      taking three arguments:
+ *      currentValue - The current element being processed in the array.
+ *      index - The index of the current element being processed in the array.
+ *      array - The array map was called upon.
+ * @returns {Array|TypedArray} - A new array or typed array with each element being the result
+ *      of the callback function.
+ * @throws {Error} - Throws an error if the input is neither a regular array nor a typed array.
+ */
+const mapArrayOrTypedArray = (array, callback) => {
+  // Check if the input is a regular JavaScript array.
+  if (Array.isArray(array)) {
+    return array.map(callback);
+  }
+  // Check if the input is a typed array.
+  else if (
+    array instanceof Int8Array ||
+    array instanceof Uint8Array ||
+    array instanceof Uint8ClampedArray ||
+    array instanceof Int16Array ||
+    array instanceof Uint16Array ||
+    array instanceof Int32Array ||
+    array instanceof Uint32Array ||
+    array instanceof Float32Array ||
+    array instanceof Float64Array
+  ) {
+    // Create a new typed array of the same type and size as the input.
+    let result = new array.constructor(array.length);
+
+    // Use forEach to emulate the map functionality for typed arrays.
+    array.forEach((value, index) => {
+      result[index] = callback(value, index);
+    });
+
+    return result;
+  }
+  // Handle the case where the input is neither a regular array nor a typed array.
+  else {
+    throw new Error("Input is neither a normal array nor a typed array.");
+  }
+};
+
+var top$2 = 'top';
+var bottom$2 = 'bottom';
+var right$2 = 'right';
+var left$2 = 'left';
+var auto = 'auto';
+var basePlacements = [top$2, bottom$2, right$2, left$2];
+var start = 'start';
+var end = 'end';
+var clippingParents = 'clippingParents';
+var viewport = 'viewport';
+var popper = 'popper';
+var reference = 'reference';
+var variationPlacements = /*#__PURE__*/basePlacements.reduce(function (acc, placement) {
+  return acc.concat([placement + "-" + start, placement + "-" + end]);
+}, []);
+var placements = /*#__PURE__*/[].concat(basePlacements, [auto]).reduce(function (acc, placement) {
+  return acc.concat([placement, placement + "-" + start, placement + "-" + end]);
+}, []); // modifiers that need to read the DOM
+
+var beforeRead = 'beforeRead';
+var read = 'read';
+var afterRead = 'afterRead'; // pure-logic modifiers
+
+var beforeMain = 'beforeMain';
+var main = 'main';
+var afterMain = 'afterMain'; // modifier with the purpose to write to the DOM (or write into a framework state)
+
+var beforeWrite = 'beforeWrite';
+var write = 'write';
+var afterWrite = 'afterWrite';
+var modifierPhases = [beforeRead, read, afterRead, beforeMain, main, afterMain, beforeWrite, write, afterWrite];
+
+function getNodeName(element) {
+  return element ? (element.nodeName || '').toLowerCase() : null;
+}
+
+function getWindow(node) {
+  if (node == null) {
+    return window;
+  }
+
+  if (node.toString() !== '[object Window]') {
+    var ownerDocument = node.ownerDocument;
+    return ownerDocument ? ownerDocument.defaultView || window : window;
+  }
+
+  return node;
+}
+
+function isElement(node) {
+  var OwnElement = getWindow(node).Element;
+  return node instanceof OwnElement || node instanceof Element;
+}
+
+function isHTMLElement(node) {
+  var OwnElement = getWindow(node).HTMLElement;
+  return node instanceof OwnElement || node instanceof HTMLElement;
+}
+
+function isShadowRoot(node) {
+  // IE 11 has no ShadowRoot
+  if (typeof ShadowRoot === 'undefined') {
+    return false;
+  }
+
+  var OwnElement = getWindow(node).ShadowRoot;
+  return node instanceof OwnElement || node instanceof ShadowRoot;
+}
+
+// and applies them to the HTMLElements such as popper and arrow
+
+function applyStyles(_ref) {
+  var state = _ref.state;
+  Object.keys(state.elements).forEach(function (name) {
+    var style = state.styles[name] || {};
+    var attributes = state.attributes[name] || {};
+    var element = state.elements[name]; // arrow is optional + virtual elements
+
+    if (!isHTMLElement(element) || !getNodeName(element)) {
+      return;
+    } // Flow doesn't support to extend this property, but it's the most
+    // effective way to apply styles to an HTMLElement
+    // $FlowFixMe[cannot-write]
+
+
+    Object.assign(element.style, style);
+    Object.keys(attributes).forEach(function (name) {
+      var value = attributes[name];
+
+      if (value === false) {
+        element.removeAttribute(name);
+      } else {
+        element.setAttribute(name, value === true ? '' : value);
+      }
+    });
+  });
+}
+
+function effect(_ref2) {
+  var state = _ref2.state;
+  var initialStyles = {
+    popper: {
+      position: state.options.strategy,
+      left: '0',
+      top: '0',
+      margin: '0'
+    },
+    arrow: {
+      position: 'absolute'
+    },
+    reference: {}
+  };
+  Object.assign(state.elements.popper.style, initialStyles.popper);
+  state.styles = initialStyles;
+
+  if (state.elements.arrow) {
+    Object.assign(state.elements.arrow.style, initialStyles.arrow);
+  }
+
+  return function () {
+    Object.keys(state.elements).forEach(function (name) {
+      var element = state.elements[name];
+      var attributes = state.attributes[name] || {};
+      var styleProperties = Object.keys(state.styles.hasOwnProperty(name) ? state.styles[name] : initialStyles[name]); // Set all values to an empty string to unset them
+
+      var style = styleProperties.reduce(function (style, property) {
+        style[property] = '';
+        return style;
+      }, {}); // arrow is optional + virtual elements
+
+      if (!isHTMLElement(element) || !getNodeName(element)) {
+        return;
+      }
+
+      Object.assign(element.style, style);
+      Object.keys(attributes).forEach(function (attribute) {
+        element.removeAttribute(attribute);
+      });
+    });
+  };
+} // eslint-disable-next-line import/no-unused-modules
+
+
+var applyStyles$1 = {
+  name: 'applyStyles',
+  enabled: true,
+  phase: 'write',
+  fn: applyStyles,
+  effect: effect,
+  requires: ['computeStyles']
+};
+
+function getBasePlacement(placement) {
+  return placement.split('-')[0];
+}
+
+var max = Math.max;
+var min = Math.min;
+var round = Math.round;
+
+function getUAString() {
+  var uaData = navigator.userAgentData;
+
+  if (uaData != null && uaData.brands && Array.isArray(uaData.brands)) {
+    return uaData.brands.map(function (item) {
+      return item.brand + "/" + item.version;
+    }).join(' ');
+  }
+
+  return navigator.userAgent;
+}
+
+function isLayoutViewport() {
+  return !/^((?!chrome|android).)*safari/i.test(getUAString());
+}
+
+function getBoundingClientRect(element, includeScale, isFixedStrategy) {
+  if (includeScale === void 0) {
+    includeScale = false;
+  }
+
+  if (isFixedStrategy === void 0) {
+    isFixedStrategy = false;
+  }
+
+  var clientRect = element.getBoundingClientRect();
+  var scaleX = 1;
+  var scaleY = 1;
+
+  if (includeScale && isHTMLElement(element)) {
+    scaleX = element.offsetWidth > 0 ? round(clientRect.width) / element.offsetWidth || 1 : 1;
+    scaleY = element.offsetHeight > 0 ? round(clientRect.height) / element.offsetHeight || 1 : 1;
+  }
+
+  var _ref = isElement(element) ? getWindow(element) : window,
+      visualViewport = _ref.visualViewport;
+
+  var addVisualOffsets = !isLayoutViewport() && isFixedStrategy;
+  var x = (clientRect.left + (addVisualOffsets && visualViewport ? visualViewport.offsetLeft : 0)) / scaleX;
+  var y = (clientRect.top + (addVisualOffsets && visualViewport ? visualViewport.offsetTop : 0)) / scaleY;
+  var width = clientRect.width / scaleX;
+  var height = clientRect.height / scaleY;
+  return {
+    width: width,
+    height: height,
+    top: y,
+    right: x + width,
+    bottom: y + height,
+    left: x,
+    x: x,
+    y: y
+  };
+}
+
+// means it doesn't take into account transforms.
+
+function getLayoutRect(element) {
+  var clientRect = getBoundingClientRect(element); // Use the clientRect sizes if it's not been transformed.
+  // Fixes https://github.com/popperjs/popper-core/issues/1223
+
+  var width = element.offsetWidth;
+  var height = element.offsetHeight;
+
+  if (Math.abs(clientRect.width - width) <= 1) {
+    width = clientRect.width;
+  }
+
+  if (Math.abs(clientRect.height - height) <= 1) {
+    height = clientRect.height;
+  }
+
+  return {
+    x: element.offsetLeft,
+    y: element.offsetTop,
+    width: width,
+    height: height
+  };
+}
+
+function contains(parent, child) {
+  var rootNode = child.getRootNode && child.getRootNode(); // First, attempt with faster native method
+
+  if (parent.contains(child)) {
+    return true;
+  } // then fallback to custom implementation with Shadow DOM support
+  else if (rootNode && isShadowRoot(rootNode)) {
+      var next = child;
+
+      do {
+        if (next && parent.isSameNode(next)) {
+          return true;
+        } // $FlowFixMe[prop-missing]: need a better way to handle this...
+
+
+        next = next.parentNode || next.host;
+      } while (next);
+    } // Give up, the result is false
+
+
+  return false;
+}
+
+function getComputedStyle(element) {
+  return getWindow(element).getComputedStyle(element);
+}
+
+function isTableElement(element) {
+  return ['table', 'td', 'th'].indexOf(getNodeName(element)) >= 0;
+}
+
+function getDocumentElement(element) {
+  // $FlowFixMe[incompatible-return]: assume body is always available
+  return ((isElement(element) ? element.ownerDocument : // $FlowFixMe[prop-missing]
+  element.document) || window.document).documentElement;
+}
+
+function getParentNode(element) {
+  if (getNodeName(element) === 'html') {
+    return element;
+  }
+
+  return (// this is a quicker (but less type safe) way to save quite some bytes from the bundle
+    // $FlowFixMe[incompatible-return]
+    // $FlowFixMe[prop-missing]
+    element.assignedSlot || // step into the shadow DOM of the parent of a slotted node
+    element.parentNode || ( // DOM Element detected
+    isShadowRoot(element) ? element.host : null) || // ShadowRoot detected
+    // $FlowFixMe[incompatible-call]: HTMLElement is a Node
+    getDocumentElement(element) // fallback
+
+  );
+}
+
+function getTrueOffsetParent(element) {
+  if (!isHTMLElement(element) || // https://github.com/popperjs/popper-core/issues/837
+  getComputedStyle(element).position === 'fixed') {
+    return null;
+  }
+
+  return element.offsetParent;
+} // `.offsetParent` reports `null` for fixed elements, while absolute elements
+// return the containing block
+
+
+function getContainingBlock(element) {
+  var isFirefox = /firefox/i.test(getUAString());
+  var isIE = /Trident/i.test(getUAString());
+
+  if (isIE && isHTMLElement(element)) {
+    // In IE 9, 10 and 11 fixed elements containing block is always established by the viewport
+    var elementCss = getComputedStyle(element);
+
+    if (elementCss.position === 'fixed') {
+      return null;
+    }
+  }
+
+  var currentNode = getParentNode(element);
+
+  if (isShadowRoot(currentNode)) {
+    currentNode = currentNode.host;
+  }
+
+  while (isHTMLElement(currentNode) && ['html', 'body'].indexOf(getNodeName(currentNode)) < 0) {
+    var css = getComputedStyle(currentNode); // This is non-exhaustive but covers the most common CSS properties that
+    // create a containing block.
+    // https://developer.mozilla.org/en-US/docs/Web/CSS/Containing_block#identifying_the_containing_block
+
+    if (css.transform !== 'none' || css.perspective !== 'none' || css.contain === 'paint' || ['transform', 'perspective'].indexOf(css.willChange) !== -1 || isFirefox && css.willChange === 'filter' || isFirefox && css.filter && css.filter !== 'none') {
+      return currentNode;
+    } else {
+      currentNode = currentNode.parentNode;
+    }
+  }
+
+  return null;
+} // Gets the closest ancestor positioned element. Handles some edge cases,
+// such as table ancestors and cross browser bugs.
+
+
+function getOffsetParent(element) {
+  var window = getWindow(element);
+  var offsetParent = getTrueOffsetParent(element);
+
+  while (offsetParent && isTableElement(offsetParent) && getComputedStyle(offsetParent).position === 'static') {
+    offsetParent = getTrueOffsetParent(offsetParent);
+  }
+
+  if (offsetParent && (getNodeName(offsetParent) === 'html' || getNodeName(offsetParent) === 'body' && getComputedStyle(offsetParent).position === 'static')) {
+    return window;
+  }
+
+  return offsetParent || getContainingBlock(element) || window;
+}
+
+function getMainAxisFromPlacement(placement) {
+  return ['top', 'bottom'].indexOf(placement) >= 0 ? 'x' : 'y';
+}
+
+function within(min$1, value, max$1) {
+  return max(min$1, min(value, max$1));
+}
+function withinMaxClamp(min, value, max) {
+  var v = within(min, value, max);
+  return v > max ? max : v;
+}
+
+function getFreshSideObject() {
+  return {
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0
+  };
+}
+
+function mergePaddingObject(paddingObject) {
+  return Object.assign({}, getFreshSideObject(), paddingObject);
+}
+
+function expandToHashMap(value, keys) {
+  return keys.reduce(function (hashMap, key) {
+    hashMap[key] = value;
+    return hashMap;
+  }, {});
+}
+
+var toPaddingObject = function toPaddingObject(padding, state) {
+  padding = typeof padding === 'function' ? padding(Object.assign({}, state.rects, {
+    placement: state.placement
+  })) : padding;
+  return mergePaddingObject(typeof padding !== 'number' ? padding : expandToHashMap(padding, basePlacements));
+};
+
+function arrow(_ref) {
+  var _state$modifiersData$;
+
+  var state = _ref.state,
+      name = _ref.name,
+      options = _ref.options;
+  var arrowElement = state.elements.arrow;
+  var popperOffsets = state.modifiersData.popperOffsets;
+  var basePlacement = getBasePlacement(state.placement);
+  var axis = getMainAxisFromPlacement(basePlacement);
+  var isVertical = [left$2, right$2].indexOf(basePlacement) >= 0;
+  var len = isVertical ? 'height' : 'width';
+
+  if (!arrowElement || !popperOffsets) {
+    return;
+  }
+
+  var paddingObject = toPaddingObject(options.padding, state);
+  var arrowRect = getLayoutRect(arrowElement);
+  var minProp = axis === 'y' ? top$2 : left$2;
+  var maxProp = axis === 'y' ? bottom$2 : right$2;
+  var endDiff = state.rects.reference[len] + state.rects.reference[axis] - popperOffsets[axis] - state.rects.popper[len];
+  var startDiff = popperOffsets[axis] - state.rects.reference[axis];
+  var arrowOffsetParent = getOffsetParent(arrowElement);
+  var clientSize = arrowOffsetParent ? axis === 'y' ? arrowOffsetParent.clientHeight || 0 : arrowOffsetParent.clientWidth || 0 : 0;
+  var centerToReference = endDiff / 2 - startDiff / 2; // Make sure the arrow doesn't overflow the popper if the center point is
+  // outside of the popper bounds
+
+  var min = paddingObject[minProp];
+  var max = clientSize - arrowRect[len] - paddingObject[maxProp];
+  var center = clientSize / 2 - arrowRect[len] / 2 + centerToReference;
+  var offset = within(min, center, max); // Prevents breaking syntax highlighting...
+
+  var axisProp = axis;
+  state.modifiersData[name] = (_state$modifiersData$ = {}, _state$modifiersData$[axisProp] = offset, _state$modifiersData$.centerOffset = offset - center, _state$modifiersData$);
+}
+
+function effect$1(_ref2) {
+  var state = _ref2.state,
+      options = _ref2.options;
+  var _options$element = options.element,
+      arrowElement = _options$element === void 0 ? '[data-popper-arrow]' : _options$element;
+
+  if (arrowElement == null) {
+    return;
+  } // CSS selector
+
+
+  if (typeof arrowElement === 'string') {
+    arrowElement = state.elements.popper.querySelector(arrowElement);
+
+    if (!arrowElement) {
+      return;
+    }
+  }
+
+  if (!contains(state.elements.popper, arrowElement)) {
+    return;
+  }
+
+  state.elements.arrow = arrowElement;
+} // eslint-disable-next-line import/no-unused-modules
+
+
+var arrow$1 = {
+  name: 'arrow',
+  enabled: true,
+  phase: 'main',
+  fn: arrow,
+  effect: effect$1,
+  requires: ['popperOffsets'],
+  requiresIfExists: ['preventOverflow']
+};
+
+function getVariation(placement) {
+  return placement.split('-')[1];
+}
+
+var unsetSides = {
+  top: 'auto',
+  right: 'auto',
+  bottom: 'auto',
+  left: 'auto'
+}; // Round the offsets to the nearest suitable subpixel based on the DPR.
+// Zooming can change the DPR, but it seems to report a value that will
+// cleanly divide the values into the appropriate subpixels.
+
+function roundOffsetsByDPR(_ref, win) {
+  var x = _ref.x,
+      y = _ref.y;
+  var dpr = win.devicePixelRatio || 1;
+  return {
+    x: round(x * dpr) / dpr || 0,
+    y: round(y * dpr) / dpr || 0
+  };
+}
+
+function mapToStyles(_ref2) {
+  var _Object$assign2;
+
+  var popper = _ref2.popper,
+      popperRect = _ref2.popperRect,
+      placement = _ref2.placement,
+      variation = _ref2.variation,
+      offsets = _ref2.offsets,
+      position = _ref2.position,
+      gpuAcceleration = _ref2.gpuAcceleration,
+      adaptive = _ref2.adaptive,
+      roundOffsets = _ref2.roundOffsets,
+      isFixed = _ref2.isFixed;
+  var _offsets$x = offsets.x,
+      x = _offsets$x === void 0 ? 0 : _offsets$x,
+      _offsets$y = offsets.y,
+      y = _offsets$y === void 0 ? 0 : _offsets$y;
+
+  var _ref3 = typeof roundOffsets === 'function' ? roundOffsets({
+    x: x,
+    y: y
+  }) : {
+    x: x,
+    y: y
+  };
+
+  x = _ref3.x;
+  y = _ref3.y;
+  var hasX = offsets.hasOwnProperty('x');
+  var hasY = offsets.hasOwnProperty('y');
+  var sideX = left$2;
+  var sideY = top$2;
+  var win = window;
+
+  if (adaptive) {
+    var offsetParent = getOffsetParent(popper);
+    var heightProp = 'clientHeight';
+    var widthProp = 'clientWidth';
+
+    if (offsetParent === getWindow(popper)) {
+      offsetParent = getDocumentElement(popper);
+
+      if (getComputedStyle(offsetParent).position !== 'static' && position === 'absolute') {
+        heightProp = 'scrollHeight';
+        widthProp = 'scrollWidth';
+      }
+    } // $FlowFixMe[incompatible-cast]: force type refinement, we compare offsetParent with window above, but Flow doesn't detect it
+
+
+    offsetParent = offsetParent;
+
+    if (placement === top$2 || (placement === left$2 || placement === right$2) && variation === end) {
+      sideY = bottom$2;
+      var offsetY = isFixed && offsetParent === win && win.visualViewport ? win.visualViewport.height : // $FlowFixMe[prop-missing]
+      offsetParent[heightProp];
+      y -= offsetY - popperRect.height;
+      y *= gpuAcceleration ? 1 : -1;
+    }
+
+    if (placement === left$2 || (placement === top$2 || placement === bottom$2) && variation === end) {
+      sideX = right$2;
+      var offsetX = isFixed && offsetParent === win && win.visualViewport ? win.visualViewport.width : // $FlowFixMe[prop-missing]
+      offsetParent[widthProp];
+      x -= offsetX - popperRect.width;
+      x *= gpuAcceleration ? 1 : -1;
+    }
+  }
+
+  var commonStyles = Object.assign({
+    position: position
+  }, adaptive && unsetSides);
+
+  var _ref4 = roundOffsets === true ? roundOffsetsByDPR({
+    x: x,
+    y: y
+  }, getWindow(popper)) : {
+    x: x,
+    y: y
+  };
+
+  x = _ref4.x;
+  y = _ref4.y;
+
+  if (gpuAcceleration) {
+    var _Object$assign;
+
+    return Object.assign({}, commonStyles, (_Object$assign = {}, _Object$assign[sideY] = hasY ? '0' : '', _Object$assign[sideX] = hasX ? '0' : '', _Object$assign.transform = (win.devicePixelRatio || 1) <= 1 ? "translate(" + x + "px, " + y + "px)" : "translate3d(" + x + "px, " + y + "px, 0)", _Object$assign));
+  }
+
+  return Object.assign({}, commonStyles, (_Object$assign2 = {}, _Object$assign2[sideY] = hasY ? y + "px" : '', _Object$assign2[sideX] = hasX ? x + "px" : '', _Object$assign2.transform = '', _Object$assign2));
+}
+
+function computeStyles(_ref5) {
+  var state = _ref5.state,
+      options = _ref5.options;
+  var _options$gpuAccelerat = options.gpuAcceleration,
+      gpuAcceleration = _options$gpuAccelerat === void 0 ? true : _options$gpuAccelerat,
+      _options$adaptive = options.adaptive,
+      adaptive = _options$adaptive === void 0 ? true : _options$adaptive,
+      _options$roundOffsets = options.roundOffsets,
+      roundOffsets = _options$roundOffsets === void 0 ? true : _options$roundOffsets;
+  var commonStyles = {
+    placement: getBasePlacement(state.placement),
+    variation: getVariation(state.placement),
+    popper: state.elements.popper,
+    popperRect: state.rects.popper,
+    gpuAcceleration: gpuAcceleration,
+    isFixed: state.options.strategy === 'fixed'
+  };
+
+  if (state.modifiersData.popperOffsets != null) {
+    state.styles.popper = Object.assign({}, state.styles.popper, mapToStyles(Object.assign({}, commonStyles, {
+      offsets: state.modifiersData.popperOffsets,
+      position: state.options.strategy,
+      adaptive: adaptive,
+      roundOffsets: roundOffsets
+    })));
+  }
+
+  if (state.modifiersData.arrow != null) {
+    state.styles.arrow = Object.assign({}, state.styles.arrow, mapToStyles(Object.assign({}, commonStyles, {
+      offsets: state.modifiersData.arrow,
+      position: 'absolute',
+      adaptive: false,
+      roundOffsets: roundOffsets
+    })));
+  }
+
+  state.attributes.popper = Object.assign({}, state.attributes.popper, {
+    'data-popper-placement': state.placement
+  });
+} // eslint-disable-next-line import/no-unused-modules
+
+
+var computeStyles$1 = {
+  name: 'computeStyles',
+  enabled: true,
+  phase: 'beforeWrite',
+  fn: computeStyles,
+  data: {}
+};
+
+var passive = {
+  passive: true
+};
+
+function effect$2(_ref) {
+  var state = _ref.state,
+      instance = _ref.instance,
+      options = _ref.options;
+  var _options$scroll = options.scroll,
+      scroll = _options$scroll === void 0 ? true : _options$scroll,
+      _options$resize = options.resize,
+      resize = _options$resize === void 0 ? true : _options$resize;
+  var window = getWindow(state.elements.popper);
+  var scrollParents = [].concat(state.scrollParents.reference, state.scrollParents.popper);
+
+  if (scroll) {
+    scrollParents.forEach(function (scrollParent) {
+      scrollParent.addEventListener('scroll', instance.update, passive);
+    });
+  }
+
+  if (resize) {
+    window.addEventListener('resize', instance.update, passive);
+  }
+
+  return function () {
+    if (scroll) {
+      scrollParents.forEach(function (scrollParent) {
+        scrollParent.removeEventListener('scroll', instance.update, passive);
+      });
+    }
+
+    if (resize) {
+      window.removeEventListener('resize', instance.update, passive);
+    }
+  };
+} // eslint-disable-next-line import/no-unused-modules
+
+
+var eventListeners = {
+  name: 'eventListeners',
+  enabled: true,
+  phase: 'write',
+  fn: function fn() {},
+  effect: effect$2,
+  data: {}
+};
+
+var hash = {
+  left: 'right',
+  right: 'left',
+  bottom: 'top',
+  top: 'bottom'
+};
+function getOppositePlacement(placement) {
+  return placement.replace(/left|right|bottom|top/g, function (matched) {
+    return hash[matched];
+  });
+}
+
+var hash$1 = {
+  start: 'end',
+  end: 'start'
+};
+function getOppositeVariationPlacement(placement) {
+  return placement.replace(/start|end/g, function (matched) {
+    return hash$1[matched];
+  });
+}
+
+function getWindowScroll(node) {
+  var win = getWindow(node);
+  var scrollLeft = win.pageXOffset;
+  var scrollTop = win.pageYOffset;
+  return {
+    scrollLeft: scrollLeft,
+    scrollTop: scrollTop
+  };
+}
+
+function getWindowScrollBarX(element) {
+  // If <html> has a CSS width greater than the viewport, then this will be
+  // incorrect for RTL.
+  // Popper 1 is broken in this case and never had a bug report so let's assume
+  // it's not an issue. I don't think anyone ever specifies width on <html>
+  // anyway.
+  // Browsers where the left scrollbar doesn't cause an issue report `0` for
+  // this (e.g. Edge 2019, IE11, Safari)
+  return getBoundingClientRect(getDocumentElement(element)).left + getWindowScroll(element).scrollLeft;
+}
+
+function getViewportRect(element, strategy) {
+  var win = getWindow(element);
+  var html = getDocumentElement(element);
+  var visualViewport = win.visualViewport;
+  var width = html.clientWidth;
+  var height = html.clientHeight;
+  var x = 0;
+  var y = 0;
+
+  if (visualViewport) {
+    width = visualViewport.width;
+    height = visualViewport.height;
+    var layoutViewport = isLayoutViewport();
+
+    if (layoutViewport || !layoutViewport && strategy === 'fixed') {
+      x = visualViewport.offsetLeft;
+      y = visualViewport.offsetTop;
+    }
+  }
+
+  return {
+    width: width,
+    height: height,
+    x: x + getWindowScrollBarX(element),
+    y: y
+  };
+}
+
+// of the `<html>` and `<body>` rect bounds if horizontally scrollable
+
+function getDocumentRect(element) {
+  var _element$ownerDocumen;
+
+  var html = getDocumentElement(element);
+  var winScroll = getWindowScroll(element);
+  var body = (_element$ownerDocumen = element.ownerDocument) == null ? void 0 : _element$ownerDocumen.body;
+  var width = max(html.scrollWidth, html.clientWidth, body ? body.scrollWidth : 0, body ? body.clientWidth : 0);
+  var height = max(html.scrollHeight, html.clientHeight, body ? body.scrollHeight : 0, body ? body.clientHeight : 0);
+  var x = -winScroll.scrollLeft + getWindowScrollBarX(element);
+  var y = -winScroll.scrollTop;
+
+  if (getComputedStyle(body || html).direction === 'rtl') {
+    x += max(html.clientWidth, body ? body.clientWidth : 0) - width;
+  }
+
+  return {
+    width: width,
+    height: height,
+    x: x,
+    y: y
+  };
+}
+
+function isScrollParent(element) {
+  // Firefox wants us to check `-x` and `-y` variations as well
+  var _getComputedStyle = getComputedStyle(element),
+      overflow = _getComputedStyle.overflow,
+      overflowX = _getComputedStyle.overflowX,
+      overflowY = _getComputedStyle.overflowY;
+
+  return /auto|scroll|overlay|hidden/.test(overflow + overflowY + overflowX);
+}
+
+function getScrollParent(node) {
+  if (['html', 'body', '#document'].indexOf(getNodeName(node)) >= 0) {
+    // $FlowFixMe[incompatible-return]: assume body is always available
+    return node.ownerDocument.body;
+  }
+
+  if (isHTMLElement(node) && isScrollParent(node)) {
+    return node;
+  }
+
+  return getScrollParent(getParentNode(node));
+}
+
+/*
+given a DOM element, return the list of all scroll parents, up the list of ancesors
+until we get to the top window object. This list is what we attach scroll listeners
+to, because if any of these parent elements scroll, we'll need to re-calculate the
+reference element's position.
+*/
+
+function listScrollParents(element, list) {
+  var _element$ownerDocumen;
+
+  if (list === void 0) {
+    list = [];
+  }
+
+  var scrollParent = getScrollParent(element);
+  var isBody = scrollParent === ((_element$ownerDocumen = element.ownerDocument) == null ? void 0 : _element$ownerDocumen.body);
+  var win = getWindow(scrollParent);
+  var target = isBody ? [win].concat(win.visualViewport || [], isScrollParent(scrollParent) ? scrollParent : []) : scrollParent;
+  var updatedList = list.concat(target);
+  return isBody ? updatedList : // $FlowFixMe[incompatible-call]: isBody tells us target will be an HTMLElement here
+  updatedList.concat(listScrollParents(getParentNode(target)));
+}
+
+function rectToClientRect(rect) {
+  return Object.assign({}, rect, {
+    left: rect.x,
+    top: rect.y,
+    right: rect.x + rect.width,
+    bottom: rect.y + rect.height
+  });
+}
+
+function getInnerBoundingClientRect(element, strategy) {
+  var rect = getBoundingClientRect(element, false, strategy === 'fixed');
+  rect.top = rect.top + element.clientTop;
+  rect.left = rect.left + element.clientLeft;
+  rect.bottom = rect.top + element.clientHeight;
+  rect.right = rect.left + element.clientWidth;
+  rect.width = element.clientWidth;
+  rect.height = element.clientHeight;
+  rect.x = rect.left;
+  rect.y = rect.top;
+  return rect;
+}
+
+function getClientRectFromMixedType(element, clippingParent, strategy) {
+  return clippingParent === viewport ? rectToClientRect(getViewportRect(element, strategy)) : isElement(clippingParent) ? getInnerBoundingClientRect(clippingParent, strategy) : rectToClientRect(getDocumentRect(getDocumentElement(element)));
+} // A "clipping parent" is an overflowable container with the characteristic of
+// clipping (or hiding) overflowing elements with a position different from
+// `initial`
+
+
+function getClippingParents(element) {
+  var clippingParents = listScrollParents(getParentNode(element));
+  var canEscapeClipping = ['absolute', 'fixed'].indexOf(getComputedStyle(element).position) >= 0;
+  var clipperElement = canEscapeClipping && isHTMLElement(element) ? getOffsetParent(element) : element;
+
+  if (!isElement(clipperElement)) {
+    return [];
+  } // $FlowFixMe[incompatible-return]: https://github.com/facebook/flow/issues/1414
+
+
+  return clippingParents.filter(function (clippingParent) {
+    return isElement(clippingParent) && contains(clippingParent, clipperElement) && getNodeName(clippingParent) !== 'body';
+  });
+} // Gets the maximum area that the element is visible in due to any number of
+// clipping parents
+
+
+function getClippingRect(element, boundary, rootBoundary, strategy) {
+  var mainClippingParents = boundary === 'clippingParents' ? getClippingParents(element) : [].concat(boundary);
+  var clippingParents = [].concat(mainClippingParents, [rootBoundary]);
+  var firstClippingParent = clippingParents[0];
+  var clippingRect = clippingParents.reduce(function (accRect, clippingParent) {
+    var rect = getClientRectFromMixedType(element, clippingParent, strategy);
+    accRect.top = max(rect.top, accRect.top);
+    accRect.right = min(rect.right, accRect.right);
+    accRect.bottom = min(rect.bottom, accRect.bottom);
+    accRect.left = max(rect.left, accRect.left);
+    return accRect;
+  }, getClientRectFromMixedType(element, firstClippingParent, strategy));
+  clippingRect.width = clippingRect.right - clippingRect.left;
+  clippingRect.height = clippingRect.bottom - clippingRect.top;
+  clippingRect.x = clippingRect.left;
+  clippingRect.y = clippingRect.top;
+  return clippingRect;
+}
+
+function computeOffsets(_ref) {
+  var reference = _ref.reference,
+      element = _ref.element,
+      placement = _ref.placement;
+  var basePlacement = placement ? getBasePlacement(placement) : null;
+  var variation = placement ? getVariation(placement) : null;
+  var commonX = reference.x + reference.width / 2 - element.width / 2;
+  var commonY = reference.y + reference.height / 2 - element.height / 2;
+  var offsets;
+
+  switch (basePlacement) {
+    case top$2:
+      offsets = {
+        x: commonX,
+        y: reference.y - element.height
+      };
+      break;
+
+    case bottom$2:
+      offsets = {
+        x: commonX,
+        y: reference.y + reference.height
+      };
+      break;
+
+    case right$2:
+      offsets = {
+        x: reference.x + reference.width,
+        y: commonY
+      };
+      break;
+
+    case left$2:
+      offsets = {
+        x: reference.x - element.width,
+        y: commonY
+      };
+      break;
+
+    default:
+      offsets = {
+        x: reference.x,
+        y: reference.y
+      };
+  }
+
+  var mainAxis = basePlacement ? getMainAxisFromPlacement(basePlacement) : null;
+
+  if (mainAxis != null) {
+    var len = mainAxis === 'y' ? 'height' : 'width';
+
+    switch (variation) {
+      case start:
+        offsets[mainAxis] = offsets[mainAxis] - (reference[len] / 2 - element[len] / 2);
+        break;
+
+      case end:
+        offsets[mainAxis] = offsets[mainAxis] + (reference[len] / 2 - element[len] / 2);
+        break;
+    }
+  }
+
+  return offsets;
+}
+
+function detectOverflow(state, options) {
+  if (options === void 0) {
+    options = {};
+  }
+
+  var _options = options,
+      _options$placement = _options.placement,
+      placement = _options$placement === void 0 ? state.placement : _options$placement,
+      _options$strategy = _options.strategy,
+      strategy = _options$strategy === void 0 ? state.strategy : _options$strategy,
+      _options$boundary = _options.boundary,
+      boundary = _options$boundary === void 0 ? clippingParents : _options$boundary,
+      _options$rootBoundary = _options.rootBoundary,
+      rootBoundary = _options$rootBoundary === void 0 ? viewport : _options$rootBoundary,
+      _options$elementConte = _options.elementContext,
+      elementContext = _options$elementConte === void 0 ? popper : _options$elementConte,
+      _options$altBoundary = _options.altBoundary,
+      altBoundary = _options$altBoundary === void 0 ? false : _options$altBoundary,
+      _options$padding = _options.padding,
+      padding = _options$padding === void 0 ? 0 : _options$padding;
+  var paddingObject = mergePaddingObject(typeof padding !== 'number' ? padding : expandToHashMap(padding, basePlacements));
+  var altContext = elementContext === popper ? reference : popper;
+  var popperRect = state.rects.popper;
+  var element = state.elements[altBoundary ? altContext : elementContext];
+  var clippingClientRect = getClippingRect(isElement(element) ? element : element.contextElement || getDocumentElement(state.elements.popper), boundary, rootBoundary, strategy);
+  var referenceClientRect = getBoundingClientRect(state.elements.reference);
+  var popperOffsets = computeOffsets({
+    reference: referenceClientRect,
+    element: popperRect,
+    strategy: 'absolute',
+    placement: placement
+  });
+  var popperClientRect = rectToClientRect(Object.assign({}, popperRect, popperOffsets));
+  var elementClientRect = elementContext === popper ? popperClientRect : referenceClientRect; // positive = overflowing the clipping rect
+  // 0 or negative = within the clipping rect
+
+  var overflowOffsets = {
+    top: clippingClientRect.top - elementClientRect.top + paddingObject.top,
+    bottom: elementClientRect.bottom - clippingClientRect.bottom + paddingObject.bottom,
+    left: clippingClientRect.left - elementClientRect.left + paddingObject.left,
+    right: elementClientRect.right - clippingClientRect.right + paddingObject.right
+  };
+  var offsetData = state.modifiersData.offset; // Offsets can be applied only to the popper element
+
+  if (elementContext === popper && offsetData) {
+    var offset = offsetData[placement];
+    Object.keys(overflowOffsets).forEach(function (key) {
+      var multiply = [right$2, bottom$2].indexOf(key) >= 0 ? 1 : -1;
+      var axis = [top$2, bottom$2].indexOf(key) >= 0 ? 'y' : 'x';
+      overflowOffsets[key] += offset[axis] * multiply;
+    });
+  }
+
+  return overflowOffsets;
+}
+
+function computeAutoPlacement(state, options) {
+  if (options === void 0) {
+    options = {};
+  }
+
+  var _options = options,
+      placement = _options.placement,
+      boundary = _options.boundary,
+      rootBoundary = _options.rootBoundary,
+      padding = _options.padding,
+      flipVariations = _options.flipVariations,
+      _options$allowedAutoP = _options.allowedAutoPlacements,
+      allowedAutoPlacements = _options$allowedAutoP === void 0 ? placements : _options$allowedAutoP;
+  var variation = getVariation(placement);
+  var placements$1 = variation ? flipVariations ? variationPlacements : variationPlacements.filter(function (placement) {
+    return getVariation(placement) === variation;
+  }) : basePlacements;
+  var allowedPlacements = placements$1.filter(function (placement) {
+    return allowedAutoPlacements.indexOf(placement) >= 0;
+  });
+
+  if (allowedPlacements.length === 0) {
+    allowedPlacements = placements$1;
+  } // $FlowFixMe[incompatible-type]: Flow seems to have problems with two array unions...
+
+
+  var overflows = allowedPlacements.reduce(function (acc, placement) {
+    acc[placement] = detectOverflow(state, {
+      placement: placement,
+      boundary: boundary,
+      rootBoundary: rootBoundary,
+      padding: padding
+    })[getBasePlacement(placement)];
+    return acc;
+  }, {});
+  return Object.keys(overflows).sort(function (a, b) {
+    return overflows[a] - overflows[b];
+  });
+}
+
+function getExpandedFallbackPlacements(placement) {
+  if (getBasePlacement(placement) === auto) {
+    return [];
+  }
+
+  var oppositePlacement = getOppositePlacement(placement);
+  return [getOppositeVariationPlacement(placement), oppositePlacement, getOppositeVariationPlacement(oppositePlacement)];
+}
+
+function flip(_ref) {
+  var state = _ref.state,
+      options = _ref.options,
+      name = _ref.name;
+
+  if (state.modifiersData[name]._skip) {
+    return;
+  }
+
+  var _options$mainAxis = options.mainAxis,
+      checkMainAxis = _options$mainAxis === void 0 ? true : _options$mainAxis,
+      _options$altAxis = options.altAxis,
+      checkAltAxis = _options$altAxis === void 0 ? true : _options$altAxis,
+      specifiedFallbackPlacements = options.fallbackPlacements,
+      padding = options.padding,
+      boundary = options.boundary,
+      rootBoundary = options.rootBoundary,
+      altBoundary = options.altBoundary,
+      _options$flipVariatio = options.flipVariations,
+      flipVariations = _options$flipVariatio === void 0 ? true : _options$flipVariatio,
+      allowedAutoPlacements = options.allowedAutoPlacements;
+  var preferredPlacement = state.options.placement;
+  var basePlacement = getBasePlacement(preferredPlacement);
+  var isBasePlacement = basePlacement === preferredPlacement;
+  var fallbackPlacements = specifiedFallbackPlacements || (isBasePlacement || !flipVariations ? [getOppositePlacement(preferredPlacement)] : getExpandedFallbackPlacements(preferredPlacement));
+  var placements = [preferredPlacement].concat(fallbackPlacements).reduce(function (acc, placement) {
+    return acc.concat(getBasePlacement(placement) === auto ? computeAutoPlacement(state, {
+      placement: placement,
+      boundary: boundary,
+      rootBoundary: rootBoundary,
+      padding: padding,
+      flipVariations: flipVariations,
+      allowedAutoPlacements: allowedAutoPlacements
+    }) : placement);
+  }, []);
+  var referenceRect = state.rects.reference;
+  var popperRect = state.rects.popper;
+  var checksMap = new Map();
+  var makeFallbackChecks = true;
+  var firstFittingPlacement = placements[0];
+
+  for (var i = 0; i < placements.length; i++) {
+    var placement = placements[i];
+
+    var _basePlacement = getBasePlacement(placement);
+
+    var isStartVariation = getVariation(placement) === start;
+    var isVertical = [top$2, bottom$2].indexOf(_basePlacement) >= 0;
+    var len = isVertical ? 'width' : 'height';
+    var overflow = detectOverflow(state, {
+      placement: placement,
+      boundary: boundary,
+      rootBoundary: rootBoundary,
+      altBoundary: altBoundary,
+      padding: padding
+    });
+    var mainVariationSide = isVertical ? isStartVariation ? right$2 : left$2 : isStartVariation ? bottom$2 : top$2;
+
+    if (referenceRect[len] > popperRect[len]) {
+      mainVariationSide = getOppositePlacement(mainVariationSide);
+    }
+
+    var altVariationSide = getOppositePlacement(mainVariationSide);
+    var checks = [];
+
+    if (checkMainAxis) {
+      checks.push(overflow[_basePlacement] <= 0);
+    }
+
+    if (checkAltAxis) {
+      checks.push(overflow[mainVariationSide] <= 0, overflow[altVariationSide] <= 0);
+    }
+
+    if (checks.every(function (check) {
+      return check;
+    })) {
+      firstFittingPlacement = placement;
+      makeFallbackChecks = false;
+      break;
+    }
+
+    checksMap.set(placement, checks);
+  }
+
+  if (makeFallbackChecks) {
+    // `2` may be desired in some cases – research later
+    var numberOfChecks = flipVariations ? 3 : 1;
+
+    var _loop = function _loop(_i) {
+      var fittingPlacement = placements.find(function (placement) {
+        var checks = checksMap.get(placement);
+
+        if (checks) {
+          return checks.slice(0, _i).every(function (check) {
+            return check;
+          });
+        }
+      });
+
+      if (fittingPlacement) {
+        firstFittingPlacement = fittingPlacement;
+        return "break";
+      }
+    };
+
+    for (var _i = numberOfChecks; _i > 0; _i--) {
+      var _ret = _loop(_i);
+
+      if (_ret === "break") break;
+    }
+  }
+
+  if (state.placement !== firstFittingPlacement) {
+    state.modifiersData[name]._skip = true;
+    state.placement = firstFittingPlacement;
+    state.reset = true;
+  }
+} // eslint-disable-next-line import/no-unused-modules
+
+
+var flip$1 = {
+  name: 'flip',
+  enabled: true,
+  phase: 'main',
+  fn: flip,
+  requiresIfExists: ['offset'],
+  data: {
+    _skip: false
+  }
+};
+
+function getSideOffsets(overflow, rect, preventedOffsets) {
+  if (preventedOffsets === void 0) {
+    preventedOffsets = {
+      x: 0,
+      y: 0
+    };
+  }
+
+  return {
+    top: overflow.top - rect.height - preventedOffsets.y,
+    right: overflow.right - rect.width + preventedOffsets.x,
+    bottom: overflow.bottom - rect.height + preventedOffsets.y,
+    left: overflow.left - rect.width - preventedOffsets.x
+  };
+}
+
+function isAnySideFullyClipped(overflow) {
+  return [top$2, right$2, bottom$2, left$2].some(function (side) {
+    return overflow[side] >= 0;
+  });
+}
+
+function hide(_ref) {
+  var state = _ref.state,
+      name = _ref.name;
+  var referenceRect = state.rects.reference;
+  var popperRect = state.rects.popper;
+  var preventedOffsets = state.modifiersData.preventOverflow;
+  var referenceOverflow = detectOverflow(state, {
+    elementContext: 'reference'
+  });
+  var popperAltOverflow = detectOverflow(state, {
+    altBoundary: true
+  });
+  var referenceClippingOffsets = getSideOffsets(referenceOverflow, referenceRect);
+  var popperEscapeOffsets = getSideOffsets(popperAltOverflow, popperRect, preventedOffsets);
+  var isReferenceHidden = isAnySideFullyClipped(referenceClippingOffsets);
+  var hasPopperEscaped = isAnySideFullyClipped(popperEscapeOffsets);
+  state.modifiersData[name] = {
+    referenceClippingOffsets: referenceClippingOffsets,
+    popperEscapeOffsets: popperEscapeOffsets,
+    isReferenceHidden: isReferenceHidden,
+    hasPopperEscaped: hasPopperEscaped
+  };
+  state.attributes.popper = Object.assign({}, state.attributes.popper, {
+    'data-popper-reference-hidden': isReferenceHidden,
+    'data-popper-escaped': hasPopperEscaped
+  });
+} // eslint-disable-next-line import/no-unused-modules
+
+
+var hide$1 = {
+  name: 'hide',
+  enabled: true,
+  phase: 'main',
+  requiresIfExists: ['preventOverflow'],
+  fn: hide
+};
+
+function distanceAndSkiddingToXY(placement, rects, offset) {
+  var basePlacement = getBasePlacement(placement);
+  var invertDistance = [left$2, top$2].indexOf(basePlacement) >= 0 ? -1 : 1;
+
+  var _ref = typeof offset === 'function' ? offset(Object.assign({}, rects, {
+    placement: placement
+  })) : offset,
+      skidding = _ref[0],
+      distance = _ref[1];
+
+  skidding = skidding || 0;
+  distance = (distance || 0) * invertDistance;
+  return [left$2, right$2].indexOf(basePlacement) >= 0 ? {
+    x: distance,
+    y: skidding
+  } : {
+    x: skidding,
+    y: distance
+  };
+}
+
+function offset(_ref2) {
+  var state = _ref2.state,
+      options = _ref2.options,
+      name = _ref2.name;
+  var _options$offset = options.offset,
+      offset = _options$offset === void 0 ? [0, 0] : _options$offset;
+  var data = placements.reduce(function (acc, placement) {
+    acc[placement] = distanceAndSkiddingToXY(placement, state.rects, offset);
+    return acc;
+  }, {});
+  var _data$state$placement = data[state.placement],
+      x = _data$state$placement.x,
+      y = _data$state$placement.y;
+
+  if (state.modifiersData.popperOffsets != null) {
+    state.modifiersData.popperOffsets.x += x;
+    state.modifiersData.popperOffsets.y += y;
+  }
+
+  state.modifiersData[name] = data;
+} // eslint-disable-next-line import/no-unused-modules
+
+
+var offset$1 = {
+  name: 'offset',
+  enabled: true,
+  phase: 'main',
+  requires: ['popperOffsets'],
+  fn: offset
+};
+
+function popperOffsets(_ref) {
+  var state = _ref.state,
+      name = _ref.name;
+  // Offsets are the actual position the popper needs to have to be
+  // properly positioned near its reference element
+  // This is the most basic placement, and will be adjusted by
+  // the modifiers in the next step
+  state.modifiersData[name] = computeOffsets({
+    reference: state.rects.reference,
+    element: state.rects.popper,
+    strategy: 'absolute',
+    placement: state.placement
+  });
+} // eslint-disable-next-line import/no-unused-modules
+
+
+var popperOffsets$1 = {
+  name: 'popperOffsets',
+  enabled: true,
+  phase: 'read',
+  fn: popperOffsets,
+  data: {}
+};
+
+function getAltAxis(axis) {
+  return axis === 'x' ? 'y' : 'x';
+}
+
+function preventOverflow(_ref) {
+  var state = _ref.state,
+      options = _ref.options,
+      name = _ref.name;
+  var _options$mainAxis = options.mainAxis,
+      checkMainAxis = _options$mainAxis === void 0 ? true : _options$mainAxis,
+      _options$altAxis = options.altAxis,
+      checkAltAxis = _options$altAxis === void 0 ? false : _options$altAxis,
+      boundary = options.boundary,
+      rootBoundary = options.rootBoundary,
+      altBoundary = options.altBoundary,
+      padding = options.padding,
+      _options$tether = options.tether,
+      tether = _options$tether === void 0 ? true : _options$tether,
+      _options$tetherOffset = options.tetherOffset,
+      tetherOffset = _options$tetherOffset === void 0 ? 0 : _options$tetherOffset;
+  var overflow = detectOverflow(state, {
+    boundary: boundary,
+    rootBoundary: rootBoundary,
+    padding: padding,
+    altBoundary: altBoundary
+  });
+  var basePlacement = getBasePlacement(state.placement);
+  var variation = getVariation(state.placement);
+  var isBasePlacement = !variation;
+  var mainAxis = getMainAxisFromPlacement(basePlacement);
+  var altAxis = getAltAxis(mainAxis);
+  var popperOffsets = state.modifiersData.popperOffsets;
+  var referenceRect = state.rects.reference;
+  var popperRect = state.rects.popper;
+  var tetherOffsetValue = typeof tetherOffset === 'function' ? tetherOffset(Object.assign({}, state.rects, {
+    placement: state.placement
+  })) : tetherOffset;
+  var normalizedTetherOffsetValue = typeof tetherOffsetValue === 'number' ? {
+    mainAxis: tetherOffsetValue,
+    altAxis: tetherOffsetValue
+  } : Object.assign({
+    mainAxis: 0,
+    altAxis: 0
+  }, tetherOffsetValue);
+  var offsetModifierState = state.modifiersData.offset ? state.modifiersData.offset[state.placement] : null;
+  var data = {
+    x: 0,
+    y: 0
+  };
+
+  if (!popperOffsets) {
+    return;
+  }
+
+  if (checkMainAxis) {
+    var _offsetModifierState$;
+
+    var mainSide = mainAxis === 'y' ? top$2 : left$2;
+    var altSide = mainAxis === 'y' ? bottom$2 : right$2;
+    var len = mainAxis === 'y' ? 'height' : 'width';
+    var offset = popperOffsets[mainAxis];
+    var min$1 = offset + overflow[mainSide];
+    var max$1 = offset - overflow[altSide];
+    var additive = tether ? -popperRect[len] / 2 : 0;
+    var minLen = variation === start ? referenceRect[len] : popperRect[len];
+    var maxLen = variation === start ? -popperRect[len] : -referenceRect[len]; // We need to include the arrow in the calculation so the arrow doesn't go
+    // outside the reference bounds
+
+    var arrowElement = state.elements.arrow;
+    var arrowRect = tether && arrowElement ? getLayoutRect(arrowElement) : {
+      width: 0,
+      height: 0
+    };
+    var arrowPaddingObject = state.modifiersData['arrow#persistent'] ? state.modifiersData['arrow#persistent'].padding : getFreshSideObject();
+    var arrowPaddingMin = arrowPaddingObject[mainSide];
+    var arrowPaddingMax = arrowPaddingObject[altSide]; // If the reference length is smaller than the arrow length, we don't want
+    // to include its full size in the calculation. If the reference is small
+    // and near the edge of a boundary, the popper can overflow even if the
+    // reference is not overflowing as well (e.g. virtual elements with no
+    // width or height)
+
+    var arrowLen = within(0, referenceRect[len], arrowRect[len]);
+    var minOffset = isBasePlacement ? referenceRect[len] / 2 - additive - arrowLen - arrowPaddingMin - normalizedTetherOffsetValue.mainAxis : minLen - arrowLen - arrowPaddingMin - normalizedTetherOffsetValue.mainAxis;
+    var maxOffset = isBasePlacement ? -referenceRect[len] / 2 + additive + arrowLen + arrowPaddingMax + normalizedTetherOffsetValue.mainAxis : maxLen + arrowLen + arrowPaddingMax + normalizedTetherOffsetValue.mainAxis;
+    var arrowOffsetParent = state.elements.arrow && getOffsetParent(state.elements.arrow);
+    var clientOffset = arrowOffsetParent ? mainAxis === 'y' ? arrowOffsetParent.clientTop || 0 : arrowOffsetParent.clientLeft || 0 : 0;
+    var offsetModifierValue = (_offsetModifierState$ = offsetModifierState == null ? void 0 : offsetModifierState[mainAxis]) != null ? _offsetModifierState$ : 0;
+    var tetherMin = offset + minOffset - offsetModifierValue - clientOffset;
+    var tetherMax = offset + maxOffset - offsetModifierValue;
+    var preventedOffset = within(tether ? min(min$1, tetherMin) : min$1, offset, tether ? max(max$1, tetherMax) : max$1);
+    popperOffsets[mainAxis] = preventedOffset;
+    data[mainAxis] = preventedOffset - offset;
+  }
+
+  if (checkAltAxis) {
+    var _offsetModifierState$2;
+
+    var _mainSide = mainAxis === 'x' ? top$2 : left$2;
+
+    var _altSide = mainAxis === 'x' ? bottom$2 : right$2;
+
+    var _offset = popperOffsets[altAxis];
+
+    var _len = altAxis === 'y' ? 'height' : 'width';
+
+    var _min = _offset + overflow[_mainSide];
+
+    var _max = _offset - overflow[_altSide];
+
+    var isOriginSide = [top$2, left$2].indexOf(basePlacement) !== -1;
+
+    var _offsetModifierValue = (_offsetModifierState$2 = offsetModifierState == null ? void 0 : offsetModifierState[altAxis]) != null ? _offsetModifierState$2 : 0;
+
+    var _tetherMin = isOriginSide ? _min : _offset - referenceRect[_len] - popperRect[_len] - _offsetModifierValue + normalizedTetherOffsetValue.altAxis;
+
+    var _tetherMax = isOriginSide ? _offset + referenceRect[_len] + popperRect[_len] - _offsetModifierValue - normalizedTetherOffsetValue.altAxis : _max;
+
+    var _preventedOffset = tether && isOriginSide ? withinMaxClamp(_tetherMin, _offset, _tetherMax) : within(tether ? _tetherMin : _min, _offset, tether ? _tetherMax : _max);
+
+    popperOffsets[altAxis] = _preventedOffset;
+    data[altAxis] = _preventedOffset - _offset;
+  }
+
+  state.modifiersData[name] = data;
+} // eslint-disable-next-line import/no-unused-modules
+
+
+var preventOverflow$1 = {
+  name: 'preventOverflow',
+  enabled: true,
+  phase: 'main',
+  fn: preventOverflow,
+  requiresIfExists: ['offset']
+};
+
+function getHTMLElementScroll(element) {
+  return {
+    scrollLeft: element.scrollLeft,
+    scrollTop: element.scrollTop
+  };
+}
+
+function getNodeScroll(node) {
+  if (node === getWindow(node) || !isHTMLElement(node)) {
+    return getWindowScroll(node);
+  } else {
+    return getHTMLElementScroll(node);
+  }
+}
+
+function isElementScaled(element) {
+  var rect = element.getBoundingClientRect();
+  var scaleX = round(rect.width) / element.offsetWidth || 1;
+  var scaleY = round(rect.height) / element.offsetHeight || 1;
+  return scaleX !== 1 || scaleY !== 1;
+} // Returns the composite rect of an element relative to its offsetParent.
+// Composite means it takes into account transforms as well as layout.
+
+
+function getCompositeRect(elementOrVirtualElement, offsetParent, isFixed) {
+  if (isFixed === void 0) {
+    isFixed = false;
+  }
+
+  var isOffsetParentAnElement = isHTMLElement(offsetParent);
+  var offsetParentIsScaled = isHTMLElement(offsetParent) && isElementScaled(offsetParent);
+  var documentElement = getDocumentElement(offsetParent);
+  var rect = getBoundingClientRect(elementOrVirtualElement, offsetParentIsScaled, isFixed);
+  var scroll = {
+    scrollLeft: 0,
+    scrollTop: 0
+  };
+  var offsets = {
+    x: 0,
+    y: 0
+  };
+
+  if (isOffsetParentAnElement || !isOffsetParentAnElement && !isFixed) {
+    if (getNodeName(offsetParent) !== 'body' || // https://github.com/popperjs/popper-core/issues/1078
+    isScrollParent(documentElement)) {
+      scroll = getNodeScroll(offsetParent);
+    }
+
+    if (isHTMLElement(offsetParent)) {
+      offsets = getBoundingClientRect(offsetParent, true);
+      offsets.x += offsetParent.clientLeft;
+      offsets.y += offsetParent.clientTop;
+    } else if (documentElement) {
+      offsets.x = getWindowScrollBarX(documentElement);
+    }
+  }
+
+  return {
+    x: rect.left + scroll.scrollLeft - offsets.x,
+    y: rect.top + scroll.scrollTop - offsets.y,
+    width: rect.width,
+    height: rect.height
+  };
+}
+
+function order(modifiers) {
+  var map = new Map();
+  var visited = new Set();
+  var result = [];
+  modifiers.forEach(function (modifier) {
+    map.set(modifier.name, modifier);
+  }); // On visiting object, check for its dependencies and visit them recursively
+
+  function sort(modifier) {
+    visited.add(modifier.name);
+    var requires = [].concat(modifier.requires || [], modifier.requiresIfExists || []);
+    requires.forEach(function (dep) {
+      if (!visited.has(dep)) {
+        var depModifier = map.get(dep);
+
+        if (depModifier) {
+          sort(depModifier);
+        }
+      }
+    });
+    result.push(modifier);
+  }
+
+  modifiers.forEach(function (modifier) {
+    if (!visited.has(modifier.name)) {
+      // check for visited object
+      sort(modifier);
+    }
+  });
+  return result;
+}
+
+function orderModifiers(modifiers) {
+  // order based on dependencies
+  var orderedModifiers = order(modifiers); // order based on phase
+
+  return modifierPhases.reduce(function (acc, phase) {
+    return acc.concat(orderedModifiers.filter(function (modifier) {
+      return modifier.phase === phase;
+    }));
+  }, []);
+}
+
+function debounce(fn) {
+  var pending;
+  return function () {
+    if (!pending) {
+      pending = new Promise(function (resolve) {
+        Promise.resolve().then(function () {
+          pending = undefined;
+          resolve(fn());
+        });
+      });
+    }
+
+    return pending;
+  };
+}
+
+function mergeByName(modifiers) {
+  var merged = modifiers.reduce(function (merged, current) {
+    var existing = merged[current.name];
+    merged[current.name] = existing ? Object.assign({}, existing, current, {
+      options: Object.assign({}, existing.options, current.options),
+      data: Object.assign({}, existing.data, current.data)
+    }) : current;
+    return merged;
+  }, {}); // IE11 does not support Object.values
+
+  return Object.keys(merged).map(function (key) {
+    return merged[key];
+  });
+}
+
+var DEFAULT_OPTIONS = {
+  placement: 'bottom',
+  modifiers: [],
+  strategy: 'absolute'
+};
+
+function areValidElements() {
+  for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+    args[_key] = arguments[_key];
+  }
+
+  return !args.some(function (element) {
+    return !(element && typeof element.getBoundingClientRect === 'function');
+  });
+}
+
+function popperGenerator(generatorOptions) {
+  if (generatorOptions === void 0) {
+    generatorOptions = {};
+  }
+
+  var _generatorOptions = generatorOptions,
+      _generatorOptions$def = _generatorOptions.defaultModifiers,
+      defaultModifiers = _generatorOptions$def === void 0 ? [] : _generatorOptions$def,
+      _generatorOptions$def2 = _generatorOptions.defaultOptions,
+      defaultOptions = _generatorOptions$def2 === void 0 ? DEFAULT_OPTIONS : _generatorOptions$def2;
+  return function createPopper(reference, popper, options) {
+    if (options === void 0) {
+      options = defaultOptions;
+    }
+
+    var state = {
+      placement: 'bottom',
+      orderedModifiers: [],
+      options: Object.assign({}, DEFAULT_OPTIONS, defaultOptions),
+      modifiersData: {},
+      elements: {
+        reference: reference,
+        popper: popper
+      },
+      attributes: {},
+      styles: {}
+    };
+    var effectCleanupFns = [];
+    var isDestroyed = false;
+    var instance = {
+      state: state,
+      setOptions: function setOptions(setOptionsAction) {
+        var options = typeof setOptionsAction === 'function' ? setOptionsAction(state.options) : setOptionsAction;
+        cleanupModifierEffects();
+        state.options = Object.assign({}, defaultOptions, state.options, options);
+        state.scrollParents = {
+          reference: isElement(reference) ? listScrollParents(reference) : reference.contextElement ? listScrollParents(reference.contextElement) : [],
+          popper: listScrollParents(popper)
+        }; // Orders the modifiers based on their dependencies and `phase`
+        // properties
+
+        var orderedModifiers = orderModifiers(mergeByName([].concat(defaultModifiers, state.options.modifiers))); // Strip out disabled modifiers
+
+        state.orderedModifiers = orderedModifiers.filter(function (m) {
+          return m.enabled;
+        });
+        runModifierEffects();
+        return instance.update();
+      },
+      // Sync update – it will always be executed, even if not necessary. This
+      // is useful for low frequency updates where sync behavior simplifies the
+      // logic.
+      // For high frequency updates (e.g. `resize` and `scroll` events), always
+      // prefer the async Popper#update method
+      forceUpdate: function forceUpdate() {
+        if (isDestroyed) {
+          return;
+        }
+
+        var _state$elements = state.elements,
+            reference = _state$elements.reference,
+            popper = _state$elements.popper; // Don't proceed if `reference` or `popper` are not valid elements
+        // anymore
+
+        if (!areValidElements(reference, popper)) {
+          return;
+        } // Store the reference and popper rects to be read by modifiers
+
+
+        state.rects = {
+          reference: getCompositeRect(reference, getOffsetParent(popper), state.options.strategy === 'fixed'),
+          popper: getLayoutRect(popper)
+        }; // Modifiers have the ability to reset the current update cycle. The
+        // most common use case for this is the `flip` modifier changing the
+        // placement, which then needs to re-run all the modifiers, because the
+        // logic was previously ran for the previous placement and is therefore
+        // stale/incorrect
+
+        state.reset = false;
+        state.placement = state.options.placement; // On each update cycle, the `modifiersData` property for each modifier
+        // is filled with the initial data specified by the modifier. This means
+        // it doesn't persist and is fresh on each update.
+        // To ensure persistent data, use `${name}#persistent`
+
+        state.orderedModifiers.forEach(function (modifier) {
+          return state.modifiersData[modifier.name] = Object.assign({}, modifier.data);
+        });
+
+        for (var index = 0; index < state.orderedModifiers.length; index++) {
+          if (state.reset === true) {
+            state.reset = false;
+            index = -1;
+            continue;
+          }
+
+          var _state$orderedModifie = state.orderedModifiers[index],
+              fn = _state$orderedModifie.fn,
+              _state$orderedModifie2 = _state$orderedModifie.options,
+              _options = _state$orderedModifie2 === void 0 ? {} : _state$orderedModifie2,
+              name = _state$orderedModifie.name;
+
+          if (typeof fn === 'function') {
+            state = fn({
+              state: state,
+              options: _options,
+              name: name,
+              instance: instance
+            }) || state;
+          }
+        }
+      },
+      // Async and optimistically optimized update – it will not be executed if
+      // not necessary (debounced to run at most once-per-tick)
+      update: debounce(function () {
+        return new Promise(function (resolve) {
+          instance.forceUpdate();
+          resolve(state);
+        });
+      }),
+      destroy: function destroy() {
+        cleanupModifierEffects();
+        isDestroyed = true;
+      }
+    };
+
+    if (!areValidElements(reference, popper)) {
+      return instance;
+    }
+
+    instance.setOptions(options).then(function (state) {
+      if (!isDestroyed && options.onFirstUpdate) {
+        options.onFirstUpdate(state);
+      }
+    }); // Modifiers have the ability to execute arbitrary code before the first
+    // update cycle runs. They will be executed in the same order as the update
+    // cycle. This is useful when a modifier adds some persistent data that
+    // other modifiers need to use, but the modifier is run after the dependent
+    // one.
+
+    function runModifierEffects() {
+      state.orderedModifiers.forEach(function (_ref) {
+        var name = _ref.name,
+            _ref$options = _ref.options,
+            options = _ref$options === void 0 ? {} : _ref$options,
+            effect = _ref.effect;
+
+        if (typeof effect === 'function') {
+          var cleanupFn = effect({
+            state: state,
+            name: name,
+            instance: instance,
+            options: options
+          });
+
+          var noopFn = function noopFn() {};
+
+          effectCleanupFns.push(cleanupFn || noopFn);
+        }
+      });
+    }
+
+    function cleanupModifierEffects() {
+      effectCleanupFns.forEach(function (fn) {
+        return fn();
+      });
+      effectCleanupFns = [];
+    }
+
+    return instance;
+  };
+}
+
+var defaultModifiers = [eventListeners, popperOffsets$1, computeStyles$1, applyStyles$1, offset$1, flip$1, preventOverflow$1, arrow$1, hide$1];
+var createPopper = /*#__PURE__*/popperGenerator({
+  defaultModifiers: defaultModifiers
+}); // eslint-disable-next-line import/no-unused-modules
+
+/**!
+* tippy.js v6.0.0
+* (c) 2017-2020 atomiks
+* MIT License
+*/
+
+var PASSIVE = {
+  passive: true
+};
+var IOS_CLASS = "tippy-iOS";
+var BOX_CLASS = "tippy-box";
+var CONTENT_CLASS = "tippy-content";
+var BACKDROP_CLASS = "tippy-backdrop";
+var ARROW_CLASS = "tippy-arrow";
+var SVG_ARROW_CLASS = "tippy-svg-arrow";
+function getValueAtIndexOrReturn(value, index, defaultValue) {
+  if (Array.isArray(value)) {
+    var v = value[index];
+    return v == null ? Array.isArray(defaultValue) ? defaultValue[index] : defaultValue : v;
+  }
+
+  return value;
+}
+function isType(value, type) {
+  var str = {}.toString.call(value);
+  return str.indexOf('[object') === 0 && str.indexOf(type + "]") > -1;
+}
+function invokeWithArgsOrReturn(value, args) {
+  return typeof value === 'function' ? value.apply(void 0, args) : value;
+}
+function debounce$1(fn, ms) {
+  // Avoid wrapping in `setTimeout` if ms is 0 anyway
+  if (ms === 0) {
+    return fn;
+  }
+
+  var timeout;
+  return function (arg) {
+    clearTimeout(timeout);
+    timeout = setTimeout(function () {
+      fn(arg);
+    }, ms);
+  };
+}
+function splitBySpaces(value) {
+  return value.split(/\s+/).filter(Boolean);
+}
+function normalizeToArray(value) {
+  return [].concat(value);
+}
+function pushIfUnique(arr, value) {
+  if (arr.indexOf(value) === -1) {
+    arr.push(value);
+  }
+}
+function unique(arr) {
+  return arr.filter(function (item, index) {
+    return arr.indexOf(item) === index;
+  });
+}
+function getBasePlacement$1(placement) {
+  return placement.split('-')[0];
+}
+function arrayFrom(value) {
+  return [].slice.call(value);
+}
+
+function div() {
+  return document.createElement('div');
+}
+function isElement$1(value) {
+  return isType(value, 'Element');
+}
+function isNodeList(value) {
+  return isType(value, 'NodeList');
+}
+function isMouseEvent(value) {
+  return isType(value, 'MouseEvent');
+}
+function isReferenceElement(value) {
+  return !!(value && value._tippy && value._tippy.reference === value);
+}
+function getArrayOfElements(value) {
+  if (isElement$1(value)) {
+    return [value];
+  }
+
+  if (isNodeList(value)) {
+    return arrayFrom(value);
+  }
+
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  return arrayFrom(document.querySelectorAll(value));
+}
+function setTransitionDuration(els, value) {
+  els.forEach(function (el) {
+    if (el) {
+      el.style.transitionDuration = value + "ms";
+    }
+  });
+}
+function setVisibilityState(els, state) {
+  els.forEach(function (el) {
+    if (el) {
+      el.setAttribute('data-state', state);
+    }
+  });
+}
+function getOwnerDocument(elementOrElements) {
+  var _normalizeToArray = normalizeToArray(elementOrElements),
+      element = _normalizeToArray[0];
+
+  return element ? element.ownerDocument || document : document;
+}
+function isCursorOutsideInteractiveBorder(popperTreeData, event) {
+  var clientX = event.clientX,
+      clientY = event.clientY;
+  return popperTreeData.every(function (_ref) {
+    var popperRect = _ref.popperRect,
+        popperState = _ref.popperState,
+        props = _ref.props;
+    var interactiveBorder = props.interactiveBorder;
+    var basePlacement = getBasePlacement$1(popperState.placement);
+    var offsetData = popperState.modifiersData.offset;
+
+    if (!offsetData) {
+      return true;
+    }
+
+    var topDistance = basePlacement === 'bottom' ? offsetData.top.y : 0;
+    var bottomDistance = basePlacement === 'top' ? offsetData.bottom.y : 0;
+    var leftDistance = basePlacement === 'right' ? offsetData.left.x : 0;
+    var rightDistance = basePlacement === 'left' ? offsetData.right.x : 0;
+    var exceedsTop = popperRect.top - clientY + topDistance > interactiveBorder;
+    var exceedsBottom = clientY - popperRect.bottom - bottomDistance > interactiveBorder;
+    var exceedsLeft = popperRect.left - clientX + leftDistance > interactiveBorder;
+    var exceedsRight = clientX - popperRect.right - rightDistance > interactiveBorder;
+    return exceedsTop || exceedsBottom || exceedsLeft || exceedsRight;
+  });
+}
+function updateTransitionEndListener(box, action, listener) {
+  var method = action + "EventListener"; // some browsers apparently support `transition` (unprefixed) but only fire
+  // `webkitTransitionEnd`...
+
+  ['transitionend', 'webkitTransitionEnd'].forEach(function (event) {
+    box[method](event, listener);
+  });
+}
+
+var currentInput = {
+  isTouch: false
+};
+var lastMouseMoveTime = 0;
+/**
+ * When a `touchstart` event is fired, it's assumed the user is using touch
+ * input. We'll bind a `mousemove` event listener to listen for mouse input in
+ * the future. This way, the `isTouch` property is fully dynamic and will handle
+ * hybrid devices that use a mix of touch + mouse input.
+ */
+
+function onDocumentTouchStart() {
+  if (currentInput.isTouch) {
+    return;
+  }
+
+  currentInput.isTouch = true;
+
+  if (window.performance) {
+    document.addEventListener('mousemove', onDocumentMouseMove);
+  }
+}
+/**
+ * When two `mousemove` event are fired consecutively within 20ms, it's assumed
+ * the user is using mouse input again. `mousemove` can fire on touch devices as
+ * well, but very rarely that quickly.
+ */
+
+function onDocumentMouseMove() {
+  var now = performance.now();
+
+  if (now - lastMouseMoveTime < 20) {
+    currentInput.isTouch = false;
+    document.removeEventListener('mousemove', onDocumentMouseMove);
+  }
+
+  lastMouseMoveTime = now;
+}
+/**
+ * When an element is in focus and has a tippy, leaving the tab/window and
+ * returning causes it to show again. For mouse users this is unexpected, but
+ * for keyboard use it makes sense.
+ * TODO: find a better technique to solve this problem
+ */
+
+function onWindowBlur() {
+  var activeElement = document.activeElement;
+
+  if (isReferenceElement(activeElement)) {
+    var instance = activeElement._tippy;
+
+    if (activeElement.blur && !instance.state.isVisible) {
+      activeElement.blur();
+    }
+  }
+}
+function bindGlobalEventListeners() {
+  document.addEventListener('touchstart', onDocumentTouchStart, Object.assign({}, PASSIVE, {
+    capture: true
+  }));
+  window.addEventListener('blur', onWindowBlur);
+}
+
+var isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
+var ua = isBrowser ? navigator.userAgent : '';
+var isIE = /MSIE |Trident\//.test(ua);
+var isIOS = isBrowser && /iPhone|iPad|iPod/.test(navigator.platform);
+
+var pluginProps = {
+  animateFill: false,
+  followCursor: false,
+  inlinePositioning: false,
+  sticky: false
+};
+var renderProps = {
+  allowHTML: false,
+  animation: 'fade',
+  arrow: true,
+  content: '',
+  inertia: false,
+  maxWidth: 350,
+  role: 'tooltip',
+  theme: '',
+  zIndex: 9999
+};
+var defaultProps = Object.assign({
+  appendTo: function appendTo() {
+    return document.body;
+  },
+  aria: {
+    content: 'auto',
+    expanded: 'auto'
+  },
+  content: '',
+  delay: 0,
+  duration: [300, 250],
+  getReferenceClientRect: null,
+  hideOnClick: true,
+  ignoreAttributes: false,
+  interactive: false,
+  interactiveBorder: 2,
+  interactiveDebounce: 0,
+  moveTransition: '',
+  offset: [0, 10],
+  onAfterUpdate: function onAfterUpdate() {},
+  onBeforeUpdate: function onBeforeUpdate() {},
+  onCreate: function onCreate() {},
+  onDestroy: function onDestroy() {},
+  onHidden: function onHidden() {},
+  onHide: function onHide() {},
+  onMount: function onMount() {},
+  onShow: function onShow() {},
+  onShown: function onShown() {},
+  onTrigger: function onTrigger() {},
+  onUntrigger: function onUntrigger() {},
+  placement: 'top',
+  plugins: [],
+  popperOptions: {},
+  render: null,
+  showOnCreate: false,
+  touch: true,
+  trigger: 'mouseenter focus',
+  triggerTarget: null
+}, pluginProps, {}, renderProps);
+var defaultKeys = Object.keys(defaultProps);
+var setDefaultProps = function setDefaultProps(partialProps) {
+
+  var keys = Object.keys(partialProps);
+  keys.forEach(function (key) {
+    defaultProps[key] = partialProps[key];
+  });
+};
+function getExtendedPassedProps(passedProps) {
+  var plugins = passedProps.plugins || [];
+  var pluginProps = plugins.reduce(function (acc, plugin) {
+    var name = plugin.name,
+        defaultValue = plugin.defaultValue;
+
+    if (name) {
+      acc[name] = passedProps[name] !== undefined ? passedProps[name] : defaultValue;
+    }
+
+    return acc;
+  }, {});
+  return Object.assign({}, passedProps, {}, pluginProps);
+}
+function getDataAttributeProps(reference, plugins) {
+  var propKeys = plugins ? Object.keys(getExtendedPassedProps(Object.assign({}, defaultProps, {
+    plugins: plugins
+  }))) : defaultKeys;
+  var props = propKeys.reduce(function (acc, key) {
+    var valueAsString = (reference.getAttribute("data-tippy-" + key) || '').trim();
+
+    if (!valueAsString) {
+      return acc;
+    }
+
+    if (key === 'content') {
+      acc[key] = valueAsString;
+    } else {
+      try {
+        acc[key] = JSON.parse(valueAsString);
+      } catch (e) {
+        acc[key] = valueAsString;
+      }
+    }
+
+    return acc;
+  }, {});
+  return props;
+}
+function evaluateProps(reference, props) {
+  var out = Object.assign({}, props, {}, props.ignoreAttributes ? {} : getDataAttributeProps(reference, props.plugins));
+  out.aria = Object.assign({}, defaultProps.aria, {}, out.aria);
+  out.aria = {
+    expanded: out.aria.expanded === 'auto' ? props.interactive : out.aria.expanded,
+    content: out.aria.content === 'auto' ? props.interactive ? null : 'describedby' : out.aria.content
+  };
+  return out;
+}
+
+var innerHTML = function innerHTML() {
+  return 'innerHTML';
+};
+
+function dangerouslySetInnerHTML(element, html) {
+  element[innerHTML()] = html;
+}
+
+function createArrowElement(value) {
+  var arrow = div();
+
+  if (value === true) {
+    arrow.className = ARROW_CLASS;
+  } else {
+    arrow.className = SVG_ARROW_CLASS;
+
+    if (isElement$1(value)) {
+      arrow.appendChild(value);
+    } else {
+      dangerouslySetInnerHTML(arrow, value);
+    }
+  }
+
+  return arrow;
+}
+
+function setContent(content, _ref) {
+  var props = _ref.props,
+      reference = _ref.reference;
+  var computedContent = typeof props.content === 'function' ? props.content(reference) : props.content;
+
+  if (isElement$1(computedContent)) {
+    dangerouslySetInnerHTML(content, '');
+    content.appendChild(computedContent);
+  } else {
+    if (props.allowHTML) {
+      dangerouslySetInnerHTML(content, computedContent);
+    } else {
+      content.textContent = computedContent;
+    }
+  }
+}
+function getChildren(popper) {
+  var box = popper.firstElementChild;
+  var boxChildren = arrayFrom(box.children);
+  return {
+    box: box,
+    content: boxChildren.find(function (node) {
+      return node.classList.contains(CONTENT_CLASS);
+    }),
+    arrow: boxChildren.find(function (node) {
+      return node.classList.contains(ARROW_CLASS) || node.classList.contains(SVG_ARROW_CLASS);
+    }),
+    backdrop: boxChildren.find(function (node) {
+      return node.classList.contains(BACKDROP_CLASS);
+    })
+  };
+}
+function render(instance) {
+  var popper = div();
+  var box = div();
+  box.className = BOX_CLASS;
+  box.setAttribute('data-state', 'hidden');
+  box.setAttribute('tabindex', '-1');
+  var content = div();
+  content.className = CONTENT_CLASS;
+  content.setAttribute('data-state', 'hidden');
+  setContent(content, instance);
+  popper.appendChild(box);
+  box.appendChild(content);
+  onUpdate(instance.props, instance.props);
+
+  function onUpdate(prevProps, nextProps) {
+    var _getChildren = getChildren(popper),
+        box = _getChildren.box,
+        content = _getChildren.content,
+        arrow = _getChildren.arrow;
+
+    popper.style.zIndex = "" + nextProps.zIndex;
+
+    if (nextProps.theme) {
+      box.setAttribute('data-theme', nextProps.theme);
+    } else {
+      box.removeAttribute('data-theme');
+    }
+
+    if (typeof nextProps.animation === 'string') {
+      box.setAttribute('data-animation', nextProps.animation);
+    } else {
+      box.removeAttribute('data-animation');
+    }
+
+    if (nextProps.inertia) {
+      box.setAttribute('data-inertia', '');
+    } else {
+      box.removeAttribute('data-inertia');
+    }
+
+    box.style.maxWidth = typeof nextProps.maxWidth === 'number' ? nextProps.maxWidth + "px" : nextProps.maxWidth;
+
+    if (nextProps.role) {
+      box.setAttribute('role', nextProps.role);
+    } else {
+      box.removeAttribute('role');
+    }
+
+    if (prevProps.content !== nextProps.content) {
+      setContent(content, instance);
+    }
+
+    if (nextProps.arrow) {
+      if (!arrow) {
+        box.appendChild(createArrowElement(nextProps.arrow));
+      } else if (prevProps.arrow !== nextProps.arrow) {
+        box.removeChild(arrow);
+        box.appendChild(createArrowElement(nextProps.arrow));
+      }
+    } else if (arrow) {
+      box.removeChild(arrow);
+    }
+  }
+
+  return {
+    popper: popper,
+    onUpdate: onUpdate
+  };
+} // Runtime check to identify if the render function is the default one; this
+// way we can apply default CSS transitions logic and it can be tree-shaken away
+
+render.$$tippy = true;
+function isDefaultRenderFn(render) {
+  return render.$$tippy;
+}
+
+var idCounter = 1;
+var mouseMoveListeners = []; // Used by `hideAll()`
+
+var mountedInstances = [];
+function createTippy(reference, passedProps) {
+  var props = evaluateProps(reference, Object.assign({}, defaultProps, {}, getExtendedPassedProps(passedProps))); // ===========================================================================
+  // 🔒 Private members
+  // ===========================================================================
+
+  var showTimeout;
+  var hideTimeout;
+  var scheduleHideAnimationFrame;
+  var isVisibleFromClick = false;
+  var didHideDueToDocumentMouseDown = false;
+  var ignoreOnFirstUpdate = false;
+  var lastTriggerEvent;
+  var currentTransitionEndListener;
+  var onFirstUpdate;
+  var listeners = [];
+  var debouncedOnMouseMove = debounce$1(onMouseMove, props.interactiveDebounce);
+  var currentTarget;
+  var doc = getOwnerDocument(props.triggerTarget || reference); // ===========================================================================
+  // 🔑 Public members
+  // ===========================================================================
+
+  var id = idCounter++;
+  var popperInstance = null;
+  var plugins = unique(props.plugins);
+  var state = {
+    // Is the instance currently enabled?
+    isEnabled: true,
+    // Is the tippy currently showing and not transitioning out?
+    isVisible: false,
+    // Has the instance been destroyed?
+    isDestroyed: false,
+    // Is the tippy currently mounted to the DOM?
+    isMounted: false,
+    // Has the tippy finished transitioning in?
+    isShown: false
+  };
+  var instance = {
+    // properties
+    id: id,
+    reference: reference,
+    popper: div(),
+    popperInstance: popperInstance,
+    props: props,
+    state: state,
+    plugins: plugins,
+    // methods
+    clearDelayTimeouts: clearDelayTimeouts,
+    setProps: setProps,
+    setContent: setContent,
+    show: show,
+    hide: hide,
+    enable: enable,
+    disable: disable,
+    unmount: unmount,
+    destroy: destroy
+  }; // TODO: Investigate why this early return causes a TDZ error in the tests —
+  // it doesn't seem to happen in the browser
+
+  /* istanbul ignore if */
+
+  if (!props.render) {
+
+    return instance;
+  } // ===========================================================================
+  // Initial mutations
+  // ===========================================================================
+
+
+  var _props$render = props.render(instance),
+      popper = _props$render.popper,
+      onUpdate = _props$render.onUpdate;
+
+  popper.setAttribute('data-tippy-root', '');
+  popper.id = "tippy-" + instance.id;
+  instance.popper = popper;
+  reference._tippy = instance;
+  popper._tippy = instance;
+  var pluginsHooks = plugins.map(function (plugin) {
+    return plugin.fn(instance);
+  });
+  var hasAriaExpanded = reference.hasAttribute('aria-expanded');
+  addListeners();
+  handleAriaExpandedAttribute();
+  invokeHook('onCreate', [instance]);
+
+  if (props.showOnCreate) {
+    scheduleShow();
+  } // Prevent a tippy with a delay from hiding if the cursor left then returned
+  // before it started hiding
+
+
+  popper.addEventListener('mouseenter', function () {
+    if (instance.props.interactive && instance.state.isVisible) {
+      instance.clearDelayTimeouts();
+    }
+  });
+  popper.addEventListener('mouseleave', function (event) {
+    if (instance.props.interactive && instance.props.trigger.indexOf('mouseenter') >= 0) {
+      doc.addEventListener('mousemove', debouncedOnMouseMove);
+      debouncedOnMouseMove(event);
+    }
+  });
+  return instance; // ===========================================================================
+  // 🔒 Private methods
+  // ===========================================================================
+
+  function getNormalizedTouchSettings() {
+    var touch = instance.props.touch;
+    return Array.isArray(touch) ? touch : [touch, 0];
+  }
+
+  function getIsCustomTouchBehavior() {
+    return getNormalizedTouchSettings()[0] === 'hold';
+  }
+
+  function getCurrentTarget() {
+    return currentTarget || reference;
+  }
+
+  function getDefaultTemplateChildren() {
+    return getChildren(popper);
+  }
+
+  function getDelay(isShow) {
+    // For touch or keyboard input, force `0` delay for UX reasons
+    // Also if the instance is mounted but not visible (transitioning out),
+    // ignore delay
+    if (instance.state.isMounted && !instance.state.isVisible || currentInput.isTouch || lastTriggerEvent && lastTriggerEvent.type === 'focus') {
+      return 0;
+    }
+
+    return getValueAtIndexOrReturn(instance.props.delay, isShow ? 0 : 1, defaultProps.delay);
+  }
+
+  function handleInteractiveStyles() {
+    popper.style.pointerEvents = instance.props.interactive && instance.state.isVisible ? '' : 'none';
+  }
+
+  function updateIOSClass(isAdd) {
+    var shouldAdd = isAdd && isIOS && currentInput.isTouch;
+    doc.body.classList[shouldAdd ? 'add' : 'remove'](IOS_CLASS);
+  }
+
+  function invokeHook(hook, args, shouldInvokePropsHook) {
+    if (shouldInvokePropsHook === void 0) {
+      shouldInvokePropsHook = true;
+    }
+
+    pluginsHooks.forEach(function (pluginHooks) {
+      if (pluginHooks[hook]) {
+        pluginHooks[hook].apply(void 0, args);
+      }
+    });
+
+    if (shouldInvokePropsHook) {
+      var _instance$props;
+
+      (_instance$props = instance.props)[hook].apply(_instance$props, args);
+    }
+  }
+
+  function handleAriaContentAttribute() {
+    var aria = instance.props.aria;
+
+    if (!aria.content) {
+      return;
+    }
+
+    var attr = "aria-" + aria.content;
+    var id = popper.id;
+    var nodes = normalizeToArray(instance.props.triggerTarget || reference);
+    nodes.forEach(function (node) {
+      var currentValue = node.getAttribute(attr);
+
+      if (instance.state.isVisible) {
+        node.setAttribute(attr, currentValue ? currentValue + " " + id : id);
+      } else {
+        var nextValue = currentValue && currentValue.replace(id, '').trim();
+
+        if (nextValue) {
+          node.setAttribute(attr, nextValue);
+        } else {
+          node.removeAttribute(attr);
+        }
+      }
+    });
+  }
+
+  function handleAriaExpandedAttribute() {
+    if (hasAriaExpanded || !instance.props.aria.expanded) {
+      return;
+    }
+
+    var nodes = normalizeToArray(instance.props.triggerTarget || reference);
+    nodes.forEach(function (node) {
+      if (instance.props.interactive) {
+        node.setAttribute('aria-expanded', instance.state.isVisible && node === getCurrentTarget() ? 'true' : 'false');
+      } else {
+        node.removeAttribute('aria-expanded');
+      }
+    });
+  }
+
+  function cleanupInteractiveMouseListeners() {
+    doc.body.removeEventListener('mouseleave', scheduleHide);
+    doc.removeEventListener('mousemove', debouncedOnMouseMove);
+    mouseMoveListeners = mouseMoveListeners.filter(function (listener) {
+      return listener !== debouncedOnMouseMove;
+    });
+  }
+
+  function onDocumentMouseDown(event) {
+    // Clicked on interactive popper
+    if (instance.props.interactive && popper.contains(event.target)) {
+      return;
+    } // Clicked on the event listeners target
+
+
+    if (getCurrentTarget().contains(event.target)) {
+      if (currentInput.isTouch) {
+        return;
+      }
+
+      if (instance.state.isVisible && instance.props.trigger.indexOf('click') >= 0) {
+        return;
+      }
+    }
+
+    if (instance.props.hideOnClick === true) {
+      isVisibleFromClick = false;
+      instance.clearDelayTimeouts();
+      instance.hide(); // `mousedown` event is fired right before `focus` if pressing the
+      // currentTarget. This lets a tippy with `focus` trigger know that it
+      // should not show
+
+      didHideDueToDocumentMouseDown = true;
+      setTimeout(function () {
+        didHideDueToDocumentMouseDown = false;
+      }); // The listener gets added in `scheduleShow()`, but this may be hiding it
+      // before it shows, and hide()'s early bail-out behavior can prevent it
+      // from being cleaned up
+
+      if (!instance.state.isMounted) {
+        removeDocumentMouseDownListener();
+      }
+    }
+  }
+
+  function addDocumentMouseDownListener() {
+    doc.addEventListener('mousedown', onDocumentMouseDown, true);
+  }
+
+  function removeDocumentMouseDownListener() {
+    doc.removeEventListener('mousedown', onDocumentMouseDown, true);
+  }
+
+  function onTransitionedOut(duration, callback) {
+    onTransitionEnd(duration, function () {
+      if (!instance.state.isVisible && popper.parentNode && popper.parentNode.contains(popper)) {
+        callback();
+      }
+    });
+  }
+
+  function onTransitionedIn(duration, callback) {
+    onTransitionEnd(duration, callback);
+  }
+
+  function onTransitionEnd(duration, callback) {
+    var box = getDefaultTemplateChildren().box;
+
+    function listener(event) {
+      if (event.target === box) {
+        updateTransitionEndListener(box, 'remove', listener);
+        callback();
+      }
+    } // Make callback synchronous if duration is 0
+    // `transitionend` won't fire otherwise
+
+
+    if (duration === 0) {
+      return callback();
+    }
+
+    updateTransitionEndListener(box, 'remove', currentTransitionEndListener);
+    updateTransitionEndListener(box, 'add', listener);
+    currentTransitionEndListener = listener;
+  }
+
+  function on(eventType, handler, options) {
+    if (options === void 0) {
+      options = false;
+    }
+
+    var nodes = normalizeToArray(instance.props.triggerTarget || reference);
+    nodes.forEach(function (node) {
+      node.addEventListener(eventType, handler, options);
+      listeners.push({
+        node: node,
+        eventType: eventType,
+        handler: handler,
+        options: options
+      });
+    });
+  }
+
+  function addListeners() {
+    if (getIsCustomTouchBehavior()) {
+      on('touchstart', onTrigger, PASSIVE);
+      on('touchend', onMouseLeave, PASSIVE);
+    }
+
+    splitBySpaces(instance.props.trigger).forEach(function (eventType) {
+      if (eventType === 'manual') {
+        return;
+      }
+
+      on(eventType, onTrigger);
+
+      switch (eventType) {
+        case 'mouseenter':
+          on('mouseleave', onMouseLeave);
+          break;
+
+        case 'focus':
+          on(isIE ? 'focusout' : 'blur', onBlurOrFocusOut);
+          break;
+
+        case 'focusin':
+          on('focusout', onBlurOrFocusOut);
+          break;
+      }
+    });
+  }
+
+  function removeListeners() {
+    listeners.forEach(function (_ref) {
+      var node = _ref.node,
+          eventType = _ref.eventType,
+          handler = _ref.handler,
+          options = _ref.options;
+      node.removeEventListener(eventType, handler, options);
+    });
+    listeners = [];
+  }
+
+  function onTrigger(event) {
+    var shouldScheduleClickHide = false;
+
+    if (!instance.state.isEnabled || isEventListenerStopped(event) || didHideDueToDocumentMouseDown) {
+      return;
+    }
+
+    lastTriggerEvent = event;
+    currentTarget = event.currentTarget;
+    handleAriaExpandedAttribute();
+
+    if (!instance.state.isVisible && isMouseEvent(event)) {
+      // If scrolling, `mouseenter` events can be fired if the cursor lands
+      // over a new target, but `mousemove` events don't get fired. This
+      // causes interactive tooltips to get stuck open until the cursor is
+      // moved
+      mouseMoveListeners.forEach(function (listener) {
+        return listener(event);
+      });
+    } // Toggle show/hide when clicking click-triggered tooltips
+
+
+    if (event.type === 'click' && (instance.props.trigger.indexOf('mouseenter') < 0 || isVisibleFromClick) && instance.props.hideOnClick !== false && instance.state.isVisible) {
+      shouldScheduleClickHide = true;
+    } else {
+      var _getNormalizedTouchSe = getNormalizedTouchSettings(),
+          value = _getNormalizedTouchSe[0],
+          duration = _getNormalizedTouchSe[1];
+
+      if (currentInput.isTouch && value === 'hold' && duration) {
+        // We can hijack the show timeout here, it will be cleared by
+        // `scheduleHide()` when necessary
+        showTimeout = setTimeout(function () {
+          scheduleShow(event);
+        }, duration);
+      } else {
+        scheduleShow(event);
+      }
+    }
+
+    if (event.type === 'click') {
+      isVisibleFromClick = !shouldScheduleClickHide;
+    }
+
+    if (shouldScheduleClickHide) {
+      scheduleHide(event);
+    }
+  }
+
+  function onMouseMove(event) {
+    var target = event.target;
+    var isCursorOverReferenceOrPopper = reference.contains(target) || popper.contains(target);
+
+    if (event.type === 'mousemove' && isCursorOverReferenceOrPopper) {
+      return;
+    }
+
+    var popperTreeData = getNestedPopperTree().concat(popper).map(function (popper) {
+      var _instance$popperInsta;
+
+      var instance = popper._tippy;
+      var state = (_instance$popperInsta = instance.popperInstance) == null ? void 0 : _instance$popperInsta.state;
+
+      if (state) {
+        return {
+          popperRect: popper.getBoundingClientRect(),
+          popperState: state,
+          props: props
+        };
+      }
+
+      return null;
+    }).filter(Boolean);
+
+    if (isCursorOutsideInteractiveBorder(popperTreeData, event)) {
+      cleanupInteractiveMouseListeners();
+      scheduleHide(event);
+    }
+  }
+
+  function onMouseLeave(event) {
+    var shouldBail = isEventListenerStopped(event) || instance.props.trigger.indexOf('click') >= 0 && isVisibleFromClick;
+
+    if (shouldBail) {
+      return;
+    }
+
+    if (instance.props.interactive) {
+      doc.body.addEventListener('mouseleave', scheduleHide);
+      doc.addEventListener('mousemove', debouncedOnMouseMove);
+      pushIfUnique(mouseMoveListeners, debouncedOnMouseMove);
+      debouncedOnMouseMove(event);
+      return;
+    }
+
+    scheduleHide(event);
+  }
+
+  function onBlurOrFocusOut(event) {
+    if (instance.props.trigger.indexOf('focusin') < 0 && event.target !== getCurrentTarget()) {
+      return;
+    } // If focus was moved to within the popper
+
+
+    if (instance.props.interactive && event.relatedTarget && popper.contains(event.relatedTarget)) {
+      return;
+    }
+
+    scheduleHide(event);
+  }
+
+  function isEventListenerStopped(event) {
+    return currentInput.isTouch ? getIsCustomTouchBehavior() !== event.type.indexOf('touch') >= 0 : false;
+  }
+
+  function createPopperInstance() {
+    destroyPopperInstance();
+    var _instance$props2 = instance.props,
+        popperOptions = _instance$props2.popperOptions,
+        placement = _instance$props2.placement,
+        offset = _instance$props2.offset,
+        getReferenceClientRect = _instance$props2.getReferenceClientRect,
+        moveTransition = _instance$props2.moveTransition;
+    var arrow = isDefaultRenderFn(instance.props.render) ? getChildren(popper).arrow : null;
+    var computedReference = getReferenceClientRect ? {
+      getBoundingClientRect: getReferenceClientRect
+    } : reference;
+    var tippyModifier = {
+      name: '$$tippy',
+      enabled: true,
+      phase: 'beforeWrite',
+      requires: ['computeStyles'],
+      fn: function fn(_ref2) {
+        var state = _ref2.state;
+
+        if (isDefaultRenderFn(instance.props.render)) {
+          var _getDefaultTemplateCh = getDefaultTemplateChildren(),
+              box = _getDefaultTemplateCh.box;
+
+          ['placement', 'reference-hidden', 'escaped'].forEach(function (attr) {
+            if (attr === 'placement') {
+              box.setAttribute('data-placement', state.placement);
+            } else {
+              if (state.attributes.popper["data-popper-" + attr]) {
+                box.setAttribute("data-" + attr, '');
+              } else {
+                box.removeAttribute("data-" + attr);
+              }
+            }
+          });
+          state.attributes.popper = {};
+        }
+      }
+    };
+    var arrowModifier = {
+      name: 'arrow',
+      enabled: !!arrow,
+      options: {
+        element: arrow,
+        padding: 3
+      }
+    };
+    var modifiers = [{
+      name: 'offset',
+      options: {
+        offset: offset
+      }
+    }, {
+      name: 'preventOverflow',
+      options: {
+        padding: {
+          top: 2,
+          bottom: 2,
+          left: 5,
+          right: 5
+        }
+      }
+    }, {
+      name: 'flip',
+      options: {
+        padding: 5
+      }
+    }, {
+      name: 'computeStyles',
+      options: {
+        adaptive: !moveTransition
+      }
+    }].concat(isDefaultRenderFn(instance.props.render) ? [arrowModifier] : [], (popperOptions == null ? void 0 : popperOptions.modifiers) || [], [tippyModifier]);
+    instance.popperInstance = createPopper(computedReference, popper, Object.assign({}, popperOptions, {
+      placement: placement,
+      onFirstUpdate: onFirstUpdate,
+      modifiers: modifiers
+    }));
+  }
+
+  function destroyPopperInstance() {
+    if (instance.popperInstance) {
+      instance.popperInstance.destroy();
+      instance.popperInstance = null;
+    }
+  }
+
+  function mount() {
+    var appendTo = instance.props.appendTo;
+    var parentNode; // By default, we'll append the popper to the triggerTargets's parentNode so
+    // it's directly after the reference element so the elements inside the
+    // tippy can be tabbed to
+    // If there are clipping issues, the user can specify a different appendTo
+    // and ensure focus management is handled correctly manually
+
+    var node = getCurrentTarget();
+
+    if (instance.props.interactive && appendTo === defaultProps.appendTo || appendTo === 'parent') {
+      parentNode = node.parentNode;
+    } else {
+      parentNode = invokeWithArgsOrReturn(appendTo, [node]);
+    } // The popper element needs to exist on the DOM before its position can be
+    // updated as Popper needs to read its dimensions
+
+
+    if (!parentNode.contains(popper)) {
+      parentNode.appendChild(popper);
+    }
+
+    createPopperInstance();
+  }
+
+  function getNestedPopperTree() {
+    return arrayFrom(popper.querySelectorAll('[data-tippy-root]'));
+  }
+
+  function scheduleShow(event) {
+    instance.clearDelayTimeouts();
+
+    if (event) {
+      invokeHook('onTrigger', [instance, event]);
+    }
+
+    addDocumentMouseDownListener();
+    var delay = getDelay(true);
+
+    if (delay) {
+      showTimeout = setTimeout(function () {
+        instance.show();
+      }, delay);
+    } else {
+      instance.show();
+    }
+  }
+
+  function scheduleHide(event) {
+    instance.clearDelayTimeouts();
+    invokeHook('onUntrigger', [instance, event]);
+
+    if (!instance.state.isVisible) {
+      removeDocumentMouseDownListener();
+      return;
+    } // For interactive tippies, scheduleHide is added to a document.body handler
+    // from onMouseLeave so must intercept scheduled hides from mousemove/leave
+    // events when trigger contains mouseenter and click, and the tip is
+    // currently shown as a result of a click.
+
+
+    if (instance.props.trigger.indexOf('mouseenter') >= 0 && instance.props.trigger.indexOf('click') >= 0 && ['mouseleave', 'mousemove'].indexOf(event.type) >= 0 && isVisibleFromClick) {
+      return;
+    }
+
+    var delay = getDelay(false);
+
+    if (delay) {
+      hideTimeout = setTimeout(function () {
+        if (instance.state.isVisible) {
+          instance.hide();
+        }
+      }, delay);
+    } else {
+      // Fixes a `transitionend` problem when it fires 1 frame too
+      // late sometimes, we don't want hide() to be called.
+      scheduleHideAnimationFrame = requestAnimationFrame(function () {
+        instance.hide();
+      });
+    }
+  } // ===========================================================================
+  // 🔑 Public methods
+  // ===========================================================================
+
+
+  function enable() {
+    instance.state.isEnabled = true;
+  }
+
+  function disable() {
+    // Disabling the instance should also hide it
+    // https://github.com/atomiks/tippy.js-react/issues/106
+    instance.hide();
+    instance.state.isEnabled = false;
+  }
+
+  function clearDelayTimeouts() {
+    clearTimeout(showTimeout);
+    clearTimeout(hideTimeout);
+    cancelAnimationFrame(scheduleHideAnimationFrame);
+  }
+
+  function setProps(partialProps) {
+
+    if (instance.state.isDestroyed) {
+      return;
+    }
+
+    invokeHook('onBeforeUpdate', [instance, partialProps]);
+    removeListeners();
+    var prevProps = instance.props;
+    var nextProps = evaluateProps(reference, Object.assign({}, instance.props, {}, partialProps, {
+      ignoreAttributes: true
+    }));
+    instance.props = nextProps;
+    addListeners();
+
+    if (prevProps.interactiveDebounce !== nextProps.interactiveDebounce) {
+      cleanupInteractiveMouseListeners();
+      debouncedOnMouseMove = debounce$1(onMouseMove, nextProps.interactiveDebounce);
+    } // Ensure stale aria-expanded attributes are removed
+
+
+    if (prevProps.triggerTarget && !nextProps.triggerTarget) {
+      normalizeToArray(prevProps.triggerTarget).forEach(function (node) {
+        node.removeAttribute('aria-expanded');
+      });
+    } else if (nextProps.triggerTarget) {
+      reference.removeAttribute('aria-expanded');
+    }
+
+    handleAriaExpandedAttribute();
+    handleInteractiveStyles();
+
+    if (onUpdate) {
+      onUpdate(prevProps, nextProps);
+    }
+
+    if (instance.popperInstance) {
+      createPopperInstance();
+    }
+
+    invokeHook('onAfterUpdate', [instance, partialProps]);
+  }
+
+  function setContent(content) {
+    instance.setProps({
+      content: content
+    });
+  }
+
+  function show() {
+
+
+    var isAlreadyVisible = instance.state.isVisible;
+    var isDestroyed = instance.state.isDestroyed;
+    var isDisabled = !instance.state.isEnabled;
+    var isTouchAndTouchDisabled = currentInput.isTouch && !instance.props.touch;
+    var duration = getValueAtIndexOrReturn(instance.props.duration, 0, defaultProps.duration);
+
+    if (isAlreadyVisible || isDestroyed || isDisabled || isTouchAndTouchDisabled) {
+      return;
+    } // Normalize `disabled` behavior across browsers.
+    // Firefox allows events on disabled elements, but Chrome doesn't.
+    // Using a wrapper element (i.e. <span>) is recommended.
+
+
+    if (getCurrentTarget().hasAttribute('disabled')) {
+      return;
+    }
+
+    invokeHook('onShow', [instance], false);
+
+    if (instance.props.onShow(instance) === false) {
+      return;
+    }
+
+    instance.state.isVisible = true;
+    popper.style.visibility = 'visible';
+    handleInteractiveStyles();
+    addDocumentMouseDownListener();
+
+    if (!instance.state.isMounted) {
+      popper.style.transition = 'none';
+    }
+
+    onFirstUpdate = function onFirstUpdate() {
+      if (!instance.state.isVisible || ignoreOnFirstUpdate) {
+        return;
+      }
+
+      ignoreOnFirstUpdate = true; // reflow
+
+      void popper.offsetHeight;
+      popper.style.transition = instance.props.moveTransition;
+
+      if (isDefaultRenderFn(instance.props.render)) {
+        var _getDefaultTemplateCh2 = getDefaultTemplateChildren(),
+            box = _getDefaultTemplateCh2.box,
+            content = _getDefaultTemplateCh2.content;
+
+        if (instance.props.animation) {
+          setTransitionDuration([box, content], duration);
+          setVisibilityState([box, content], 'visible');
+        }
+      }
+
+      handleAriaContentAttribute();
+      handleAriaExpandedAttribute();
+      pushIfUnique(mountedInstances, instance);
+      updateIOSClass(true);
+      instance.state.isMounted = true;
+      invokeHook('onMount', [instance]);
+
+      if (instance.props.animation && isDefaultRenderFn(instance.props.render)) {
+        onTransitionedIn(duration, function () {
+          instance.state.isShown = true;
+          invokeHook('onShown', [instance]);
+        });
+      }
+    };
+
+    mount();
+  }
+
+  function hide() {
+
+
+    var isAlreadyHidden = !instance.state.isVisible;
+    var isDestroyed = instance.state.isDestroyed;
+    var isDisabled = !instance.state.isEnabled;
+    var duration = getValueAtIndexOrReturn(instance.props.duration, 1, defaultProps.duration);
+
+    if (isAlreadyHidden || isDestroyed || isDisabled) {
+      return;
+    }
+
+    invokeHook('onHide', [instance], false);
+
+    if (instance.props.onHide(instance) === false) {
+      return;
+    }
+
+    instance.state.isVisible = false;
+    instance.state.isShown = false;
+    popper.style.visibility = 'hidden';
+    ignoreOnFirstUpdate = false;
+    cleanupInteractiveMouseListeners();
+    removeDocumentMouseDownListener();
+    handleInteractiveStyles();
+
+    if (isDefaultRenderFn(instance.props.render)) {
+      var _getDefaultTemplateCh3 = getDefaultTemplateChildren(),
+          box = _getDefaultTemplateCh3.box,
+          content = _getDefaultTemplateCh3.content;
+
+      if (instance.props.animation) {
+        setTransitionDuration([box, content], duration);
+        setVisibilityState([box, content], 'hidden');
+      }
+    }
+
+    handleAriaContentAttribute();
+    handleAriaExpandedAttribute();
+
+    if (instance.props.animation) {
+      if (isDefaultRenderFn(instance.props.render)) {
+        onTransitionedOut(duration, instance.unmount);
+      }
+    } else {
+      instance.unmount();
+    }
+  }
+
+  function unmount() {
+    destroyPopperInstance(); // If a popper is not interactive, it will be appended outside the popper
+    // tree by default. This seems mainly for interactive tippies, but we should
+    // find a workaround if possible
+
+    getNestedPopperTree().forEach(function (nestedPopper) {
+      var instance = nestedPopper._tippy;
+      instance.hide();
+      instance.unmount();
+    });
+
+    if (popper.parentNode) {
+      popper.parentNode.removeChild(popper);
+    }
+
+    mountedInstances = mountedInstances.filter(function (i) {
+      return i !== instance;
+    });
+
+    if (mountedInstances.length === 0) {
+      updateIOSClass(false);
+    }
+
+    instance.state.isMounted = false;
+    invokeHook('onHidden', [instance]);
+  }
+
+  function destroy() {
+
+    if (instance.state.isDestroyed) {
+      return;
+    }
+
+    instance.clearDelayTimeouts();
+    instance.hide();
+    instance.unmount();
+    removeListeners();
+    delete reference._tippy;
+    instance.state.isDestroyed = true;
+    invokeHook('onDestroy', [instance]);
+  }
+}
+
+function tippy(targets, optionalProps) {
+  if (optionalProps === void 0) {
+    optionalProps = {};
+  }
+
+  var plugins = defaultProps.plugins.concat(optionalProps.plugins || []);
+
+  bindGlobalEventListeners();
+  var passedProps = Object.assign({}, optionalProps, {
+    plugins: plugins
+  });
+  var elements = getArrayOfElements(targets);
+
+  var instances = elements.reduce(function (acc, reference) {
+    var instance = reference && createTippy(reference, passedProps);
+
+    if (instance) {
+      acc.push(instance);
+    }
+
+    return acc;
+  }, []);
+  return isElement$1(targets) ? instances[0] : instances;
+}
+
+tippy.defaultProps = defaultProps;
+tippy.setDefaultProps = setDefaultProps;
+tippy.currentInput = currentInput;
+
+tippy.setDefaultProps({
+  render: render
+});
+
+class Tooltip {
+  constructor() {
+    if (!Tooltip.instance) {
+      Tooltip.instance = this;
+      this.createSingletonTooltip();
+    }
+    return Tooltip.instance;
+  }
+
+  createSingletonTooltip() {
+    // Create an invisible, persistent tooltip
+    this.currentTooltip = tippy(document.body, {
+      content: "",
+      trigger: "manual",
+      arrow: true,
+      placement: "right",
+    });
+  }
+
+  updateTooltip(content, x, y, options = {}) {
+    this.currentTooltip.setContent(content);
+    this.currentTooltip.setProps({
+      getReferenceClientRect: () => ({
+        width: 0,
+        height: 0,
+        top: y,
+        left: x,
+        right: x,
+        bottom: y,
+      }),
+      ...options,
+    });
+    if (!this.currentTooltip.state.isVisible) {
+      this.currentTooltip.show();
+    }
+  }
+
+  hideTooltip() {
+    if (this.currentTooltip) {
+      this.currentTooltip.hide();
+    }
+  }
+}
 
 /**
  * Base class for all matrix like layout plots.
@@ -10129,6 +13389,10 @@ class BaseGL {
       ylabels: null,
     };
 
+    // Plot domain
+    this.xAxisRange = null;
+    this.yAxisRange = null;
+
     // state
     this.state = {
       size: 20,
@@ -10138,8 +13402,14 @@ class BaseGL {
       ygap: 0.3,
     };
 
+    this.margins = DEFAULT_MARGINS;
+
     //Default Data for labelOptions
     this.labelOptions = {
+      rowLabelsSvgXOffset: -1.05,
+      rowLabelsSvgYOffset: -1.02,
+      columnLabelsSvgXOffset: -1.02,
+      columnLabelsSvgYOffset: 1.05,
       rowLabelMaxCharacters: DEFAULT_ROW_MAX_LABEL_LENGTH_ALLOWED,
       columnLabelMaxCharacters: DEFAULT_COLUMN_MAX_LABEL_LENGTH_ALLOWED,
       rowLabelSlintAngle: DEFAULT_ROW_LABEL_SLINT_ANGLE,
@@ -10199,6 +13469,8 @@ class BaseGL {
 
     this.highlightedIndices = [];
     this.indexStates = {};
+
+    this.tooltipInstance = new Tooltip();
   }
 
   /**
@@ -10246,6 +13518,10 @@ class BaseGL {
 
   _generateSpecForLabels(spec) {
     const {
+      rowLabelsSvgXOffset,
+      rowLabelsSvgYOffset,
+      columnLabelsSvgXOffset,
+      columnLabelsSvgYOffset,
       rowLabelMaxCharacters,
       columnLabelMaxCharacters,
       rowLabelSlintAngle,
@@ -10275,8 +13551,8 @@ class BaseGL {
 
         maxWidth = Math.max(maxWidth, truncatedLabelWidth);
         labels.push({
-          x: -1.02 + (2 * ilx + 1) / xlabels_len,
-          y: 1.05,
+          x: columnLabelsSvgXOffset + (2 * ilx + 1) / xlabels_len,
+          y: columnLabelsSvgYOffset,
           type: "row",
           index: ilx,
           text: truncatedLabel,
@@ -10309,8 +13585,8 @@ class BaseGL {
         );
         maxWidth = Math.max(maxWidth, truncatedLabelWidth);
         labels.push({
-          x: -1.05,
-          y: -1.02 + (2 * ily + 1) / ylabels_len,
+          x: rowLabelsSvgXOffset,
+          y: rowLabelsSvgYOffset + (2 * ily + 1) / ylabels_len,
           type: "column",
           index: ily,
           text: truncatedLabel,
@@ -10332,7 +13608,7 @@ class BaseGL {
       ...spec["margins"],
       top: `${topMarginToAccountForLabels}px`,
       left: `${leftMarginToAccountForLabels}px`,
-      right: "20px",
+      right: `${GROUPING_LEGEND_SIZE_IN_PX}px`,
     };
   }
 
@@ -10561,6 +13837,10 @@ class BaseGL {
    * @memberof BaseGL
    * @example
    * this.labelOptions = {
+   * rowLabelsSvgXOffset: 0,
+   * rowLabelsSvgYOffset: 0,
+   * columnLabelsSvgXOffset: 0,
+   * columnLabelsSvgYOffset: 0,
    * rowLabelMaxCharacters: 10,
    * columnLabelMaxCharacters: 10,
    * rowLabelSlintAngle: 0,
@@ -10570,8 +13850,12 @@ class BaseGL {
    * }
    * @example
    * this.setLabelOptions({
+   * rowLabelsSvgXOffset: 0,
+   * rowLabelsSvgYOffset: 0,
+   * columnLabelsSvgXOffset: 0,
+   * columnLabelsSvgYOffset: 0,
    * rowLabelMaxCharacters: 10,
-   *  columnLabelMaxCharacters: 10,
+   * columnLabelMaxCharacters: 10,
    * rowLabelSlintAngle: 0,
    * columnLabelSlintAngle: 0,
    * rowLabelFontSize: "7px",
@@ -10582,6 +13866,30 @@ class BaseGL {
     this.labelOptions = {
       ...this.labelOptions,
       ...labelOptions,
+    };
+  }
+
+  /**
+   * Set the margins for the visualization.
+   * all properties are optional, if not provided, the default values will be used.
+   * @param {object} margins, an object containing the margins
+   * @param {number} margins.top, top margin
+   * @param {number} margins.bottom, bottom margin
+   * @param {number} margins.left, left margin
+   * @param {number} margins.right, right margin
+   * @memberof BaseGL
+   * @example
+   * this.setMargins({
+   * top: '10px',
+   * bottom: '10px',
+   * left: '10px',
+   * right: '10px',
+   * })
+   **/
+  setMargins(margins) {
+    this.margins = {
+      ...this.margins,
+      ...margins,
     };
   }
 
@@ -10739,20 +14047,20 @@ class BaseGL {
       const labelType = e.detail.labelObject.type;
       e.preventDefault();
 
-      createTooltip(
-        document.body,
+      this.tooltipInstance.updateTooltip(
         labelType === "row"
           ? this.input.xlabels[hoveredIndex]
           : this.input.ylabels[hoveredIndex],
-        e.detail.event.pageX,
-        e.detail.event.pageY
+        e.detail.event.clientX,
+        e.detail.event.clientY
       );
+
       this.labelHoveredCallback(e.detail);
     });
 
     this.plot.addEventListener("labelUnhovered", (e) => {
       e.preventDefault();
-      removeTooltip(document.body);
+      this.tooltipInstance.hideTooltip();
       this.labelUnhoveredCallback(e.detail);
     });
   }
@@ -10766,6 +14074,11 @@ class BaseGL {
     // Only render the legend if we have the legend data and the legend dom element
     if (!this.legendDomElement || !this.intensityLegendData) return;
 
+    //Clear the legend dom element
+    select(this.legendDomElement)
+      .select(`#${INTENSITY_LEGEND_IDENTIFIER}`)
+      .remove();
+
     const parsedMargins = parseMargins(this._spec.margins);
     const containerWidth =
       this.legendWidth ||
@@ -10774,7 +14087,7 @@ class BaseGL {
       this.legendHeight ||
       this.elem.clientHeight - parsedMargins.top - parsedMargins.bottom;
 
-    const averageCharWidth = 6; // rough estimation of the width of a single character
+    const averageCharWidth = 8; // rough estimation of the width of a single character
     const legendWidth = containerWidth - 2 * averageCharWidth;
     const legendHeight = containerHeight - 2 * averageCharWidth;
 
@@ -10790,12 +14103,12 @@ class BaseGL {
       transformX = averageCharWidth;
     }
 
-    const svgContainer = d3
-      .select(this.legendDomElement)
+    const svgContainer = select(this.legendDomElement)
       .append("svg")
+      .attr("id", INTENSITY_LEGEND_IDENTIFIER)
       .attr("width", svgWidth)
       .attr("height", svgHeight)
-      .attr("overflow", "visible");
+      .style("overflow", "visible");
 
     const defs = svgContainer.append("defs");
 
@@ -10825,7 +14138,7 @@ class BaseGL {
       }
     });
 
-    const intensityScale = linear$2()
+    const intensityScale = linear$1()
       .range([
         0,
         position === "left" || position === "right"
@@ -10914,7 +14227,7 @@ class BaseGL {
    **/
   renderRowGroupingLegend() {
     const position = this.rowGroupingLegendPosition;
-    const visibleRange = this.viewport?.yRange || DEFAULT_VISIBLE_RANGE;
+    const visibleRange = this.viewport?.yRange || this.yAxisRange;
 
     if (
       !this.rowGroupingLegendDomElement ||
@@ -10945,13 +14258,16 @@ class BaseGL {
       .attr("height", svgHeight)
       .attr("overflow", "visible");
 
-    const yScale = linear$2()
+    const yScale = linear$1()
       .domain(visibleRange) // Input range is currently visible range
       .range([svgHeight, 0]); // Output range is SVG height
+    const maxYRange = this.yAxisRange[1] - this.yAxisRange[0];
+    const minY = this.yAxisRange[0];
 
     this.groupingRowData.forEach((group, idx) => {
-      const normalizedStart = (group.startIndex * 2) / totalData - 1;
-      const normalizedEnd = ((group.endIndex + 1) * 2) / totalData - 1;
+      const normalizedStart = (group.startIndex / totalData) * maxYRange + minY;
+      const normalizedEnd =
+        ((group.endIndex + 1) / totalData) * maxYRange + minY;
 
       if (
         normalizedEnd >= visibleRange[0] &&
@@ -10964,7 +14280,6 @@ class BaseGL {
         const rectHeight = Math.abs(
           yScale(rectEndInView) - yScale(rectStartInView)
         );
-
         svgContainer
           .append("rect")
           .attr("x", 0)
@@ -10972,12 +14287,12 @@ class BaseGL {
           .attr("width", legendWidth)
           .attr("height", rectHeight)
           .style("fill", group.color)
-          .on("mouseover", (e) => {
+          .on("mousemove", (e) => {
             const text = group.label;
-            createTooltip(document.body, text, e.pageX, e.pageY);
+            this.tooltipInstance.updateTooltip(text, e.clientX, e.clientY);
           })
           .on("mouseout", (e) => {
-            removeTooltip(document.body);
+            this.tooltipInstance.hideTooltip();
           });
       }
     });
@@ -10994,7 +14309,7 @@ class BaseGL {
    * */
   renderColumnGroupingLegend() {
     const position = this.columnGroupingLegendPosition; // should be 'top' or 'bottom'
-    const visibleRange = this.viewport?.xRange || DEFAULT_VISIBLE_RANGE;
+    const visibleRange = this.viewport?.xRange || this.xAxisRange;
 
     // Only render the legend if we have the legend data, the dom element,
     // the position is either 'top' or 'bottom' and visibleRange exists
@@ -11030,13 +14345,17 @@ class BaseGL {
       .attr("height", svgHeight)
       .attr("overflow", "visible");
 
-    const xScale = linear$2()
+    const xScale = linear$1()
       .domain(visibleRange) // Input range is currently visible range
       .range([0, svgWidth]); // Output range is SVG width
 
+    const maxXRange = this.xAxisRange[1] - this.xAxisRange[0];
+    const minX = this.xAxisRange[0];
+
     this.groupingColumnData.forEach((group, idx) => {
-      const normalizedStart = (group.startIndex * 2) / totalData - 1;
-      const normalizedEnd = ((group.endIndex + 1) * 2) / totalData - 1;
+      const normalizedStart = (group.startIndex / totalData) * maxXRange + minX;
+      const normalizedEnd =
+        ((group.endIndex + 1) / totalData) * maxXRange + minX;
 
       if (
         normalizedEnd >= visibleRange[0] &&
@@ -11057,12 +14376,13 @@ class BaseGL {
           .attr("width", rectWidth)
           .attr("height", legendHeight)
           .style("fill", group.color)
-          .on("mouseover", (e) => {
+          .on("mousemove", (e) => {
             const text = group.label;
-            createTooltip(document.body, text, e.pageX, e.pageY);
+
+            this.tooltipInstance.updateTooltip(text, e.clientX, e.clientY);
           })
           .on("mouseout", (e) => {
-            removeTooltip(document.body);
+            this.tooltipInstance.hideTooltip();
           });
       }
     });
@@ -11087,7 +14407,19 @@ class BaseGL {
    * @param {string} orientation - The orientation of the grouping labels
    * @returns {void}
    **/
-  renderGroupingLabels(parentElement, groupingRowData, orientation) {
+  renderGroupingLabels(parentElement, groupingData, orientation) {
+    // Filter out duplicate labels in the grouping data
+    groupingData = groupingData.reduce(
+      (acc, obj) => {
+        if (!acc.seen[obj.label]) {
+          acc.seen[obj.label] = true;
+          acc.result.push(obj);
+        }
+        return acc;
+      },
+      { seen: {}, result: [] }
+    ).result;
+
     const parent = select(parentElement);
     const svg = parent.append("svg");
 
@@ -11095,14 +14427,14 @@ class BaseGL {
     if (orientation === "horizontal") {
       svg.attr("height", 25);
     } else {
-      svg.attr("height", groupingRowData.length * 25);
+      svg.attr("height", groupingData.length * 25);
     }
 
     const labelHeight = 25;
     let xOffset = 0;
     let yOffset = 0;
 
-    groupingRowData.forEach((data) => {
+    groupingData.forEach((data) => {
       const group = svg.append("g");
 
       group
@@ -11395,7 +14727,7 @@ class DotplotGL extends BaseGL {
    * @param {Array|number} encoding.xgap, same as size, but sets the gap along x-axis.
    * @param {Array|number} encoding.ygap, same as size, but sets the gap along y-axis.
    * @param {Array} encoding.intensityLegendData - an array of objects containing the color, intensity and label for the legend.
-   * @param {Array} encoding.sizeLegendData - an object containing minSize, maxSize and steps for the legend.
+   * @param {Array} encoding.sizeLegendData - an object containing minSize, maxSize, steps and maxSizeInPx for the legend.
    * @param {Array} encoding.rowGroupingData - an array of objects containing the startIndex, endIndex, color and label for the row grouping.
    * @param {Array} encoding.columnGroupingData - an array of objects containing the startIndex, endIndex, color and label for the column grouping.
    * @memberof BaseGL
@@ -11422,16 +14754,22 @@ class DotplotGL extends BaseGL {
     const [, maxY] = getMinMax(this.input.y);
     let xlen = maxX + 1,
       ylen = maxY + 1;
-    spec_inputs.x = this.input.x.map((e, i) => -1 + (2 * e + 1) / xlen);
-    spec_inputs.y = this.input.y.map((e, i) => -1 + (2 * e + 1) / ylen);
+
+    spec_inputs.x = mapArrayOrTypedArray(
+      this.input.x,
+      (e, i) => -1 + (2 * e + 1) / xlen
+    );
+    spec_inputs.y = mapArrayOrTypedArray(
+      this.input.y,
+      (e, i) => -1 + (2 * e + 1) / ylen
+    );
+
+    // Setting X and Y Axis Domains
+    this.xAxisRange = [-1, 1];
+    this.yAxisRange = [-1, 1];
 
     let spec = {
-      margins: {
-        top: "25px",
-        bottom: "50px",
-        left: "50px",
-        right: "10px",
-      },
+      margins: this.margins,
       defaultData: {
         x: spec_inputs.x,
         y: spec_inputs.y,
@@ -11444,12 +14782,12 @@ class DotplotGL extends BaseGL {
           x: {
             attribute: "x",
             type: "quantitative",
-            domain: [-1, 1],
+            domain: this.xAxisRange,
           },
           y: {
             attribute: "y",
             type: "quantitative",
-            domain: [-1, 1],
+            domain: this.yAxisRange,
           },
           opacity: { value: this.state.opacity },
         },
@@ -11457,7 +14795,12 @@ class DotplotGL extends BaseGL {
     };
 
     // scale size of dots
-    const maxRadiusScaled = getMaxRadiusForDotplot(xlen, ylen);
+    const maxRadiusScaled = getMaxRadiusForDotplot(
+      xlen,
+      ylen,
+      DEFAULT_MARGIN_BETWEEN_DOTS
+    );
+
     let tsize = this.state["size"];
     if (Array.isArray(this.state["size"])) {
       let [minRadiusOriginal, maxRadiusOriginal] = getMinMax(
@@ -11471,8 +14814,6 @@ class DotplotGL extends BaseGL {
           maxRadiusOriginal
         )
       );
-
-      console.log(getMinMax(tsize), "tize", tsize);
     }
 
     this._generateSpecForLabels(spec);
@@ -11552,7 +14893,8 @@ class DotplotGL extends BaseGL {
    */
   renderSizeLegend() {
     if (!this.sizeLegendData) return;
-    let { minSize, maxSize, steps } = this.sizeLegendData;
+    let { minSize, maxSize, steps, maxSizeInPx, minSizeInPx } =
+      this.sizeLegendData;
     const [, maxX] = getMinMax(this.input.x);
     const [, maxY] = getMinMax(this.input.y);
     let xlen = maxX + 1,
@@ -11561,19 +14903,37 @@ class DotplotGL extends BaseGL {
     const [minRadiusOriginal, maxRadiusOriginal] = getMinMax(
       this.state["size"]
     );
-    const maxRadiusScaled = getMaxRadiusForDotplot(xlen, ylen);
+    const maxRadiusAsPerPlot = getMaxRadiusForDotplot(
+      xlen,
+      ylen,
+      DEFAULT_MARGIN_BETWEEN_DOTS
+    );
     minSize = getScaledRadiusForDotplot(
-      minSize,
-      maxRadiusScaled,
+      minSize || minRadiusOriginal, // if minSize is not provided, use minRadiusOriginal
+      maxRadiusAsPerPlot,
       minRadiusOriginal,
       maxRadiusOriginal
     );
     maxSize = getScaledRadiusForDotplot(
-      maxSize,
-      maxRadiusScaled,
+      maxSize || maxRadiusOriginal, // if maxSize is not provided, use maxRadiusOriginal
+      maxRadiusAsPerPlot,
       minRadiusOriginal,
       maxRadiusOriginal
     );
+
+    // Desired max size in pixels
+    const maxPx = maxSizeInPx || maxSize;
+
+    // Desired min size in pixels
+    const minPx = minSizeInPx || minSize;
+
+    // Create a linear scale
+    const sizeScale = linear$1()
+      .domain([minSize, maxSize])
+      .range([minPx, maxPx]);
+
+    minSize = sizeScale(minSize);
+    maxSize = sizeScale(maxSize);
     const orientation = this.sizeLegendOptions.orientation;
 
     // Calculate step size
@@ -11685,7 +15045,6 @@ class DotplotGL extends BaseGL {
             .style("right", "0px");
           break;
       }
-      console.log("before", this._spec.margins);
 
       this.updateMarginsToAccountForSizeLegend();
       this.plot.setSpecification(this._spec);
@@ -11907,22 +15266,28 @@ class RectplotGL extends BaseGL {
     };
 
     let spec_inputs = {};
-    spec_inputs.x = this.input.x.map((e, i) => String(e));
-    spec_inputs.y = this.input.y.map((e, i) => String(e));
+
+    // Setting X and Y Axis Domains to [-1, 1]
+    this.xAxisRange = [-1, 1];
+    this.yAxisRange = [-1, 1];
+
+    spec_inputs.x = mapArrayOrTypedArray(this.input.x, (e, i) => String(e));
+    spec_inputs.y = mapArrayOrTypedArray(this.input.y, (e, i) => String(e));
 
     let default_width = 198 / (getMinMax(this.input.x)[1] + 1);
     let default_height = 198 / (getMinMax(this.input.y)[1] + 1);
 
-    spec_inputs.width = this.input.x.map((e, i) => default_width - xGaps(i));
-    spec_inputs.height = this.input.y.map((e, i) => default_height - yGaps(i));
+    spec_inputs.width = mapArrayOrTypedArray(
+      this.input.x,
+      (e, i) => default_width - xGaps(i)
+    );
+    spec_inputs.height = mapArrayOrTypedArray(
+      this.input.y,
+      (e, i) => default_height - yGaps(i)
+    );
 
     let spec = {
-      margins: {
-        top: "25px",
-        bottom: "50px",
-        left: "50px",
-        right: "10px",
-      },
+      margins: this.margins,
       defaultData: {
         x: spec_inputs.x,
         y: spec_inputs.y,
@@ -12037,13 +15402,12 @@ class TickplotGL extends BaseGL {
       }
     }
 
+    // Setting X and Y Axis Domains
+    this.xAxisRange = getMinMax(this.input.x);
+    this.yAxisRange = getMinMax(this.input.y);
+
     let spec = {
-      margins: {
-        top: "25px",
-        bottom: "50px",
-        left: "50px",
-        right: "10px",
-      },
+      margins: this.margins,
       defaultData: {
         x: this.input.x,
         y: this.input.y,
@@ -12056,12 +15420,12 @@ class TickplotGL extends BaseGL {
           x: {
             attribute: "x",
             type: "quantitative",
-            domain: getMinMax(this.input.x),
+            domain: this.xAxisRange,
           },
           y: {
             attribute: "y",
             type: "quantitative",
-            domain: getMinMax(this.input.y),
+            domain: this.yAxisRange,
           },
           opacity: { value: this.state.opacity },
           width: { value: default_width },

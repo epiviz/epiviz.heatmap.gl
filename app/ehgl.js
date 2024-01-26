@@ -4,11 +4,13 @@ Object.defineProperty(exports, '__esModule', { value: true });
 
 function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
 
-var d3Selection = require('d3-selection');
 var d3Array = require('d3-array');
-var WebGLVis = _interopDefault(require('epiviz.gl'));
 var d3Scale = require('d3-scale');
+var d3Selection = require('d3-selection');
+var WebGLVis = _interopDefault(require('epiviz.gl'));
 var d3Axis = require('d3-axis');
+var tippy = _interopDefault(require('tippy.js'));
+require('tippy.js/dist/tippy.css');
 
 const DEFAULT_ROW_MAX_LABEL_LENGTH_ALLOWED = 15;
 const DEFAULT_COLUMN_MAX_LABEL_LENGTH_ALLOWED = 30;
@@ -16,7 +18,6 @@ const DEFAULT_ROW_LABEL_SLINT_ANGLE = 0;
 const DEFAULT_COLUMN_LABEL_SLINT_ANGLE = 0;
 const DEFAULT_ROW_LABEL_FONT_SIZE = "7px";
 const DEFAULT_COLUMN_LABEL_FONT_SIZE = "7px";
-const DEFAULT_VISIBLE_RANGE = [-1, 1];
 
 const LABELS_MARGIN_BUFFER_IN_PX = 20;
 const INTENSITY_LEGEND_LABEL_SIZE_IN_PX = 25;
@@ -24,30 +25,54 @@ const INTENSITY_LEGEND_GRADIENT_SIZE_IN_PX = 20;
 const INTENSITY_LEGEND_SIZE_IN_PX =
   INTENSITY_LEGEND_GRADIENT_SIZE_IN_PX + INTENSITY_LEGEND_LABEL_SIZE_IN_PX;
 const GROUPING_LEGEND_SIZE_IN_PX = 20;
-const TOOLTIP_IDENTIFIER = "ehgl-tooltip";
+const INTENSITY_LEGEND_IDENTIFIER = "ehgl-intensity-legend";
 
 const DEFAULT_SIZE_LEGEND_SVG_PADDING = 10;
 const DEFAULT_SIZE_LEGEND_CIRCLE_GAP = 10;
 const DEFAULT_SIZE_LEGEND_CIRCLE_TEXT_GAP = 10;
 
+const DEFAULT_MIN_RADIUS_FOR_DOTPLOT = 3;
+const DEFAULT_MARGIN_BETWEEN_DOTS = 2;
+
+const DEFAULT_MARGINS = {
+  top: "25px",
+  bottom: "50px",
+  left: "50px",
+  right: "10px",
+};
+
+/**
+ * Check if a given variable is an object and not an array.
+ *
+ * @param {any} object - The variable to check.
+ * @returns {boolean} - Returns true if the variable is an object, and not an array.
+ */
 function isObject(object) {
   return typeof object === "object" && Array.isArray(object) === false;
 }
 
+/**
+ * Get the minimum and maximum values from an array.
+ *
+ * @param {Array<number>} arr - An array of numbers.
+ * @returns {Array<number>} - An array containing the minimum and maximum values, in that order.
+ */
 const getMinMax = (arr) => {
   var max = -Number.MAX_VALUE,
     min = Number.MAX_VALUE;
   arr.forEach(function (x) {
-    if (max < x) {
-      max = x;
-    }
-    if (min > x) {
-      min = x;
-    }
+    if (max < x) max = x;
+    if (min > x) min = x;
   });
   return [min, max];
 };
 
+/**
+ * Parses an object of margins and returns an object with top, bottom, left, and right margins as integers.
+ *
+ * @param {Object} margins - An object with potential margin properties.
+ * @returns {Object} - An object with top, bottom, left, and right margins as integers.
+ */
 const parseMargins = (margins) => {
   const parsedMargins = {
     top: 0,
@@ -70,6 +95,13 @@ const parseMargins = (margins) => {
   return parsedMargins;
 };
 
+/**
+ * Measure the width of a text string for a given font size using SVG.
+ *
+ * @param {string} text - The text to measure.
+ * @param {string} fontSize - The font size to use for the measurement, e.g., '16px'.
+ * @returns {number} - The width of the text in pixels.
+ */
 const getTextWidth = (text, fontSize = "16px") => {
   // Create a temporary SVG to measure the text width
   const svg = d3Selection.select("body").append("svg");
@@ -79,49 +111,116 @@ const getTextWidth = (text, fontSize = "16px") => {
   return width;
 };
 
-const createTooltip = (container, text, posX, posY) => {
-  let tooltip = d3Selection.select(container)
-    .append("div")
-    .attr("id", TOOLTIP_IDENTIFIER)
-    .style("position", "absolute")
-    .style("background", "#f9f9f9")
-    .style("padding", "8px")
-    .style("border", "1px solid #ccc")
-    .style("border-radius", "6px")
-    .style("z-index", "1000")
-    .style("visibility", "hidden");
-
-  tooltip
-    .style("visibility", "visible")
-    .text(text)
-    .style("left", posX + 10 + "px")
-    .style("top", posY - 10 + "px");
-};
-
-const removeTooltip = (container) => {
-  const tooltip = d3Selection.select(container).select(`#${TOOLTIP_IDENTIFIER}`);
-
-  if (tooltip) {
-    tooltip.remove();
-  }
-};
-
-const getMaxRadiusForDotplot = (xlen, ylen) => {
-  return getMinMax([198 / (xlen + 1), 198 / (ylen + 1)])[1] - 5;
+const getMaxRadiusForDotplot = (xlen, ylen, padding) => {
+  return Math.max(
+    Math.min(198 / (xlen + 1), 198 / (ylen + 1)) - padding,
+    DEFAULT_MIN_RADIUS_FOR_DOTPLOT
+  );
 };
 
 const getScaledRadiusForDotplot = (
   radius,
   maxRadiusScaled,
   minRadiusOriginal,
-  maxRadiusOriginal
+  maxRadiusOriginal,
+  defaultMinRadius = DEFAULT_MIN_RADIUS_FOR_DOTPLOT
 ) => {
   return (
-    (maxRadiusScaled - 5) *
-      ((radius - minRadiusOriginal) / (maxRadiusOriginal - minRadiusOriginal)) +
-    5
+    defaultMinRadius +
+    (maxRadiusScaled - defaultMinRadius) *
+      ((radius - minRadiusOriginal) / (maxRadiusOriginal - minRadiusOriginal))
   );
 };
+
+/**
+ * A function to map over both regular JavaScript arrays and typed arrays.
+ *
+ * @param {Array|TypedArray} array - The input array or typed array.
+ * @param {Function} callback - A function that produces an element of the new array,
+ *      taking three arguments:
+ *      currentValue - The current element being processed in the array.
+ *      index - The index of the current element being processed in the array.
+ *      array - The array map was called upon.
+ * @returns {Array|TypedArray} - A new array or typed array with each element being the result
+ *      of the callback function.
+ * @throws {Error} - Throws an error if the input is neither a regular array nor a typed array.
+ */
+const mapArrayOrTypedArray = (array, callback) => {
+  // Check if the input is a regular JavaScript array.
+  if (Array.isArray(array)) {
+    return array.map(callback);
+  }
+  // Check if the input is a typed array.
+  else if (
+    array instanceof Int8Array ||
+    array instanceof Uint8Array ||
+    array instanceof Uint8ClampedArray ||
+    array instanceof Int16Array ||
+    array instanceof Uint16Array ||
+    array instanceof Int32Array ||
+    array instanceof Uint32Array ||
+    array instanceof Float32Array ||
+    array instanceof Float64Array
+  ) {
+    // Create a new typed array of the same type and size as the input.
+    let result = new array.constructor(array.length);
+
+    // Use forEach to emulate the map functionality for typed arrays.
+    array.forEach((value, index) => {
+      result[index] = callback(value, index);
+    });
+
+    return result;
+  }
+  // Handle the case where the input is neither a regular array nor a typed array.
+  else {
+    throw new Error("Input is neither a normal array nor a typed array.");
+  }
+};
+
+class Tooltip {
+  constructor() {
+    if (!Tooltip.instance) {
+      Tooltip.instance = this;
+      this.createSingletonTooltip();
+    }
+    return Tooltip.instance;
+  }
+
+  createSingletonTooltip() {
+    // Create an invisible, persistent tooltip
+    this.currentTooltip = tippy(document.body, {
+      content: "",
+      trigger: "manual",
+      arrow: true,
+      placement: "right",
+    });
+  }
+
+  updateTooltip(content, x, y, options = {}) {
+    this.currentTooltip.setContent(content);
+    this.currentTooltip.setProps({
+      getReferenceClientRect: () => ({
+        width: 0,
+        height: 0,
+        top: y,
+        left: x,
+        right: x,
+        bottom: y,
+      }),
+      ...options,
+    });
+    if (!this.currentTooltip.state.isVisible) {
+      this.currentTooltip.show();
+    }
+  }
+
+  hideTooltip() {
+    if (this.currentTooltip) {
+      this.currentTooltip.hide();
+    }
+  }
+}
 
 /**
  * Base class for all matrix like layout plots.
@@ -164,6 +263,10 @@ class BaseGL {
       ylabels: null,
     };
 
+    // Plot domain
+    this.xAxisRange = null;
+    this.yAxisRange = null;
+
     // state
     this.state = {
       size: 20,
@@ -173,8 +276,14 @@ class BaseGL {
       ygap: 0.3,
     };
 
+    this.margins = DEFAULT_MARGINS;
+
     //Default Data for labelOptions
     this.labelOptions = {
+      rowLabelsSvgXOffset: -1.05,
+      rowLabelsSvgYOffset: -1.02,
+      columnLabelsSvgXOffset: -1.02,
+      columnLabelsSvgYOffset: 1.05,
       rowLabelMaxCharacters: DEFAULT_ROW_MAX_LABEL_LENGTH_ALLOWED,
       columnLabelMaxCharacters: DEFAULT_COLUMN_MAX_LABEL_LENGTH_ALLOWED,
       rowLabelSlintAngle: DEFAULT_ROW_LABEL_SLINT_ANGLE,
@@ -234,6 +343,8 @@ class BaseGL {
 
     this.highlightedIndices = [];
     this.indexStates = {};
+
+    this.tooltipInstance = new Tooltip();
   }
 
   /**
@@ -281,6 +392,10 @@ class BaseGL {
 
   _generateSpecForLabels(spec) {
     const {
+      rowLabelsSvgXOffset,
+      rowLabelsSvgYOffset,
+      columnLabelsSvgXOffset,
+      columnLabelsSvgYOffset,
       rowLabelMaxCharacters,
       columnLabelMaxCharacters,
       rowLabelSlintAngle,
@@ -310,8 +425,8 @@ class BaseGL {
 
         maxWidth = Math.max(maxWidth, truncatedLabelWidth);
         labels.push({
-          x: -1.02 + (2 * ilx + 1) / xlabels_len,
-          y: 1.05,
+          x: columnLabelsSvgXOffset + (2 * ilx + 1) / xlabels_len,
+          y: columnLabelsSvgYOffset,
           type: "row",
           index: ilx,
           text: truncatedLabel,
@@ -344,8 +459,8 @@ class BaseGL {
         );
         maxWidth = Math.max(maxWidth, truncatedLabelWidth);
         labels.push({
-          x: -1.05,
-          y: -1.02 + (2 * ily + 1) / ylabels_len,
+          x: rowLabelsSvgXOffset,
+          y: rowLabelsSvgYOffset + (2 * ily + 1) / ylabels_len,
           type: "column",
           index: ily,
           text: truncatedLabel,
@@ -367,7 +482,7 @@ class BaseGL {
       ...spec["margins"],
       top: `${topMarginToAccountForLabels}px`,
       left: `${leftMarginToAccountForLabels}px`,
-      right: "20px",
+      right: `${GROUPING_LEGEND_SIZE_IN_PX}px`,
     };
   }
 
@@ -596,6 +711,10 @@ class BaseGL {
    * @memberof BaseGL
    * @example
    * this.labelOptions = {
+   * rowLabelsSvgXOffset: 0,
+   * rowLabelsSvgYOffset: 0,
+   * columnLabelsSvgXOffset: 0,
+   * columnLabelsSvgYOffset: 0,
    * rowLabelMaxCharacters: 10,
    * columnLabelMaxCharacters: 10,
    * rowLabelSlintAngle: 0,
@@ -605,8 +724,12 @@ class BaseGL {
    * }
    * @example
    * this.setLabelOptions({
+   * rowLabelsSvgXOffset: 0,
+   * rowLabelsSvgYOffset: 0,
+   * columnLabelsSvgXOffset: 0,
+   * columnLabelsSvgYOffset: 0,
    * rowLabelMaxCharacters: 10,
-   *  columnLabelMaxCharacters: 10,
+   * columnLabelMaxCharacters: 10,
    * rowLabelSlintAngle: 0,
    * columnLabelSlintAngle: 0,
    * rowLabelFontSize: "7px",
@@ -617,6 +740,30 @@ class BaseGL {
     this.labelOptions = {
       ...this.labelOptions,
       ...labelOptions,
+    };
+  }
+
+  /**
+   * Set the margins for the visualization.
+   * all properties are optional, if not provided, the default values will be used.
+   * @param {object} margins, an object containing the margins
+   * @param {number} margins.top, top margin
+   * @param {number} margins.bottom, bottom margin
+   * @param {number} margins.left, left margin
+   * @param {number} margins.right, right margin
+   * @memberof BaseGL
+   * @example
+   * this.setMargins({
+   * top: '10px',
+   * bottom: '10px',
+   * left: '10px',
+   * right: '10px',
+   * })
+   **/
+  setMargins(margins) {
+    this.margins = {
+      ...this.margins,
+      ...margins,
     };
   }
 
@@ -774,20 +921,20 @@ class BaseGL {
       const labelType = e.detail.labelObject.type;
       e.preventDefault();
 
-      createTooltip(
-        document.body,
+      this.tooltipInstance.updateTooltip(
         labelType === "row"
           ? this.input.xlabels[hoveredIndex]
           : this.input.ylabels[hoveredIndex],
-        e.detail.event.pageX,
-        e.detail.event.pageY
+        e.detail.event.clientX,
+        e.detail.event.clientY
       );
+
       this.labelHoveredCallback(e.detail);
     });
 
     this.plot.addEventListener("labelUnhovered", (e) => {
       e.preventDefault();
-      removeTooltip(document.body);
+      this.tooltipInstance.hideTooltip();
       this.labelUnhoveredCallback(e.detail);
     });
   }
@@ -801,6 +948,11 @@ class BaseGL {
     // Only render the legend if we have the legend data and the legend dom element
     if (!this.legendDomElement || !this.intensityLegendData) return;
 
+    //Clear the legend dom element
+    d3Selection.select(this.legendDomElement)
+      .select(`#${INTENSITY_LEGEND_IDENTIFIER}`)
+      .remove();
+
     const parsedMargins = parseMargins(this._spec.margins);
     const containerWidth =
       this.legendWidth ||
@@ -809,7 +961,7 @@ class BaseGL {
       this.legendHeight ||
       this.elem.clientHeight - parsedMargins.top - parsedMargins.bottom;
 
-    const averageCharWidth = 6; // rough estimation of the width of a single character
+    const averageCharWidth = 8; // rough estimation of the width of a single character
     const legendWidth = containerWidth - 2 * averageCharWidth;
     const legendHeight = containerHeight - 2 * averageCharWidth;
 
@@ -825,12 +977,12 @@ class BaseGL {
       transformX = averageCharWidth;
     }
 
-    const svgContainer = d3
-      .select(this.legendDomElement)
+    const svgContainer = d3Selection.select(this.legendDomElement)
       .append("svg")
+      .attr("id", INTENSITY_LEGEND_IDENTIFIER)
       .attr("width", svgWidth)
       .attr("height", svgHeight)
-      .attr("overflow", "visible");
+      .style("overflow", "visible");
 
     const defs = svgContainer.append("defs");
 
@@ -949,7 +1101,7 @@ class BaseGL {
    **/
   renderRowGroupingLegend() {
     const position = this.rowGroupingLegendPosition;
-    const visibleRange = this.viewport?.yRange || DEFAULT_VISIBLE_RANGE;
+    const visibleRange = this.viewport?.yRange || this.yAxisRange;
 
     if (
       !this.rowGroupingLegendDomElement ||
@@ -983,10 +1135,13 @@ class BaseGL {
     const yScale = d3Scale.scaleLinear()
       .domain(visibleRange) // Input range is currently visible range
       .range([svgHeight, 0]); // Output range is SVG height
+    const maxYRange = this.yAxisRange[1] - this.yAxisRange[0];
+    const minY = this.yAxisRange[0];
 
     this.groupingRowData.forEach((group, idx) => {
-      const normalizedStart = (group.startIndex * 2) / totalData - 1;
-      const normalizedEnd = ((group.endIndex + 1) * 2) / totalData - 1;
+      const normalizedStart = (group.startIndex / totalData) * maxYRange + minY;
+      const normalizedEnd =
+        ((group.endIndex + 1) / totalData) * maxYRange + minY;
 
       if (
         normalizedEnd >= visibleRange[0] &&
@@ -999,7 +1154,6 @@ class BaseGL {
         const rectHeight = Math.abs(
           yScale(rectEndInView) - yScale(rectStartInView)
         );
-
         svgContainer
           .append("rect")
           .attr("x", 0)
@@ -1007,12 +1161,12 @@ class BaseGL {
           .attr("width", legendWidth)
           .attr("height", rectHeight)
           .style("fill", group.color)
-          .on("mouseover", (e) => {
+          .on("mousemove", (e) => {
             const text = group.label;
-            createTooltip(document.body, text, e.pageX, e.pageY);
+            this.tooltipInstance.updateTooltip(text, e.clientX, e.clientY);
           })
           .on("mouseout", (e) => {
-            removeTooltip(document.body);
+            this.tooltipInstance.hideTooltip();
           });
       }
     });
@@ -1029,7 +1183,7 @@ class BaseGL {
    * */
   renderColumnGroupingLegend() {
     const position = this.columnGroupingLegendPosition; // should be 'top' or 'bottom'
-    const visibleRange = this.viewport?.xRange || DEFAULT_VISIBLE_RANGE;
+    const visibleRange = this.viewport?.xRange || this.xAxisRange;
 
     // Only render the legend if we have the legend data, the dom element,
     // the position is either 'top' or 'bottom' and visibleRange exists
@@ -1069,9 +1223,13 @@ class BaseGL {
       .domain(visibleRange) // Input range is currently visible range
       .range([0, svgWidth]); // Output range is SVG width
 
+    const maxXRange = this.xAxisRange[1] - this.xAxisRange[0];
+    const minX = this.xAxisRange[0];
+
     this.groupingColumnData.forEach((group, idx) => {
-      const normalizedStart = (group.startIndex * 2) / totalData - 1;
-      const normalizedEnd = ((group.endIndex + 1) * 2) / totalData - 1;
+      const normalizedStart = (group.startIndex / totalData) * maxXRange + minX;
+      const normalizedEnd =
+        ((group.endIndex + 1) / totalData) * maxXRange + minX;
 
       if (
         normalizedEnd >= visibleRange[0] &&
@@ -1092,12 +1250,13 @@ class BaseGL {
           .attr("width", rectWidth)
           .attr("height", legendHeight)
           .style("fill", group.color)
-          .on("mouseover", (e) => {
+          .on("mousemove", (e) => {
             const text = group.label;
-            createTooltip(document.body, text, e.pageX, e.pageY);
+
+            this.tooltipInstance.updateTooltip(text, e.clientX, e.clientY);
           })
           .on("mouseout", (e) => {
-            removeTooltip(document.body);
+            this.tooltipInstance.hideTooltip();
           });
       }
     });
@@ -1122,7 +1281,19 @@ class BaseGL {
    * @param {string} orientation - The orientation of the grouping labels
    * @returns {void}
    **/
-  renderGroupingLabels(parentElement, groupingRowData, orientation) {
+  renderGroupingLabels(parentElement, groupingData, orientation) {
+    // Filter out duplicate labels in the grouping data
+    groupingData = groupingData.reduce(
+      (acc, obj) => {
+        if (!acc.seen[obj.label]) {
+          acc.seen[obj.label] = true;
+          acc.result.push(obj);
+        }
+        return acc;
+      },
+      { seen: {}, result: [] }
+    ).result;
+
     const parent = d3Selection.select(parentElement);
     const svg = parent.append("svg");
 
@@ -1130,14 +1301,14 @@ class BaseGL {
     if (orientation === "horizontal") {
       svg.attr("height", 25);
     } else {
-      svg.attr("height", groupingRowData.length * 25);
+      svg.attr("height", groupingData.length * 25);
     }
 
     const labelHeight = 25;
     let xOffset = 0;
     let yOffset = 0;
 
-    groupingRowData.forEach((data) => {
+    groupingData.forEach((data) => {
       const group = svg.append("g");
 
       group
@@ -1430,7 +1601,7 @@ class DotplotGL extends BaseGL {
    * @param {Array|number} encoding.xgap, same as size, but sets the gap along x-axis.
    * @param {Array|number} encoding.ygap, same as size, but sets the gap along y-axis.
    * @param {Array} encoding.intensityLegendData - an array of objects containing the color, intensity and label for the legend.
-   * @param {Array} encoding.sizeLegendData - an object containing minSize, maxSize and steps for the legend.
+   * @param {Array} encoding.sizeLegendData - an object containing minSize, maxSize, steps and maxSizeInPx for the legend.
    * @param {Array} encoding.rowGroupingData - an array of objects containing the startIndex, endIndex, color and label for the row grouping.
    * @param {Array} encoding.columnGroupingData - an array of objects containing the startIndex, endIndex, color and label for the column grouping.
    * @memberof BaseGL
@@ -1457,16 +1628,22 @@ class DotplotGL extends BaseGL {
     const [, maxY] = getMinMax(this.input.y);
     let xlen = maxX + 1,
       ylen = maxY + 1;
-    spec_inputs.x = this.input.x.map((e, i) => -1 + (2 * e + 1) / xlen);
-    spec_inputs.y = this.input.y.map((e, i) => -1 + (2 * e + 1) / ylen);
+
+    spec_inputs.x = mapArrayOrTypedArray(
+      this.input.x,
+      (e, i) => -1 + (2 * e + 1) / xlen
+    );
+    spec_inputs.y = mapArrayOrTypedArray(
+      this.input.y,
+      (e, i) => -1 + (2 * e + 1) / ylen
+    );
+
+    // Setting X and Y Axis Domains
+    this.xAxisRange = [-1, 1];
+    this.yAxisRange = [-1, 1];
 
     let spec = {
-      margins: {
-        top: "25px",
-        bottom: "50px",
-        left: "50px",
-        right: "10px",
-      },
+      margins: this.margins,
       defaultData: {
         x: spec_inputs.x,
         y: spec_inputs.y,
@@ -1479,12 +1656,12 @@ class DotplotGL extends BaseGL {
           x: {
             attribute: "x",
             type: "quantitative",
-            domain: [-1, 1],
+            domain: this.xAxisRange,
           },
           y: {
             attribute: "y",
             type: "quantitative",
-            domain: [-1, 1],
+            domain: this.yAxisRange,
           },
           opacity: { value: this.state.opacity },
         },
@@ -1492,7 +1669,12 @@ class DotplotGL extends BaseGL {
     };
 
     // scale size of dots
-    const maxRadiusScaled = getMaxRadiusForDotplot(xlen, ylen);
+    const maxRadiusScaled = getMaxRadiusForDotplot(
+      xlen,
+      ylen,
+      DEFAULT_MARGIN_BETWEEN_DOTS
+    );
+
     let tsize = this.state["size"];
     if (Array.isArray(this.state["size"])) {
       let [minRadiusOriginal, maxRadiusOriginal] = getMinMax(
@@ -1506,8 +1688,6 @@ class DotplotGL extends BaseGL {
           maxRadiusOriginal
         )
       );
-
-      console.log(getMinMax(tsize), "tize", tsize);
     }
 
     this._generateSpecForLabels(spec);
@@ -1587,7 +1767,8 @@ class DotplotGL extends BaseGL {
    */
   renderSizeLegend() {
     if (!this.sizeLegendData) return;
-    let { minSize, maxSize, steps } = this.sizeLegendData;
+    let { minSize, maxSize, steps, maxSizeInPx, minSizeInPx } =
+      this.sizeLegendData;
     const [, maxX] = getMinMax(this.input.x);
     const [, maxY] = getMinMax(this.input.y);
     let xlen = maxX + 1,
@@ -1596,19 +1777,37 @@ class DotplotGL extends BaseGL {
     const [minRadiusOriginal, maxRadiusOriginal] = getMinMax(
       this.state["size"]
     );
-    const maxRadiusScaled = getMaxRadiusForDotplot(xlen, ylen);
+    const maxRadiusAsPerPlot = getMaxRadiusForDotplot(
+      xlen,
+      ylen,
+      DEFAULT_MARGIN_BETWEEN_DOTS
+    );
     minSize = getScaledRadiusForDotplot(
-      minSize,
-      maxRadiusScaled,
+      minSize || minRadiusOriginal, // if minSize is not provided, use minRadiusOriginal
+      maxRadiusAsPerPlot,
       minRadiusOriginal,
       maxRadiusOriginal
     );
     maxSize = getScaledRadiusForDotplot(
-      maxSize,
-      maxRadiusScaled,
+      maxSize || maxRadiusOriginal, // if maxSize is not provided, use maxRadiusOriginal
+      maxRadiusAsPerPlot,
       minRadiusOriginal,
       maxRadiusOriginal
     );
+
+    // Desired max size in pixels
+    const maxPx = maxSizeInPx || maxSize;
+
+    // Desired min size in pixels
+    const minPx = minSizeInPx || minSize;
+
+    // Create a linear scale
+    const sizeScale = d3Scale.scaleLinear()
+      .domain([minSize, maxSize])
+      .range([minPx, maxPx]);
+
+    minSize = sizeScale(minSize);
+    maxSize = sizeScale(maxSize);
     const orientation = this.sizeLegendOptions.orientation;
 
     // Calculate step size
@@ -1720,7 +1919,6 @@ class DotplotGL extends BaseGL {
             .style("right", "0px");
           break;
       }
-      console.log("before", this._spec.margins);
 
       this.updateMarginsToAccountForSizeLegend();
       this.plot.setSpecification(this._spec);
@@ -1942,22 +2140,28 @@ class RectplotGL extends BaseGL {
     };
 
     let spec_inputs = {};
-    spec_inputs.x = this.input.x.map((e, i) => String(e));
-    spec_inputs.y = this.input.y.map((e, i) => String(e));
+
+    // Setting X and Y Axis Domains to [-1, 1]
+    this.xAxisRange = [-1, 1];
+    this.yAxisRange = [-1, 1];
+
+    spec_inputs.x = mapArrayOrTypedArray(this.input.x, (e, i) => String(e));
+    spec_inputs.y = mapArrayOrTypedArray(this.input.y, (e, i) => String(e));
 
     let default_width = 198 / (getMinMax(this.input.x)[1] + 1);
     let default_height = 198 / (getMinMax(this.input.y)[1] + 1);
 
-    spec_inputs.width = this.input.x.map((e, i) => default_width - xGaps(i));
-    spec_inputs.height = this.input.y.map((e, i) => default_height - yGaps(i));
+    spec_inputs.width = mapArrayOrTypedArray(
+      this.input.x,
+      (e, i) => default_width - xGaps(i)
+    );
+    spec_inputs.height = mapArrayOrTypedArray(
+      this.input.y,
+      (e, i) => default_height - yGaps(i)
+    );
 
     let spec = {
-      margins: {
-        top: "25px",
-        bottom: "50px",
-        left: "50px",
-        right: "10px",
-      },
+      margins: this.margins,
       defaultData: {
         x: spec_inputs.x,
         y: spec_inputs.y,
@@ -2072,13 +2276,12 @@ class TickplotGL extends BaseGL {
       }
     }
 
+    // Setting X and Y Axis Domains
+    this.xAxisRange = getMinMax(this.input.x);
+    this.yAxisRange = getMinMax(this.input.y);
+
     let spec = {
-      margins: {
-        top: "25px",
-        bottom: "50px",
-        left: "50px",
-        right: "10px",
-      },
+      margins: this.margins,
       defaultData: {
         x: this.input.x,
         y: this.input.y,
@@ -2091,12 +2294,12 @@ class TickplotGL extends BaseGL {
           x: {
             attribute: "x",
             type: "quantitative",
-            domain: getMinMax(this.input.x),
+            domain: this.xAxisRange,
           },
           y: {
             attribute: "y",
             type: "quantitative",
-            domain: getMinMax(this.input.y),
+            domain: this.yAxisRange,
           },
           opacity: { value: this.state.opacity },
           width: { value: default_width },
