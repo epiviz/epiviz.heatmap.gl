@@ -418,3 +418,28 @@ These attributes either take a fixed value or an array of values for each data p
     columnGroupingData: <COLUMN_GROUPING_DATA>,
   });
 ```
+
+### Tooltip Functionality
+
+The `Tooltip` class in `epiviz.heatmap.gl` provides dynamic tooltips for enhanced data point interaction. This feature allows users to see detailed information about specific data points on hover.
+
+#### Implementation
+
+- A singleton `Tooltip` instance is created for consistent behavior across the application.
+- Tooltips are triggered on mouse movement over data points, displaying context-sensitive information.
+- Positioning and content of the tooltip are dynamically updated based on the data point under the cursor.
+
+#### Usage Example
+
+```javascript
+const tooltip = new Tooltip();
+svgElement.addEventListener("mousemove", (event) => {
+  const content = `Detailed info`;
+  tooltip.updateTooltip(content, event.clientX, event.clientY);
+});
+svgElement.addEventListener("mouseout", () => {
+  tooltip.hideTooltip();
+});
+```
+
+This feature enhances the interactive experience by providing immediate, in-context data insights to users.
