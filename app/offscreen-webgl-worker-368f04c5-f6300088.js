@@ -1,5 +1,5 @@
-import { s as scale, A as colorSpecifierToHex } from './rgb-b646728b-0756143b.js';
-import { S as SpecificationProcessor, V as VertexCalculator, g as getDrawModeForTrack, D as DEFAULT_CHANNELS } from './specification-processor-f5ff7c7a-f223adaf.js';
+import { s as scale, A as colorSpecifierToHex } from './rgb-b646728b-2f709b61.js';
+import { S as SpecificationProcessor, V as VertexCalculator, g as getDrawModeForTrack, D as DEFAULT_CHANNELS } from './specification-processor-f5ff7c7a-2d0faaee.js';
 
 class Drawer {
   /**
