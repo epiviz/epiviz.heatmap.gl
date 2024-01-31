@@ -28,6 +28,18 @@ package is available through [npm](https://www.npmjs.com/package/epiviz.heatmap.
 ### Usage
 
 - [app/index.html](./app/index.html) provides an easier example and code on how to use the library
+- Include the css in your application
+
+```html
+<link
+  rel="stylesheet"
+  href="https://epiviz.github.io/epiviz.heatmap.gl/dist/ehgl.css"
+/>
+```
+
+```scss
+@import url("https://epiviz.github.io/epiviz.heatmap.gl/dist/ehgl.css");
+```
 
 #### Intensity Legend
 
