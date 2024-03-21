@@ -1933,6 +1933,7 @@ self.onmessage = (message) => {
       const result = self.processor.getClosestPoint(message.data.point);
       postMessage({
         type: message.data.type,
+        event: message.data?.event,
         ...result,
       });
       break;

@@ -17,6 +17,8 @@ import {
   GROUPING_LEGEND_SIZE_IN_PX,
   DEFAULT_MARGINS,
   INTENSITY_LEGEND_IDENTIFIER,
+  COLUMN_GROUPING_LEGEND_IDENTIFIER,
+  ROW_GROUPING_LEGEND_IDENTIFIER,
 } from "./constants";
 import Tooltip from "./Tooltip";
 
@@ -921,11 +923,13 @@ class BaseGL {
     const svgWidth = legendWidth;
     const svgHeight = containerHeight;
 
-    select(this.rowGroupingLegendDomElement).select("#row-group").remove();
+    select(this.rowGroupingLegendDomElement)
+      .select(`#${ROW_GROUPING_LEGEND_IDENTIFIER}`)
+      .remove();
 
     const svgContainer = select(this.rowGroupingLegendDomElement)
       .append("svg")
-      .attr("id", "row-group")
+      .attr("id", ROW_GROUPING_LEGEND_IDENTIFIER)
       .attr("width", svgWidth)
       .attr("height", svgHeight)
       .attr("overflow", "visible");
@@ -1007,12 +1011,12 @@ class BaseGL {
 
     // Clear the svg if it already exists
     select(this.columnGroupingLegendDomElement)
-      .select("#column-group")
+      .select(`#${COLUMN_GROUPING_LEGEND_IDENTIFIER}`)
       .remove();
 
     const svgContainer = select(this.columnGroupingLegendDomElement)
       .append("svg")
-      .attr("id", "column-group")
+      .attr("id", COLUMN_GROUPING_LEGEND_IDENTIFIER)
       .attr("width", svgWidth)
       .attr("height", svgHeight)
       .attr("overflow", "visible");
@@ -1091,6 +1095,9 @@ class BaseGL {
       },
       { seen: {}, result: [] }
     ).result;
+
+    // Remove the grouping labels if they already exist
+    select(parentElement).select(`svg`).remove();
 
     const parent = select(parentElement);
     const svg = parent.append("svg");

@@ -26,6 +26,8 @@ const INTENSITY_LEGEND_SIZE_IN_PX =
   INTENSITY_LEGEND_GRADIENT_SIZE_IN_PX + INTENSITY_LEGEND_LABEL_SIZE_IN_PX;
 const GROUPING_LEGEND_SIZE_IN_PX = 20;
 const INTENSITY_LEGEND_IDENTIFIER = "ehgl-intensity-legend";
+const ROW_GROUPING_LEGEND_IDENTIFIER = "ehgl-row-grouping-legend";
+const COLUMN_GROUPING_LEGEND_IDENTIFIER = "ehgl-column-grouping-legend";
 
 const DEFAULT_SIZE_LEGEND_SVG_PADDING = 10;
 const DEFAULT_SIZE_LEGEND_CIRCLE_GAP = 10;
@@ -1123,11 +1125,13 @@ class BaseGL {
     const svgWidth = legendWidth;
     const svgHeight = containerHeight;
 
-    d3Selection.select(this.rowGroupingLegendDomElement).select("#row-group").remove();
+    d3Selection.select(this.rowGroupingLegendDomElement)
+      .select(`#${ROW_GROUPING_LEGEND_IDENTIFIER}`)
+      .remove();
 
     const svgContainer = d3Selection.select(this.rowGroupingLegendDomElement)
       .append("svg")
-      .attr("id", "row-group")
+      .attr("id", ROW_GROUPING_LEGEND_IDENTIFIER)
       .attr("width", svgWidth)
       .attr("height", svgHeight)
       .attr("overflow", "visible");
@@ -1209,12 +1213,12 @@ class BaseGL {
 
     // Clear the svg if it already exists
     d3Selection.select(this.columnGroupingLegendDomElement)
-      .select("#column-group")
+      .select(`#${COLUMN_GROUPING_LEGEND_IDENTIFIER}`)
       .remove();
 
     const svgContainer = d3Selection.select(this.columnGroupingLegendDomElement)
       .append("svg")
-      .attr("id", "column-group")
+      .attr("id", COLUMN_GROUPING_LEGEND_IDENTIFIER)
       .attr("width", svgWidth)
       .attr("height", svgHeight)
       .attr("overflow", "visible");
@@ -1293,6 +1297,9 @@ class BaseGL {
       },
       { seen: {}, result: [] }
     ).result;
+
+    // Remove the grouping labels if they already exist
+    d3Selection.select(parentElement).select(`svg`).remove();
 
     const parent = d3Selection.select(parentElement);
     const svg = parent.append("svg");
@@ -2323,3 +2330,4 @@ class TickplotGL extends BaseGL {
 exports.DotplotGL = DotplotGL;
 exports.RectplotGL = RectplotGL;
 exports.TickplotGL = TickplotGL;
+exports.Tooltip = Tooltip;

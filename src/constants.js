@@ -12,6 +12,8 @@ export const INTENSITY_LEGEND_SIZE_IN_PX =
   INTENSITY_LEGEND_GRADIENT_SIZE_IN_PX + INTENSITY_LEGEND_LABEL_SIZE_IN_PX;
 export const GROUPING_LEGEND_SIZE_IN_PX = 20;
 export const INTENSITY_LEGEND_IDENTIFIER = "ehgl-intensity-legend";
+export const ROW_GROUPING_LEGEND_IDENTIFIER = "ehgl-row-grouping-legend";
+export const COLUMN_GROUPING_LEGEND_IDENTIFIER = "ehgl-column-grouping-legend";
 
 export const DEFAULT_SIZE_LEGEND_SVG_PADDING = 10;
 export const DEFAULT_SIZE_LEGEND_CIRCLE_GAP = 10;

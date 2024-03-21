@@ -5244,7 +5244,8 @@ class MouseReader {
       "mousemove",
       (event) => {
         this.handler.getClosestPoint(
-          this._calculateViewportSpot(...getLayerXandYFromEvent(event))
+          this._calculateViewportSpot(...getLayerXandYFromEvent(event)),
+          cloneMouseEvent(event)
         );
         if (!mouseDown) {
           return;
@@ -5360,7 +5361,8 @@ class MouseReader {
       "dblclick",
       (event) => {
         this.handler.getClickPoint(
-          this._calculateViewportSpot(...getLayerXandYFromEvent(event))
+          this._calculateViewportSpot(...getLayerXandYFromEvent(event)),
+          cloneMouseEvent(event)
         );
       },
       false
@@ -9577,7 +9579,7 @@ class WebGLVis {
     };
 
     this.dataWorkerStream = [];
-    this.dataWorker = new Worker(new URL("data-processor-worker-a4482939-b12f104a.js", import.meta.url),
+    this.dataWorker = new Worker(new URL("data-processor-worker-449c685d-66c438cc.js", import.meta.url),
       { type: "module" }
     );
     this.dataWorker.onmessage = (message) => {
@@ -9719,11 +9721,13 @@ class WebGLVis {
    * Does not return, posts result to this.dataWorkerStream.
    *
    * @param {Array} point to get closest point to
+   * @param {Object=} event refers to mouse event has triggered this function. Optional Parameter
    */
-  getClosestPoint(point) {
+  getClosestPoint(point, event) {
     this.dataWorker.postMessage({
       type: "getClosestPoint",
       point,
+      event,
     });
   }
 
@@ -9732,11 +9736,13 @@ class WebGLVis {
    * Does not return, posts result to this.dataWorkerStream.
    *
    * @param {Array} point to get closest point to
+   * @param {Object=} event refers to mouse event that triggered this function. Optional parameter
    */
-  getClickPoint(point) {
+  getClickPoint(point, event) {
     this.dataWorker.postMessage({
       type: "getClickPoint",
       point,
+      event,
     });
   }
 
@@ -9992,6 +9998,8 @@ const INTENSITY_LEGEND_SIZE_IN_PX =
   INTENSITY_LEGEND_GRADIENT_SIZE_IN_PX + INTENSITY_LEGEND_LABEL_SIZE_IN_PX;
 const GROUPING_LEGEND_SIZE_IN_PX = 20;
 const INTENSITY_LEGEND_IDENTIFIER = "ehgl-intensity-legend";
+const ROW_GROUPING_LEGEND_IDENTIFIER = "ehgl-row-grouping-legend";
+const COLUMN_GROUPING_LEGEND_IDENTIFIER = "ehgl-column-grouping-legend";
 
 const DEFAULT_SIZE_LEGEND_SVG_PADDING = 10;
 const DEFAULT_SIZE_LEGEND_CIRCLE_GAP = 10;
@@ -14249,11 +14257,13 @@ class BaseGL {
     const svgWidth = legendWidth;
     const svgHeight = containerHeight;
 
-    select(this.rowGroupingLegendDomElement).select("#row-group").remove();
+    select(this.rowGroupingLegendDomElement)
+      .select(`#${ROW_GROUPING_LEGEND_IDENTIFIER}`)
+      .remove();
 
     const svgContainer = select(this.rowGroupingLegendDomElement)
       .append("svg")
-      .attr("id", "row-group")
+      .attr("id", ROW_GROUPING_LEGEND_IDENTIFIER)
       .attr("width", svgWidth)
       .attr("height", svgHeight)
       .attr("overflow", "visible");
@@ -14335,12 +14345,12 @@ class BaseGL {
 
     // Clear the svg if it already exists
     select(this.columnGroupingLegendDomElement)
-      .select("#column-group")
+      .select(`#${COLUMN_GROUPING_LEGEND_IDENTIFIER}`)
       .remove();
 
     const svgContainer = select(this.columnGroupingLegendDomElement)
       .append("svg")
-      .attr("id", "column-group")
+      .attr("id", COLUMN_GROUPING_LEGEND_IDENTIFIER)
       .attr("width", svgWidth)
       .attr("height", svgHeight)
       .attr("overflow", "visible");
@@ -14419,6 +14429,9 @@ class BaseGL {
       },
       { seen: {}, result: [] }
     ).result;
+
+    // Remove the grouping labels if they already exist
+    select(parentElement).select(`svg`).remove();
 
     const parent = select(parentElement);
     const svg = parent.append("svg");
@@ -15446,4 +15459,4 @@ class TickplotGL extends BaseGL {
   }
 }
 
-export { DotplotGL, RectplotGL, TickplotGL };
+export { DotplotGL, RectplotGL, TickplotGL, Tooltip };
