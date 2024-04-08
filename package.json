@@ -23,7 +23,7 @@
     "d3-axis": "^3.0.0",
     "d3-scale": "^4.0.2",
     "d3-selection": "^3.0.0",
-    "epiviz.gl": "^1.0.17",
+    "epiviz.gl": "^1.0.18",
     "tippy.js": "6.0.0"
   },
   "peerDependencies": {
