@@ -1,6 +1,6 @@
 {
   "name": "epiviz.heatmap.gl",
-  "version": "0.0.25",
+  "version": "0.0.26",
   "repository": "https://github.com/jkanche/epiviz.heatmap.gl",
   "homepage": "https://github.com/jkanche/epiviz.heatmap.gl",
   "author": {
@@ -23,7 +23,7 @@
     "d3-axis": "^3.0.0",
     "d3-scale": "^4.0.2",
     "d3-selection": "^3.0.0",
-    "epiviz.gl": "^1.0.17",
+    "epiviz.gl": "^1.0.18",
     "tippy.js": "6.0.0"
   },
   "peerDependencies": {
